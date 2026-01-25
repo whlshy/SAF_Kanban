@@ -78,7 +78,7 @@ const Index = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename={isProd ? '/SendImg/' : '/'}>
+      <BrowserRouter basename={isProd ? '/SAF_Kanban/' : '/'}>
         <App />
       </BrowserRouter>
       {/* <ReactQueryDevtools initialIsOpen={false} /> */}
