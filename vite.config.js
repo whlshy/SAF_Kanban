@@ -27,7 +27,7 @@ export default defineConfig(({
       },
       historyApiFallback: true, // 對於 React Router，開啟這個選項以處理瀏覽器直接訪問子路由
     },
-    base: isProd ? '/SendImg/' : '/', // 公共路徑
+    base: isProd ? '/SAF_Kanban/' : '/', // 公共路徑
     plugins: [
       react(), // 使用 React 插件
       create404Plugin()
