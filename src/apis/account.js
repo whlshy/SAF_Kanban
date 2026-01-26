@@ -28,12 +28,9 @@ export const getGoogleSheetTask = async () => {
 
 export const setGoogleSheetIssue = async ({list = []}) => {
   const response = await api({
-    method: "POST",
+    method: "GET",
     cmd_url: `https://script.google.com/macros/s/${localStorage.getItem('sheet')}/exec`,
-    data:{ list: list },
-    header: {
-      'Content-Type': 'text/plain;charset=utf-8' 
-    }
+    data:{ list: JSON.stringify(list) },
   })
   return response
 }
