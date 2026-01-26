@@ -174,7 +174,7 @@ function WHLKanban({ tasks, issues }) {
 
     Object.keys(columns)?.map(key => {
       let newList = columns[key].map(m => {
-        return [m.id, m.title, m.jiraId, m.des, m.task, m.priority, m.assignee];
+        return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
       });
 
       newIssues = newIssues.concat(newList);
