@@ -223,10 +223,24 @@ function WHLKanban({ tasks, issues }) {
 
         newIssues = newIssues.concat(newList);
       });
-      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => callback?.() });
+      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
 
     } else {
       // 新增
+      let newColumns = JSON.parse(JSON.stringify(columns));
+      const newId = crypto.randomUUID().split('-')[0];
+      const firstColumn = tasks?.[0]?.[0];
+      newColumns[firstColumn] = newColumns[firstColumn].concat([{ ...newTask, id: newId }]);
+
+      let newIssues = [];
+      Object.keys(newColumns)?.map(key => {
+        let newList = newColumns[key].map(m => {
+          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+        });
+
+        newIssues = newIssues.concat(newList);
+      });
+      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
     }
   }
 
@@ -309,14 +323,14 @@ const EditTask = ({
           label="jiraId"
           variant="standard"
           defaultValue={data?.jiraId || ""}
-          onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
+          onChange={(e) => setData(d => ({ ...d, jiraId: e.target.value }))}
           fullWidth
         />
         <TextField
           label="Des"
           variant="standard"
           defaultValue={data?.des || ""}
-          onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
+          onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
           fullWidth
         />
       </DialogContent>
