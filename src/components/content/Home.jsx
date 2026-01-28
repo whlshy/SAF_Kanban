@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box } from '@mui/material'
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField } from '@mui/material'
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
   KanbanOverlay,
 } from '@/components/ui/kanban';
 import { GripVertical } from 'lucide-react';
+import { atom, useAtom } from 'jotai';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account'
 
 const COLUMN_TITLES = {
@@ -36,6 +37,8 @@ const changeIssue = (rows) => {
   }));
 }
 
+const dialogAtom = atom({ open: false })
+export { dialogAtom }
 
 function Home() {
   const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue"], queryFn: () => getGoogleSheetIssue() });
@@ -45,7 +48,9 @@ function Home() {
   const tasks = getGoogleSheetTaskApi?.data?.values || [];
 
   return (
-    <div className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
+    <div
+      style={{ paddingTop: "80px" }}
+      className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
       <WHLKanban tasks={tasks} issues={issues} />
     </div>
   )
@@ -54,9 +59,13 @@ function Home() {
 export default Home;
 
 function TaskCard({ task, asHandle, ...props }) {
+  const [, setDialog] = useAtom(dialogAtom);
 
   const cardContent = (
-    <div className="rounded-md border bg-card p-3 shadow-xs">
+    <div
+      className="rounded-md border bg-card p-3 shadow-xs"
+      onClick={() => setDialog({ open: true, task })}
+    >
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="line-clamp-1 font-medium text-sm">
@@ -128,11 +137,11 @@ function TaskColumn({ value, tasks, isOverlay, ...props }) {
           <Badge variant="secondary">{tasks.length}</Badge>
         </div>
 
-        <KanbanColumnHandle asChild>
+        {/* <KanbanColumnHandle asChild>
           <Button variant="dim" size="sm" mode="icon">
             <GripVertical />
           </Button>
-        </KanbanColumnHandle>
+        </KanbanColumnHandle> */}
       </div>
 
       <KanbanColumnContent
@@ -149,10 +158,16 @@ function TaskColumn({ value, tasks, isOverlay, ...props }) {
       </KanbanColumnContent>
     </KanbanColumn>
   );
-}
+};
+
+const dragAtom = atom(false)
+export { dragAtom }
 
 function WHLKanban({ tasks, issues }) {
   const [columns, setColumns] = React.useState({});
+  const [isChange, setIsChange] = React.useState(false);
+  const [isDragging] = useAtom(dragAtom);
+  const [dialogProps, setDialog] = useAtom(dialogAtom);
 
   const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
 
@@ -168,61 +183,155 @@ function WHLKanban({ tasks, issues }) {
     }
   }, [issues, tasks]);
 
-  const handleChangeIssues = (columns) => {
+  // handle change google sheet
+  useEffect(() => {
+    if (!!isChange) {
+      console.log('handle change google sheet');
+      setIsChange(false);
 
-    let newIssues = [];
+      let newIssues = [];
 
-    Object.keys(columns)?.map(key => {
-      let newList = columns[key].map(m => {
-        return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+      Object.keys(columns)?.map(key => {
+        let newList = columns[key].map(m => {
+          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+        });
+
+        newIssues = newIssues.concat(newList);
       });
+      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: (d) => console.log(d) });
+    }
+  }, [isDragging]);
 
-      newIssues = newIssues.concat(newList);
-    });
-
-
-    setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: (d) => console.log(d) });
+  const handleChangeIssues = (columns) => {
+    setIsChange(true);
     setColumns(columns)
   }
 
+  const handleEditTask = (newTask, callback) => {
+    if (newTask?.id) {
+      // 編輯
+      let newColumns = JSON.parse(JSON.stringify(columns));
+      Object.keys(columns)?.map(key => {
+        let obj = newColumns[key].find(f => f?.id == newTask?.id);
+
+        if (!!obj) {
+          obj = { ...obj, ...newTask };
+        }
+
+        let newIssues = [];
+        Object.keys(newColumns)?.map(key => {
+          let newList = newColumns[key].map(m => {
+            return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+          });
+
+          newIssues = newIssues.concat(newList);
+        });
+        setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => callback?.() });
+      });
+
+    } else {
+      // 新增
+    }
+  }
+
   return (
-    <Kanban
-      value={columns}
-      onValueChange={handleChangeIssues}
-      getItemValue={(item) => item.id}
-    >
-      <KanbanBoard className="grid auto-rows-fr grid-cols-3">
-        {Object.entries(columns).map(([columnValue, tasks]) => (
-          <TaskColumn
-            key={columnValue}
-            value={columnValue}
-            tasks={tasks}
+    <>
+      <Kanban
+        value={columns}
+        onValueChange={handleChangeIssues}
+        getItemValue={(item) => item.id}
+      >
+        <KanbanBoard className="grid auto-rows-fr grid-cols-4">
+          {Object.entries(columns).map(([columnValue, tasks]) => (
+            <TaskColumn
+              key={columnValue}
+              value={columnValue}
+              tasks={tasks}
+            />
+          ))}
+        </KanbanBoard>
+
+        <KanbanOverlay>
+          {({ value, variant }) => {
+            if (variant === 'column') {
+              const tasks = columns[value] || [];
+              return (
+                <TaskColumn
+                  value={value}
+                  tasks={tasks}
+                  isOverlay
+                />
+              );
+            }
+
+            const task = Object.values(columns)
+              .flat()
+              .find((task) => task.id === value);
+
+            if (!task) return null;
+
+            return <TaskCard task={task} />;
+          }}
+        </KanbanOverlay>
+      </Kanban>
+      {!!dialogProps.open &&
+        <Dialog
+          open={dialogProps.open}
+          onClose={() => setDialog({ open: false })}
+          fullWidth={true}
+          maxWidth="lg"
+        >
+          <EditTask
+            task={dialogProps.task}
+            onClose={() => setDialog({ open: false })}
+            onOk={handleEditTask}
           />
-        ))}
-      </KanbanBoard>
-
-      <KanbanOverlay>
-        {({ value, variant }) => {
-          if (variant === 'column') {
-            const tasks = columns[value] || [];
-            return (
-              <TaskColumn
-                value={value}
-                tasks={tasks}
-                isOverlay
-              />
-            );
-          }
-
-          const task = Object.values(columns)
-            .flat()
-            .find((task) => task.id === value);
-
-          if (!task) return null;
-
-          return <TaskCard task={task} />;
-        }}
-      </KanbanOverlay>
-    </Kanban>
+        </Dialog>
+      }
+    </>
   );
+}
+
+const EditTask = ({
+  task = { id: null, title: "", jiraId: "", des: "", task: "", priority: "", assignee: "" },
+  onClose, onOk,
+}) => {
+  const [data, setData] = useState(task);
+
+  return (
+    <>
+      <DialogTitle>{task?.id ? 'Edit Task' : 'Create Task'}</DialogTitle>
+      <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
+        <TextField
+          label="Title"
+          variant="standard"
+          value={data?.title || ""}
+          onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
+          fullWidth
+        />
+        <TextField
+          label="jiraId"
+          variant="standard"
+          defaultValue={data?.jiraId || ""}
+          onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
+          fullWidth
+        />
+        <TextField
+          label="Des"
+          variant="standard"
+          defaultValue={data?.des || ""}
+          onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={() => onOk(data, onClose)}>
+          OK
+        </Button>
+      </DialogActions>
+    </>
+  )
 }

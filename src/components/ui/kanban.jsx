@@ -22,14 +22,15 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Slot } from '@radix-ui/react-slot';
+import { atom, useAtom } from 'jotai';
 
 const KanbanContext = React.createContext({
   columns: {},
-  setColumns: () => {},
+  setColumns: () => { },
   getItemId: () => '',
   columnIds: [],
   activeId: null,
-  setActiveId: () => {},
+  setActiveId: () => { },
   findContainer: () => undefined,
   isColumn: () => false,
 });
@@ -233,7 +234,7 @@ function KanbanBoard({
     <SortableContext items={columnIds} strategy={rectSortingStrategy}>
       <div
         data-slot="kanban-board"
-        className={cn('grid auto-rows-fr sm:grid-cols-3 gap-4', className)}>
+        className={cn('grid auto-rows-fr sm:grid-cols-4 gap-4', className)}>
         {children}
       </div>
     </SortableContext>
@@ -360,13 +361,21 @@ function KanbanItem({
   );
 }
 
+import { dragAtom } from '../content/Home';
+
 function KanbanItemHandle({
   asChild,
   className,
   children,
   cursor = true
 }) {
+  const [, setDrag] = useAtom(dragAtom);
+
   const { listeners, isDragging, disabled } = React.useContext(ItemContext);
+
+  React.useEffect(() => {
+    setDrag(isDragging);
+  }, [isDragging]);
 
   const Comp = asChild ? Slot : 'div';
 

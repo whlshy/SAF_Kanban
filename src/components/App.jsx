@@ -14,10 +14,10 @@ const App = () => {
 
   return (
     <>
-      {/* <Header
-        title={"WKE Lab"}
-        logout={logoutAccountApi.mutate}
-      /> */}
+      <Header
+        title={"SAF Kanban"}
+        // logout={logoutAccountApi.mutate}
+      />
       <Main />
       <Alert />
       <Snackbar />
