@@ -212,22 +212,18 @@ function WHLKanban({ tasks, issues }) {
       // 編輯
       let newColumns = JSON.parse(JSON.stringify(columns));
       Object.keys(columns)?.map(key => {
-        let obj = newColumns[key].find(f => f?.id == newTask?.id);
-
-        if (!!obj) {
-          obj = { ...obj, ...newTask };
-        }
-
-        let newIssues = [];
-        Object.keys(newColumns)?.map(key => {
-          let newList = newColumns[key].map(m => {
-            return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
-          });
-
-          newIssues = newIssues.concat(newList);
-        });
-        setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => callback?.() });
+        newColumns[key] = newColumns[key].map(f => f?.id == newTask?.id ? { ...f, ...newTask } : f);
       });
+
+      let newIssues = [];
+      Object.keys(newColumns)?.map(key => {
+        let newList = newColumns[key].map(m => {
+          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+        });
+
+        newIssues = newIssues.concat(newList);
+      });
+      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => callback?.() });
 
     } else {
       // 新增
