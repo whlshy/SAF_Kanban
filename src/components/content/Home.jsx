@@ -227,7 +227,10 @@ function WHLKanban({ tasks, issues }) {
 
         newIssues = newIssues.concat(newList);
       });
-      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
+      setGoogleSheetIssueApi.mutate(
+        { list: newIssues },
+        { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+      );
 
     } else {
       // 新增
@@ -244,7 +247,10 @@ function WHLKanban({ tasks, issues }) {
 
         newIssues = newIssues.concat(newList);
       });
-      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
+      setGoogleSheetIssueApi.mutate(
+        { list: newIssues },
+        { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+      );
     }
   }
 
@@ -262,7 +268,10 @@ function WHLKanban({ tasks, issues }) {
 
       newIssues = newIssues.concat(newList);
     });
-    setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
+    setGoogleSheetIssueApi.mutate(
+      { list: newIssues },
+      { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+    );
   }
 
   return (
@@ -308,7 +317,13 @@ function WHLKanban({ tasks, issues }) {
       {!!dialogProps.open &&
         <Dialog
           open={dialogProps.open}
-          onClose={() => setDialog({ open: false })}
+          onClose={(event, reason) => {
+            if (reason !== 'backdropClick') {
+              // 只有不是點擊外部的關閉，才去關閉對話框
+              // 可以使用 esc
+              setDialog({ open: false });
+            }
+          }}
           fullWidth={true}
           maxWidth="lg"
         >
@@ -329,7 +344,14 @@ const EditTask = ({
   onClose, onOk, onDel,
 }) => {
   const [data, setData] = useState(task);
+  const [loading, setLoading] = useState(false);
   const { setAlert } = useAlertStore();
+
+  const handleCallback = (tf) => {
+    setLoading(false);
+    if (!!tf)
+      onClose?.();
+  }
 
   return (
     <>
@@ -339,6 +361,7 @@ const EditTask = ({
           label="Title"
           variant="standard"
           value={data?.title || ""}
+          disabled={loading}
           onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
           fullWidth
         />
@@ -347,6 +370,7 @@ const EditTask = ({
           variant="standard"
           defaultValue={data?.jiraId || ""}
           onChange={(e) => setData(d => ({ ...d, jiraId: e.target.value }))}
+          disabled={loading}
           fullWidth
         />
         <TextField
@@ -354,6 +378,7 @@ const EditTask = ({
           variant="standard"
           defaultValue={data?.des || ""}
           onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
+          disabled={loading}
           fullWidth
         />
       </DialogContent>
@@ -366,22 +391,23 @@ const EditTask = ({
                   setAlert({
                     title: "刪除",
                     content: "確定要刪除？",
-                    handleAgree: (callback) => (callback?.(), onDel(task?.id, onClose))
+                    handleAgree: (callback) => (callback?.(), setLoading(true), onDel(task?.id, handleCallback))
                   })
                 }
                 variant="contained"
                 color="error"
                 sx={{ p: "8px 16px", fontWeight: "500", lineHeight: "1.25rem", fontSize: "0.875rem", textTransform: 'none' }}
+                disabled={loading}
               >
                 Delete
               </MuiButton>
             }
           </div>
           <div>
-            <Button onClick={onClose} variant="outlined">
+            <Button onClick={onClose} variant="outlined" disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={() => onOk(data, onClose)}>
+            <Button onClick={() => (setLoading(true), onOk(data, handleCallback))} disabled={loading}>
               OK
             </Button>
           </div>
