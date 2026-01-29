@@ -5,6 +5,7 @@ import './styles/main.styl'
 import './styles/lib/tailwind.css'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query"
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { message } from 'antd'
 import { BrowserRouter } from "react-router-dom"
 import useSnackbarStore from "@/store/snackbar"
 import useApiDataStore from "./store/apidata"
@@ -29,7 +30,7 @@ const Index = () => {
 
   const onError = (error, variables, context) => {
     console.log('onError', error, variables)
-    setSnackMsg({ message: "API發生未知錯誤" })
+    message.error("API發生未知錯誤")
   }
 
   const onSuccess = async (data, query) => {
@@ -41,7 +42,7 @@ const Index = () => {
       handleErrorAlert(data?.body?.errorArray)
     } else if (status !== null)
       setSnackMsg({ message: data?.body?.message })
-    !data?.ok && status == null && !data?.pages && setSnackMsg({ message: "API發生未知錯誤！" })
+    !data?.ok && status == null && !data?.pages && message.error("API發生未知錯誤！")
   }
 
   const onSettled = (data, error) => {

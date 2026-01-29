@@ -3,6 +3,7 @@ import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextFiel
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { message } from 'antd';
 import {
   Kanban,
   KanbanBoard,
@@ -173,7 +174,7 @@ function WHLKanban({ tasks, issues }) {
   const [dialogProps, setDialog] = useAtom(dialogAtom);
   const { setSnackMsg } = useSnackbarStore(state => state);
 
-  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
+  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue, onSuccess: () => message.success("success") })
 
   useEffect(() => {
     if (Array.isArray(issues) && Array.isArray(tasks)) {
@@ -230,7 +231,7 @@ function WHLKanban({ tasks, issues }) {
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+          onSuccess: () => (setColumns(newColumns), callback?.(true)),
           onError: () => callback?.(false)
         }
       );
@@ -253,7 +254,7 @@ function WHLKanban({ tasks, issues }) {
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+          onSuccess: () => (setColumns(newColumns), callback?.(true)),
           onError: () => callback?.(false)
         }
       );
@@ -277,7 +278,7 @@ function WHLKanban({ tasks, issues }) {
     setGoogleSheetIssueApi.mutate(
       { list: newIssues },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+        onSuccess: () => (setColumns(newColumns), callback?.(true)),
         onError: () => callback?.(false)
       }
     );
