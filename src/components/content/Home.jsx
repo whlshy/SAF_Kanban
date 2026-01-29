@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField } from '@mui/material'
-import { useNavigate } from 'react-router-dom';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField, Button as MuiButton } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,8 @@ import {
 import { GripVertical } from 'lucide-react';
 import { atom, useAtom } from 'jotai';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account'
+import useSnackbarStore from "@/store/snackbar";
+import useAlertStore from "@/store/alert";
 
 const COLUMN_TITLES = {
   backlog: 'Backlog',
@@ -86,20 +87,22 @@ function TaskCard({ task, asHandle, ...props }) {
           </Badge>
         </div>
 
+        <div className="flex items-center text-muted-foreground text-xs">
+          {task?.des || ""}
+        </div>
+
         <div className="flex items-center justify-between text-muted-foreground text-xs">
-          {task.jiraId && (
-            <div className="flex items-center gap-1">
-              {/* <Avatar className="size-4">
+          <div className="flex items-center gap-1">
+            {/* <Avatar className="size-4">
                 <AvatarImage src={task.assigneeAvatar} />
                 <AvatarFallback>
                   {task.assignee.charAt(0)}
                 </AvatarFallback>
               </Avatar> */}
-              <span className="line-clamp-1">
-                {task.jiraId}
-              </span>
-            </div>
-          )}
+            <span className="line-clamp-1">
+              {task.jiraId}
+            </span>
+          </div>
 
           {task.assignee && (
             <time className="text-[10px] tabular-nums whitespace-nowrap">
@@ -168,8 +171,9 @@ function WHLKanban({ tasks, issues }) {
   const [isChange, setIsChange] = React.useState(false);
   const [isDragging] = useAtom(dragAtom);
   const [dialogProps, setDialog] = useAtom(dialogAtom);
+  const { setSnackMsg } = useSnackbarStore(state => state);
 
-  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
+  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue, onSuccess: () => setSnackMsg({ message: "success" }) })
 
   useEffect(() => {
     if (Array.isArray(issues) && Array.isArray(tasks)) {
@@ -244,6 +248,23 @@ function WHLKanban({ tasks, issues }) {
     }
   }
 
+  const handleDelete = (taskId) => {
+    let newColumns = JSON.parse(JSON.stringify(columns));
+    Object.keys(columns)?.map(key => {
+      newColumns[key] = newColumns[key].filter(f => f?.id != taskId);
+    })
+
+    let newIssues = [];
+    Object.keys(newColumns)?.map(key => {
+      let newList = newColumns[key].map(m => {
+        return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+      });
+
+      newIssues = newIssues.concat(newList);
+    });
+    setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: () => (setColumns(newColumns), callback?.()) });
+  }
+
   return (
     <>
       <Kanban
@@ -295,6 +316,7 @@ function WHLKanban({ tasks, issues }) {
             task={dialogProps.task}
             onClose={() => setDialog({ open: false })}
             onOk={handleEditTask}
+            onDel={handleDelete}
           />
         </Dialog>
       }
@@ -303,10 +325,11 @@ function WHLKanban({ tasks, issues }) {
 }
 
 const EditTask = ({
-  task = { id: null, title: "", jiraId: "", des: "", task: "", priority: "", assignee: "" },
-  onClose, onOk,
+  task = { id: null, title: "", jiraId: "", des: "", task: "", priority: "high", assignee: "" },
+  onClose, onOk, onDel,
 }) => {
   const [data, setData] = useState(task);
+  const { setAlert } = useAlertStore();
 
   return (
     <>
@@ -335,12 +358,34 @@ const EditTask = ({
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={() => onOk(data, onClose)}>
-          OK
-        </Button>
+        <div className='flex-1 flex items-center justify-between'>
+          <div>
+            {task?.id &&
+              <MuiButton
+                onClick={() =>
+                  setAlert({
+                    title: "登出",
+                    content: "確定要登出？",
+                    handleAgree: (callback) => (onDel(task?.id), callback())
+                  })
+                }
+                variant="contained"
+                color="error"
+                sx={{ p: "8px 16px", fontWeight: "500", lineHeight: "1.25rem", fontSize: "0.875rem", textTransform: 'none' }}
+              >
+                Delete
+              </MuiButton>
+            }
+          </div>
+          <div>
+            <Button onClick={onClose} variant="outlined">
+              Cancel
+            </Button>
+            <Button onClick={() => onOk(data, onClose)}>
+              OK
+            </Button>
+          </div>
+        </div>
       </DialogActions>
     </>
   )

@@ -6,7 +6,7 @@ import './styles/lib/tailwind.css'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query"
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { BrowserRouter } from "react-router-dom"
-import useSnackbarStore from "./store/snackbar"
+import useSnackbarStore from "@/store/snackbar"
 import useApiDataStore from "./store/apidata"
 
 const isProd = import.meta.env.MODE === 'production'
