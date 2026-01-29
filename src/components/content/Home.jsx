@@ -248,7 +248,7 @@ function WHLKanban({ tasks, issues }) {
     }
   }
 
-  const handleDelete = (taskId) => {
+  const handleDelete = (taskId, callback) => {
     let newColumns = JSON.parse(JSON.stringify(columns));
     Object.keys(columns)?.map(key => {
       newColumns[key] = newColumns[key].filter(f => f?.id != taskId);
@@ -364,9 +364,9 @@ const EditTask = ({
               <MuiButton
                 onClick={() =>
                   setAlert({
-                    title: "登出",
-                    content: "確定要登出？",
-                    handleAgree: (callback) => (onDel(task?.id), callback())
+                    title: "刪除",
+                    content: "確定要刪除？",
+                    handleAgree: (callback) => (callback?.(), onDel(task?.id, onClose))
                   })
                 }
                 variant="contained"
