@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField, Button as MuiButton } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField, Button as MuiButton, Tooltip } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { atom, useAtom } from 'jotai';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account'
 import useSnackbarStore from "@/store/snackbar";
 import useAlertStore from "@/store/alert";
+import { Checkbox } from 'antd';
 
 const COLUMN_TITLES = {
   backlog: 'Backlog',
@@ -53,7 +54,7 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
-      <WHLKanban tasks={tasks} issues={issues} />
+      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} />
     </div>
   )
 }
@@ -62,6 +63,7 @@ export default Home;
 
 function TaskCard({ task, asHandle, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
+  const jiraLink = localStorage.getItem('jiraLink');
 
   const cardContent = (
     <div
@@ -70,9 +72,11 @@ function TaskCard({ task, asHandle, ...props }) {
     >
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="line-clamp-1 font-medium text-sm">
-            {task.title}
-          </span>
+          <Tooltip title={task.title} placement='top'>
+            <span className="line-clamp-2 font-medium text-sm">
+              {task.title}
+            </span>
+          </Tooltip>
           <Badge
             variant={
               task.priority === 'high'
@@ -100,9 +104,11 @@ function TaskCard({ task, asHandle, ...props }) {
                   {task.assignee.charAt(0)}
                 </AvatarFallback>
               </Avatar> */}
-            <span className="line-clamp-1">
-              {task.jiraId}
-            </span>
+            <a target='_blank' href={`${jiraLink}${task.jiraId}`} onClick={(e) => e.stopPropagation()}>
+              <span className="line-clamp-1">
+                {task.jiraId}
+              </span>
+            </a>
           </div>
 
           {task.assignee && (
@@ -167,14 +173,13 @@ function TaskColumn({ value, tasks, isOverlay, ...props }) {
 const dragAtom = atom(false)
 export { dragAtom }
 
-function WHLKanban({ tasks, issues }) {
+function WHLKanban({ tasks, issues, reLoadIssue }) {
   const [columns, setColumns] = React.useState({});
   const [isChange, setIsChange] = React.useState(false);
   const [isDragging] = useAtom(dragAtom);
   const [dialogProps, setDialog] = useAtom(dialogAtom);
-  const { setSnackMsg } = useSnackbarStore(state => state);
 
-  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue, onSuccess: () => message.success("success") })
+  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
 
   useEffect(() => {
     if (Array.isArray(issues) && Array.isArray(tasks)) {
@@ -203,7 +208,7 @@ function WHLKanban({ tasks, issues }) {
 
         newIssues = newIssues.concat(newList);
       });
-      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: (d) => console.log(d) });
+      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: (d) => message.success("success") });
     }
   }, [isDragging]);
 
@@ -223,7 +228,7 @@ function WHLKanban({ tasks, issues }) {
       let newIssues = [];
       Object.keys(newColumns)?.map(key => {
         let newList = newColumns[key].map(m => {
-          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+          return [m.id, m.title, m.jiraId, m.des, key, m.priority, (!m?.newAssignee ? m.assignee : localStorage.getItem('user'))];
         });
 
         newIssues = newIssues.concat(newList);
@@ -231,7 +236,7 @@ function WHLKanban({ tasks, issues }) {
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true)),
+          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
           onError: () => callback?.(false)
         }
       );
@@ -246,7 +251,7 @@ function WHLKanban({ tasks, issues }) {
       let newIssues = [];
       Object.keys(newColumns)?.map(key => {
         let newList = newColumns[key].map(m => {
-          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
+          return [m.id, m.title, m.jiraId, m.des, key, m.priority, (!m?.newAssignee ? m.assignee : localStorage.getItem('user'))];
         });
 
         newIssues = newIssues.concat(newList);
@@ -254,7 +259,7 @@ function WHLKanban({ tasks, issues }) {
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true)),
+          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
           onError: () => callback?.(false)
         }
       );
@@ -278,7 +283,7 @@ function WHLKanban({ tasks, issues }) {
     setGoogleSheetIssueApi.mutate(
       { list: newIssues },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true)),
+        onSuccess: () => (setColumns(newColumns), callback?.(true), message.success("success")),
         onError: () => callback?.(false)
       }
     );
@@ -374,6 +379,7 @@ const EditTask = ({
           disabled={loading}
           onChange={(e) => setData(d => ({ ...d, title: e.target.value }))}
           fullWidth
+          autoFocus
         />
         <TextField
           label="jiraId"
@@ -391,6 +397,16 @@ const EditTask = ({
           disabled={loading}
           fullWidth
         />
+        <div>
+          <Checkbox
+            onChange={(e) => {
+              setData(d => ({ ...d, newAssignee: e.target.checked }))
+            }}
+            disabled={loading}
+          >
+            Assign to me
+          </Checkbox>
+        </div>
       </DialogContent>
       <DialogActions>
         <div className='flex-1 flex items-center justify-between'>
