@@ -173,7 +173,7 @@ function WHLKanban({ tasks, issues }) {
   const [dialogProps, setDialog] = useAtom(dialogAtom);
   const { setSnackMsg } = useSnackbarStore(state => state);
 
-  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue, onSuccess: () => setSnackMsg({ message: "success" }) })
+  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
 
   useEffect(() => {
     if (Array.isArray(issues) && Array.isArray(tasks)) {
@@ -229,7 +229,10 @@ function WHLKanban({ tasks, issues }) {
       });
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
-        { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+        {
+          onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+          onError: () => callback?.(false)
+        }
       );
 
     } else {
@@ -249,7 +252,10 @@ function WHLKanban({ tasks, issues }) {
       });
       setGoogleSheetIssueApi.mutate(
         { list: newIssues },
-        { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+        {
+          onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+          onError: () => callback?.(false)
+        }
       );
     }
   }
@@ -270,7 +276,10 @@ function WHLKanban({ tasks, issues }) {
     });
     setGoogleSheetIssueApi.mutate(
       { list: newIssues },
-      { onSuccess: () => (setColumns(newColumns), callback?.(true)), onError: () => callback?.(false) }
+      {
+        onSuccess: () => (setColumns(newColumns), callback?.(true), setSnackMsg({ message: "success" })),
+        onError: () => callback?.(false)
+      }
     );
   }
 
