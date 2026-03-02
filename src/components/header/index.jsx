@@ -3,7 +3,7 @@ import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, Te
 import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material'
 import { Link, useLocation } from 'react-router-dom'
 import { atom, useAtom } from 'jotai';
-import { dialogAtom } from '../content/Home'
+import { dialogAtom, sheetIdAtom } from '../content/Home'
 
 import LoginStateAvator from './LoginStateAvator'
 
@@ -47,10 +47,20 @@ function index(props) {
 export default index;
 
 const SettingDialog = () => {
+  const [sheetId, setSheetId] = useAtom(sheetIdAtom);
+
   return (
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
       <TextField
-        label="Sheet API"
+        label="Sheet ID"
+        variant="standard"
+        defaultValue={sheetId || ""}
+        onChange={(e) => setSheetId(e.target.value)}
+        fullWidth
+        autoFocus
+      />
+      <TextField
+        label="Sheet API Key"
         variant="standard"
         defaultValue={localStorage.getItem("sheet") || ""}
         onChange={(e) => localStorage.setItem("sheet", e.target.value)}

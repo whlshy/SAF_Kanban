@@ -14,19 +14,11 @@ import {
   KanbanItemHandle,
   KanbanOverlay,
 } from '@/components/ui/kanban';
-import { GripVertical } from 'lucide-react';
 import { atom, useAtom } from 'jotai';
-import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account'
-import useSnackbarStore from "@/store/snackbar";
-import useAlertStore from "@/store/alert";
+import { atomWithStorage } from "jotai/utils";
+import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account';
+import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
-
-const COLUMN_TITLES = {
-  backlog: 'Backlog',
-  inProgress: 'In Progress',
-  review: 'Review',
-  done: 'Done',
-};
 
 const changeIssue = (rows) => {
   return rows.map(row => ({
@@ -40,12 +32,19 @@ const changeIssue = (rows) => {
   }));
 }
 
+const sheetIdAtom = atomWithStorage("sheetId", false, undefined, { getOnInit: true });
+
 const dialogAtom = atom({ open: false })
-export { dialogAtom }
+export { dialogAtom, sheetIdAtom }
 
 function Home() {
-  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue"], queryFn: () => getGoogleSheetIssue(), refetchOnWindowFocus: true });
-  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask"], queryFn: () => getGoogleSheetTask() });
+  const [sheetId] = useAtom(sheetIdAtom);
+  const { open } = useDialogStore();
+
+  console.log(open)
+
+  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
+  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
 
   const issues = changeIssue(getGoogleSheetIssueApi?.data?.values || []);
   const tasks = getGoogleSheetTaskApi?.data?.values || [];
@@ -65,7 +64,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const jiraLink = localStorage.getItem('jiraLink');
 
-  console.log(disabled)
+
 
   const cardContent = (
     <div

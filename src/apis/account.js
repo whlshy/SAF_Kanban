@@ -10,18 +10,18 @@ export const logoutAccount = async () => {
   return response
 }
 
-export const getGoogleSheetIssue = async () => {
+export const getGoogleSheetIssue = async (sheetId) => {
   const response = await api({
     method: "GET",
-    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/1ehRPqqtjiyiZeCXwOqalwgaMIFyE8kL2At4rUKp36Ug/values/kanban!A:G?alt=json&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
+    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/kanban!A:G?alt=json&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
   })
   return response
 }
 
-export const getGoogleSheetTask = async () => {
+export const getGoogleSheetTask = async (sheetId) => {
   const response = await api({
     method: "GET",
-    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/1ehRPqqtjiyiZeCXwOqalwgaMIFyE8kL2At4rUKp36Ug/values/columns!A:B?alt=json&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
+    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/columns!A:B?alt=json&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
   })
   return response
 }
