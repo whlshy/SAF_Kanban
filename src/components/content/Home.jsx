@@ -54,16 +54,18 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
-      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} isLoading={getGoogleSheetIssueApi.isLoading} />
+      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} isLoading={getGoogleSheetIssueApi.isFetching} />
     </div>
   )
 }
 
 export default Home;
 
-function TaskCard({ task, asHandle, ...props }) {
+function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const jiraLink = localStorage.getItem('jiraLink');
+
+  console.log(disabled)
 
   const cardContent = (
     <div
@@ -122,7 +124,7 @@ function TaskCard({ task, asHandle, ...props }) {
   );
 
   return (
-    <KanbanItem value={task.id} {...props}>
+    <KanbanItem value={task.id} disabled={disabled} {...props}>
       {asHandle ? (
         <KanbanItemHandle>{cardContent}</KanbanItemHandle>
       ) : (
@@ -132,7 +134,7 @@ function TaskCard({ task, asHandle, ...props }) {
   );
 }
 
-function TaskColumn({ value, tasks, isOverlay, ...props }) {
+function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
   return (
     <KanbanColumn
       value={value}
@@ -163,6 +165,7 @@ function TaskColumn({ value, tasks, isOverlay, ...props }) {
             key={task.id}
             task={task}
             asHandle={!isOverlay}
+            disabled={disabled}
           />
         ))}
       </KanbanColumnContent>
@@ -302,6 +305,7 @@ function WHLKanban({ tasks, issues, reLoadIssue, isLoading }) {
               key={columnValue}
               value={columnValue}
               tasks={tasks}
+              disabled={isLoading || setGoogleSheetIssueApi.isPending}
             />
           ))}
         </KanbanBoard>
