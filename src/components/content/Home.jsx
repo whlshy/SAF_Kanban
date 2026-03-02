@@ -44,7 +44,7 @@ const dialogAtom = atom({ open: false })
 export { dialogAtom }
 
 function Home() {
-  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue"], queryFn: () => getGoogleSheetIssue() });
+  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue"], queryFn: () => getGoogleSheetIssue(), refetchOnWindowFocus: true });
   const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask"], queryFn: () => getGoogleSheetTask() });
 
   const issues = changeIssue(getGoogleSheetIssueApi?.data?.values || []);
@@ -54,7 +54,7 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
-      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} />
+      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} isLoading={getGoogleSheetIssueApi.isLoading} />
     </div>
   )
 }
@@ -173,7 +173,7 @@ function TaskColumn({ value, tasks, isOverlay, ...props }) {
 const dragAtom = atom(false)
 export { dragAtom }
 
-function WHLKanban({ tasks, issues, reLoadIssue }) {
+function WHLKanban({ tasks, issues, reLoadIssue, isLoading }) {
   const [columns, setColumns] = React.useState({});
   const [isChange, setIsChange] = React.useState(false);
   const [isDragging] = useAtom(dragAtom);
