@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Input, TextField, Button as MuiButton, Tooltip } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button as MuiButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/kanban';
 import { atom, useAtom } from 'jotai';
 import { atomWithStorage } from "jotai/utils";
-import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue } from '@/apis/account';
+import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/account';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
 
@@ -41,19 +41,25 @@ function Home() {
   const [sheetId] = useAtom(sheetIdAtom);
   const { open } = useDialogStore();
 
-  console.log(open)
-
   const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
   const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
+  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
 
   const issues = changeIssue(getGoogleSheetIssueApi?.data?.values || []);
   const tasks = getGoogleSheetTaskApi?.data?.values || [];
+  const users = getGoogleSheetUsersApi?.data?.values || [];
 
   return (
     <div
       style={{ paddingTop: "80px" }}
       className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
-      <WHLKanban tasks={tasks} issues={issues} reLoadIssue={getGoogleSheetIssueApi.refetch} isLoading={getGoogleSheetIssueApi.isFetching} />
+      <WHLKanban
+        tasks={tasks}
+        issues={issues}
+        users={users}
+        reLoadIssue={getGoogleSheetIssueApi.refetch}
+        isLoading={getGoogleSheetIssueApi.isFetching}
+      />
     </div>
   )
 }
@@ -175,7 +181,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 const dragAtom = atom(false)
 export { dragAtom }
 
-function WHLKanban({ tasks, issues, reLoadIssue, isLoading }) {
+function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
   const [columns, setColumns] = React.useState({});
   const [isChange, setIsChange] = React.useState(false);
   const [isDragging] = useAtom(dragAtom);
@@ -347,6 +353,7 @@ function WHLKanban({ tasks, issues, reLoadIssue, isLoading }) {
         >
           <EditTask
             task={dialogProps.task}
+            users={users}
             onClose={() => setDialog({ open: false })}
             onOk={handleEditTask}
             onDel={handleDelete}
@@ -359,6 +366,7 @@ function WHLKanban({ tasks, issues, reLoadIssue, isLoading }) {
 
 const EditTask = ({
   task = { id: null, title: "", jiraId: "", des: "", task: "", priority: "high", assignee: "" },
+  users = [],
   onClose, onOk, onDel,
 }) => {
   const [data, setData] = useState(task);
@@ -400,16 +408,21 @@ const EditTask = ({
           disabled={loading}
           fullWidth
         />
-        <div>
-          <Checkbox
-            onChange={(e) => {
-              setData(d => ({ ...d, newAssignee: e.target.checked }))
-            }}
+        <FormControl  variant="standard" fullWidth>
+          <InputLabel>Assignee</InputLabel>
+          <Select
+            label="Assignee"
+            value={data?.assignee || ""}
+            onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
           >
-            Assign to me
-          </Checkbox>
-        </div>
+            {users.map(user => (
+              <MenuItem key={user[0]} value={user[1]}>
+                {user[1]}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </DialogContent>
       <DialogActions>
         <div className='flex-1 flex items-center justify-between'>

@@ -26,6 +26,14 @@ export const getGoogleSheetTask = async (sheetId) => {
   return response
 }
 
+export const getGoogleSheetUsers = async (sheetId) => {
+  const response = await api({
+    method: "GET",
+    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/users!A:B?alt=json&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
+  })
+  return response
+}
+
 export const setGoogleSheetIssue = async ({list = []}) => {
   const response = await api({
     method: "GET",
