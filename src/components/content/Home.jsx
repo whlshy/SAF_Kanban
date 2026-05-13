@@ -89,8 +89,8 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
               task.priority === 'high'
                 ? 'destructive'
                 : task.priority === 'medium'
-                  ? 'primary'
-                  : 'warning'
+                  ? 'secondary'
+                  : 'primary'
             }
             appearance="outline"
             className="pointer-events-none h-5 rounded-sm px-1.5 text-[11px] capitalize shrink-0"
