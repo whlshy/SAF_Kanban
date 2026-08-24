@@ -52,7 +52,7 @@ function Home() {
   return (
     <div
       style={{ paddingTop: "80px" }}
-      className="p-4 grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]">
+      className="h-screen min-h-0 overflow-hidden p-4">
       <WHLKanban
         tasks={tasks}
         issues={issues}
@@ -144,7 +144,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
     <KanbanColumn
       value={value}
       {...props}
-      className="rounded-md border bg-card p-2.5 shadow-xs"
+      className="h-full min-h-0 overflow-hidden rounded-md border bg-card p-2.5 shadow-xs"
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2.5">
@@ -163,7 +163,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 
       <KanbanColumnContent
         value={value}
-        className="flex flex-col gap-2.5 p-0.5"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-0.5 pr-1"
       >
         {tasks.map((task) => (
           <TaskCard
@@ -303,8 +303,9 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
         value={columns}
         onValueChange={handleChangeIssues}
         getItemValue={(item) => item.id}
+        className="h-full min-h-0"
       >
-        <KanbanBoard className="grid auto-rows-fr grid-cols-4">
+        <KanbanBoard className="h-full min-h-0 grid-cols-4 auto-rows-auto">
           {Object.entries(columns).map(([columnValue, tasks]) => (
             <TaskColumn
               key={columnValue}
@@ -408,7 +409,20 @@ const EditTask = ({
           disabled={loading}
           fullWidth
         />
-        <FormControl  variant="standard" fullWidth>
+        <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
+          <InputLabel>Priority</InputLabel>
+          <Select
+            label="Priority"
+            value={data?.priority || ""}
+            onChange={(e) => setData(d => ({ ...d, priority: e.target.value }))}
+            disabled={loading}
+          >
+            <MenuItem value="high">High</MenuItem>
+            <MenuItem value="medium">Medium</MenuItem>
+            <MenuItem value="low">Low</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl variant="standard" fullWidth>
           <InputLabel>Assignee</InputLabel>
           <Select
             label="Assignee"
