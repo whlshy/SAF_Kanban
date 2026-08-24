@@ -45,9 +45,18 @@ function Home() {
   const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
   const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
 
-  const issues = changeIssue(getGoogleSheetIssueApi?.data?.values || []);
-  const tasks = getGoogleSheetTaskApi?.data?.values || [];
-  const users = getGoogleSheetUsersApi?.data?.values || [];
+  const issues = React.useMemo(
+    () => changeIssue(getGoogleSheetIssueApi?.data?.values || []),
+    [getGoogleSheetIssueApi?.data?.values]
+  );
+  const tasks = React.useMemo(
+    () => getGoogleSheetTaskApi?.data?.values || [],
+    [getGoogleSheetTaskApi?.data?.values]
+  );
+  const users = React.useMemo(
+    () => getGoogleSheetUsersApi?.data?.values || [],
+    [getGoogleSheetUsersApi?.data?.values]
+  );
 
   return (
     <div
@@ -178,13 +187,8 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
   );
 };
 
-const dragAtom = atom(false)
-export { dragAtom }
-
 function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
   const [columns, setColumns] = React.useState({});
-  const [isChange, setIsChange] = React.useState(false);
-  const [isDragging] = useAtom(dragAtom);
   const [dialogProps, setDialog] = useAtom(dialogAtom);
 
   const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
@@ -201,28 +205,47 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
     }
   }, [issues, tasks]);
 
-  // handle change google sheet
-  useEffect(() => {
-    if (!!isChange) {
-      console.log('handle change google sheet');
-      setIsChange(false);
+  const handleMoveTask = ({ event, activeContainer, activeIndex, overContainer, overIndex }) => {
+    if (activeContainer === overContainer && activeIndex === overIndex) return;
 
-      let newIssues = [];
+    const previousColumns = columns;
+    const sourceTasks = [...columns[activeContainer]];
+    const [task] = sourceTasks.splice(activeIndex, 1);
 
-      Object.keys(columns)?.map(key => {
-        let newList = columns[key].map(m => {
-          return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
-        });
+    if (!task) return;
 
-        newIssues = newIssues.concat(newList);
-      });
-      setGoogleSheetIssueApi.mutate({ list: newIssues }, { onSuccess: (d) => message.success("success") });
-    }
-  }, [isDragging]);
+    const targetTasks = activeContainer === overContainer
+      ? sourceTasks
+      : [...columns[overContainer]];
+    const targetIndex = Math.max(0, Math.min(overIndex, targetTasks.length));
+    const movedTask = { ...task, task: overContainer };
 
-  const handleChangeIssues = (columns) => {
-    setIsChange(true);
-    setColumns(columns)
+    targetTasks.splice(targetIndex, 0, movedTask);
+
+    const newColumns = {
+      ...columns,
+      [activeContainer]: activeContainer === overContainer ? targetTasks : sourceTasks,
+      [overContainer]: targetTasks,
+    };
+
+    const newIndex = targetTasks.findIndex(item => item.id === event.active.id);
+    const beforeId = targetTasks[newIndex + 1]?.id;
+    const afterId = targetTasks[newIndex - 1]?.id;
+
+    setColumns(newColumns);
+    setGoogleSheetIssueApi.mutate(
+      {
+        action: "move",
+        id: movedTask.id,
+        status: overContainer,
+        beforeId,
+        afterId,
+      },
+      {
+        onSuccess: () => (reLoadIssue(), message.success("success")),
+        onError: () => setColumns(previousColumns),
+      }
+    );
   }
 
   const handleEditTask = (newTask, callback) => {
@@ -233,16 +256,8 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
         newColumns[key] = newColumns[key].map(f => f?.id == newTask?.id ? { ...f, ...newTask } : f);
       });
 
-      let newIssues = [];
-      Object.keys(newColumns)?.map(key => {
-        let newList = newColumns[key].map(m => {
-          return [m.id, m.title, m.jiraId, m.des, key, m.priority, (!m?.newAssignee ? m.assignee : localStorage.getItem('user'))];
-        });
-
-        newIssues = newIssues.concat(newList);
-      });
       setGoogleSheetIssueApi.mutate(
-        { list: newIssues },
+        { action: "upsert", task: newTask },
         {
           onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
           onError: () => callback?.(false)
@@ -254,18 +269,11 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
       let newColumns = JSON.parse(JSON.stringify(columns));
       const newId = crypto.randomUUID().split('-')[0];
       const firstColumn = tasks?.[0]?.[0];
-      newColumns[firstColumn] = newColumns[firstColumn].concat([{ ...newTask, id: newId }]);
+      const task = { ...newTask, id: newId, task: firstColumn };
+      newColumns[firstColumn] = newColumns[firstColumn].concat([task]);
 
-      let newIssues = [];
-      Object.keys(newColumns)?.map(key => {
-        let newList = newColumns[key].map(m => {
-          return [m.id, m.title, m.jiraId, m.des, key, m.priority, (!m?.newAssignee ? m.assignee : localStorage.getItem('user'))];
-        });
-
-        newIssues = newIssues.concat(newList);
-      });
       setGoogleSheetIssueApi.mutate(
-        { list: newIssues },
+        { action: "upsert", task },
         {
           onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
           onError: () => callback?.(false)
@@ -280,18 +288,10 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
       newColumns[key] = newColumns[key].filter(f => f?.id != taskId);
     })
 
-    let newIssues = [];
-    Object.keys(newColumns)?.map(key => {
-      let newList = newColumns[key].map(m => {
-        return [m.id, m.title, m.jiraId, m.des, key, m.priority, m.assignee];
-      });
-
-      newIssues = newIssues.concat(newList);
-    });
     setGoogleSheetIssueApi.mutate(
-      { list: newIssues },
+      { action: "delete", id: taskId },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true), message.success("success")),
+        onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
         onError: () => callback?.(false)
       }
     );
@@ -301,7 +301,8 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
     <>
       <Kanban
         value={columns}
-        onValueChange={handleChangeIssues}
+        onValueChange={setColumns}
+        onMove={handleMoveTask}
         getItemValue={(item) => item.id}
         className="h-full min-h-0"
       >

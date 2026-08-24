@@ -22,7 +22,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Slot } from '@radix-ui/react-slot';
-import { atom, useAtom } from 'jotai';
 
 const KanbanContext = React.createContext({
   columns: {},
@@ -361,21 +360,13 @@ function KanbanItem({
   );
 }
 
-import { dragAtom } from '../content/Home';
-
 function KanbanItemHandle({
   asChild,
   className,
   children,
   cursor = true
 }) {
-  const [, setDrag] = useAtom(dragAtom);
-
   const { listeners, isDragging, disabled } = React.useContext(ItemContext);
-
-  React.useEffect(() => {
-    setDrag(isDragging);
-  }, [isDragging]);
 
   const Comp = asChild ? Slot : 'div';
 

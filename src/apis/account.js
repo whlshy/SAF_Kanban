@@ -34,11 +34,23 @@ export const getGoogleSheetUsers = async (sheetId) => {
   return response
 }
 
-export const setGoogleSheetIssue = async ({list = []}) => {
+export const setGoogleSheetIssue = async ({ action, task, id, status, beforeId, afterId }) => {
   const response = await api({
     method: "GET",
     cmd_url: `https://script.google.com/macros/s/${localStorage.getItem('sheet')}/exec`,
-    data:{ list: JSON.stringify(list) },
+    data: {
+      action,
+      ...(task ? { task: JSON.stringify(task) } : {}),
+      ...(id ? { id } : {}),
+      ...(status ? { status } : {}),
+      ...(beforeId ? { beforeId } : {}),
+      ...(afterId ? { afterId } : {}),
+    },
   })
+
+  if (!response.ok || response.body?.status === "error") {
+    throw new Error(response.body?.message || "Google Sheet update failed")
+  }
+
   return response
 }

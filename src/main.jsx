@@ -40,7 +40,7 @@ const Index = () => {
     const status = (data?.body?.status !== null && data?.body?.status !== undefined) ? data?.body?.status : null
     if (status !== null && Array.isArray(data?.body?.errorArray)) {
       handleErrorAlert(data?.body?.errorArray)
-    } else if (status !== null)
+    } else if (status !== null && data?.body?.message)
       setSnackMsg({ message: data?.body?.message })
     !data?.ok && status == null && !data?.pages && message.error("API發生未知錯誤！")
   }
