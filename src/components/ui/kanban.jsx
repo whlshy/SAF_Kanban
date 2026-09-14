@@ -71,6 +71,7 @@ function Kanban(
   const columns = value;
   const setColumns = onValueChange;
   const [activeId, setActiveId] = React.useState(null);
+  const dragStartColumnsRef = React.useRef(null);
 
   const sensors = useSensors(useSensor(PointerSensor, {
     activationConstraint: {
@@ -89,15 +90,20 @@ function Kanban(
     return columnIds.find((key) => columns[key].some((item) => getItemValue(item) === id));
   }, [columns, columnIds, getItemValue, isColumn]);
 
+  const findContainerIn = React.useCallback((id, sourceColumns) => {
+    if (!sourceColumns) return undefined;
+    if (Object.prototype.hasOwnProperty.call(sourceColumns, id)) return id;
+    return Object.keys(sourceColumns).find((key) =>
+      sourceColumns[key].some((item) => getItemValue(item) === id)
+    );
+  }, [getItemValue]);
+
   const handleDragStart = React.useCallback((event) => {
+    dragStartColumnsRef.current = columns;
     setActiveId(event.active.id);
-  }, []);
+  }, [columns]);
 
   const handleDragOver = React.useCallback((event) => {
-    if (onMove) {
-      return;
-    }
-
     const { active, over } = event;
     if (!over) return;
 
@@ -111,53 +117,45 @@ function Kanban(
       return;
     }
 
-    const activeItems = columns[activeContainer];
-    const overItems = columns[overContainer];
+    const activeItems = [...columns[activeContainer]];
+    const overItems = [...columns[overContainer]];
 
     const activeIndex = activeItems.findIndex((item) => getItemValue(item) === active.id);
+    if (activeIndex < 0) return;
+
     let overIndex = overItems.findIndex((item) => getItemValue(item) === over.id);
 
     // If dropping on the column itself, not an item
-    if (isColumn(over.id)) {
+    if (isColumn(over.id) || overIndex < 0) {
       overIndex = overItems.length;
     }
 
-    const newOverItems = [...overItems];
     const [movedItem] = activeItems.splice(activeIndex, 1);
-    newOverItems.splice(overIndex, 0, movedItem);
+    overItems.splice(overIndex, 0, movedItem);
 
     setColumns({
       ...columns,
-      [activeContainer]: [...activeItems],
-      [overContainer]: newOverItems,
+      [activeContainer]: activeItems,
+      [overContainer]: overItems,
     });
-  }, [findContainer, getItemValue, isColumn, setColumns, columns, onMove]);
+  }, [findContainer, getItemValue, isColumn, setColumns, columns]);
+
+  const handleDragCancel = React.useCallback(() => {
+    if (dragStartColumnsRef.current) {
+      setColumns(dragStartColumnsRef.current);
+    }
+    dragStartColumnsRef.current = null;
+    setActiveId(null);
+  }, [setColumns]);
 
   const handleDragEnd = React.useCallback((event) => {
     const { active, over } = event;
+    const previousColumns = dragStartColumnsRef.current || columns;
+    dragStartColumnsRef.current = null;
     setActiveId(null);
 
-    if (!over) return;
-
-    // Handle item move callback
-    if (onMove && !isColumn(active.id)) {
-      const activeContainer = findContainer(active.id);
-      const overContainer = findContainer(over.id);
-
-      if (activeContainer && overContainer) {
-        const activeIndex = columns[activeContainer].findIndex((item) => getItemValue(item) === active.id);
-        const overIndex = isColumn(over.id)
-          ? columns[overContainer].length
-          : columns[overContainer].findIndex((item) => getItemValue(item) === over.id);
-
-        onMove({
-          event,
-          activeContainer,
-          activeIndex,
-          overContainer,
-          overIndex,
-        });
-      }
+    if (!over) {
+      setColumns(previousColumns);
       return;
     }
 
@@ -176,23 +174,69 @@ function Kanban(
       return;
     }
 
-    const activeContainer = findContainer(active.id);
+    const activeContainer = findContainerIn(active.id, previousColumns);
     const overContainer = findContainer(over.id);
 
-    // Handle item reordering within the same column
-    if (activeContainer && overContainer && activeContainer === overContainer) {
-      const container = activeContainer;
-      const activeIndex = columns[container].findIndex((item) => getItemValue(item) === active.id);
-      const overIndex = columns[container].findIndex((item) => getItemValue(item) === over.id);
+    if (!activeContainer || !overContainer) {
+      setColumns(previousColumns);
+      return;
+    }
+
+    const sourceItems = [...previousColumns[activeContainer]];
+    const activeIndex = sourceItems.findIndex((item) => getItemValue(item) === active.id);
+    if (activeIndex < 0) {
+      setColumns(previousColumns);
+      return;
+    }
+
+    let nextColumns = previousColumns;
+    let overIndex;
+
+    if (activeContainer === overContainer) {
+      overIndex = isColumn(over.id)
+        ? sourceItems.length - 1
+        : sourceItems.findIndex((item) => getItemValue(item) === over.id);
+
+      if (overIndex < 0) overIndex = activeIndex;
 
       if (activeIndex !== overIndex) {
-        setColumns({
-          ...columns,
-          [container]: arrayMove(columns[container], activeIndex, overIndex),
-        });
+        nextColumns = {
+          ...previousColumns,
+          [activeContainer]: arrayMove(sourceItems, activeIndex, overIndex),
+        };
       }
+    } else {
+      const targetItems = [...previousColumns[overContainer]];
+      const [movedItem] = sourceItems.splice(activeIndex, 1);
+
+      overIndex = isColumn(over.id)
+        ? targetItems.length
+        : targetItems.findIndex((item) => getItemValue(item) === over.id);
+
+      if (overIndex < 0) overIndex = targetItems.length;
+      targetItems.splice(overIndex, 0, movedItem);
+
+      nextColumns = {
+        ...previousColumns,
+        [activeContainer]: sourceItems,
+        [overContainer]: targetItems,
+      };
     }
-  }, [columnIds, columns, findContainer, getItemValue, isColumn, setColumns, onMove]);
+
+    setColumns(nextColumns);
+
+    if (onMove) {
+      onMove({
+        event,
+        activeContainer,
+        activeIndex,
+        overContainer,
+        overIndex,
+        previousColumns,
+        columns: nextColumns,
+      });
+    }
+  }, [columnIds, columns, findContainer, findContainerIn, getItemValue, isColumn, setColumns, onMove]);
 
   const contextValue = React.useMemo(() => ({
     columns,
@@ -211,6 +255,7 @@ function Kanban(
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}>
         <div
           data-slot="kanban"

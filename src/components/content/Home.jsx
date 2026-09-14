@@ -205,34 +205,25 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
     }
   }, [issues, tasks]);
 
-  const handleMoveTask = ({ event, activeContainer, activeIndex, overContainer, overIndex }) => {
+  const handleMoveTask = ({ event, activeContainer, activeIndex, overContainer, overIndex, previousColumns, columns: nextColumns }) => {
     if (activeContainer === overContainer && activeIndex === overIndex) return;
 
-    const previousColumns = columns;
-    const sourceTasks = [...columns[activeContainer]];
-    const [task] = sourceTasks.splice(activeIndex, 1);
-
-    if (!task) return;
-
-    const targetTasks = activeContainer === overContainer
-      ? sourceTasks
-      : [...columns[overContainer]];
-    const targetIndex = Math.max(0, Math.min(overIndex, targetTasks.length));
-    const movedTask = { ...task, task: overContainer };
-
-    targetTasks.splice(targetIndex, 0, movedTask);
-
-    const newColumns = {
-      ...columns,
-      [activeContainer]: activeContainer === overContainer ? targetTasks : sourceTasks,
-      [overContainer]: targetTasks,
-    };
-
+    const targetTasks = [...nextColumns[overContainer]];
     const newIndex = targetTasks.findIndex(item => item.id === event.active.id);
+    if (newIndex < 0) return;
+
+    const movedTask = activeContainer === overContainer
+      ? targetTasks[newIndex]
+      : { ...targetTasks[newIndex], task: overContainer };
+
+    targetTasks[newIndex] = movedTask;
+    const committedColumns = activeContainer === overContainer
+      ? nextColumns
+      : { ...nextColumns, [overContainer]: targetTasks };
     const beforeId = targetTasks[newIndex + 1]?.id;
     const afterId = targetTasks[newIndex - 1]?.id;
 
-    setColumns(newColumns);
+    setColumns(committedColumns);
     setGoogleSheetIssueApi.mutate(
       {
         action: "move",

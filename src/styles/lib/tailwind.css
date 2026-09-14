@@ -74,6 +74,10 @@
     --color-kanban-board-circle-red: var(--kanban-board-circle-red);
     --color-kanban-board-circle-violet: var(--kanban-board-circle-violet);
     --color-kanban-board-circle-yellow: var(--kanban-board-circle-yellow);
+
+    --scrollbar-thumb: rgba(0, 0, 0, 0.24);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.38);
+    --scrollbar-track: transparent;
   }
 
   .dark {
@@ -119,6 +123,9 @@
     --kanban-board-circle-red: oklch(0.7108 0.1660 22.21);
     --kanban-board-circle-violet: oklch(0.7093 0.1589 293.52);
     --kanban-board-circle-yellow: oklch(0.8601 0.1730 91.84);
+
+    --scrollbar-thumb: rgba(255, 255, 255, 0.24);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
   }
   .theme {
     --kanban-board-circle-primary: var(--primary);
@@ -128,6 +135,34 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   body {
