@@ -58,6 +58,15 @@ const dropAnimationConfig = {
   }),
 };
 
+// When hovering an item in another column, insert after it if the dragged
+// item sits below the item's midpoint (otherwise dropping at the bottom
+// lands one slot too early).
+const getInsertOffset = (active, over) => {
+  const translated = active.rect.current.translated;
+  if (!translated || !over.rect) return 0;
+  return translated.top > over.rect.top + over.rect.height / 2 ? 1 : 0;
+};
+
 function Kanban(
   {
     value,
@@ -128,6 +137,8 @@ function Kanban(
     // If dropping on the column itself, not an item
     if (isColumn(over.id) || overIndex < 0) {
       overIndex = overItems.length;
+    } else {
+      overIndex += getInsertOffset(active, over);
     }
 
     const [movedItem] = activeItems.splice(activeIndex, 1);
@@ -206,21 +217,41 @@ function Kanban(
         };
       }
     } else {
-      const targetItems = [...previousColumns[overContainer]];
-      const [movedItem] = sourceItems.splice(activeIndex, 1);
+      // handleDragOver already moved the item into the target column in the
+      // live state; if so, keep that arrangement and only reorder within it.
+      const liveTarget = columns[overContainer];
+      const liveIndex = liveTarget.findIndex((item) => getItemValue(item) === active.id);
 
-      overIndex = isColumn(over.id)
-        ? targetItems.length
-        : targetItems.findIndex((item) => getItemValue(item) === over.id);
+      if (liveIndex >= 0) {
+        const liveOverIndex = isColumn(over.id)
+          ? liveTarget.length - 1
+          : liveTarget.findIndex((item) => getItemValue(item) === over.id);
+        overIndex = liveOverIndex < 0 ? liveIndex : liveOverIndex;
 
-      if (overIndex < 0) overIndex = targetItems.length;
-      targetItems.splice(overIndex, 0, movedItem);
+        nextColumns = {
+          ...columns,
+          [overContainer]: liveIndex === overIndex
+            ? liveTarget
+            : arrayMove(liveTarget, liveIndex, overIndex),
+        };
+      } else {
+        const targetItems = [...previousColumns[overContainer]];
+        const [movedItem] = sourceItems.splice(activeIndex, 1);
 
-      nextColumns = {
-        ...previousColumns,
-        [activeContainer]: sourceItems,
-        [overContainer]: targetItems,
-      };
+        overIndex = isColumn(over.id)
+          ? targetItems.length
+          : targetItems.findIndex((item) => getItemValue(item) === over.id);
+
+        if (overIndex < 0) overIndex = targetItems.length;
+        else overIndex += getInsertOffset(active, over);
+        targetItems.splice(overIndex, 0, movedItem);
+
+        nextColumns = {
+          ...previousColumns,
+          [activeContainer]: sourceItems,
+          [overContainer]: targetItems,
+        };
+      }
     }
 
     setColumns(nextColumns);
