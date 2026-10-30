@@ -3,6 +3,7 @@ import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, Te
 import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material'
 import { Link, useLocation } from 'react-router-dom'
 import { atom, useAtom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
 import { dialogAtom, sheetIdAtom } from '../content/Home'
 
 import LoginStateAvator from './LoginStateAvator'
@@ -10,20 +11,28 @@ import LoginStateAvator from './LoginStateAvator'
 import useAppStore from '../../store/app'
 import { useDialogStore } from '@/store';
 
+const titleAtom = atomWithStorage("title", "", undefined, { getOnInit: true });
+
 function index(props) {
   const { title, name, logout } = props
+  const [customTitle] = useAtom(titleAtom);
+  const displayTitle = customTitle?.trim() || title;
   const { setSidebarOpen } = useAppStore()
   const { setDialog: setDefaultDialog } = useDialogStore()
   const location = useLocation()
 
   const [, setDialog] = useAtom(dialogAtom);
 
+  React.useEffect(() => {
+    document.title = displayTitle;
+  }, [displayTitle]);
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, background: "#1f1f1f" }}>
         <Toolbar>
           <Typography variant="h6" component="div">
-            {title}
+            {displayTitle}
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <IconButton
@@ -48,9 +57,18 @@ export default index;
 
 const SettingDialog = () => {
   const [sheetId, setSheetId] = useAtom(sheetIdAtom);
+  const [customTitle, setCustomTitle] = useAtom(titleAtom);
 
   return (
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
+      <TextField
+        label="Title"
+        variant="standard"
+        placeholder="SAF Kanban"
+        defaultValue={customTitle || ""}
+        onChange={(e) => setCustomTitle(e.target.value)}
+        fullWidth
+      />
       <TextField
         label="Sheet ID"
         variant="standard"

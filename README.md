@@ -292,24 +292,22 @@ function findTaskRow(sheet, taskId) {
 }
 
 function moveRowBefore(sheet, sourceRow, targetRow) {
-  if (sourceRow === targetRow) {
-    return;
-  }
-
-  sheet.moveRows(
-    sheet.getRange(sourceRow, 1, 1, COLUMN_COUNT),
-    targetRow
-  );
+  moveRowTo(sheet, sourceRow, targetRow);
 }
 
 function moveRowAfter(sheet, sourceRow, targetRow) {
-  if (sourceRow === targetRow) {
+  moveRowTo(sheet, sourceRow, targetRow + 1);
+}
+
+function moveRowTo(sheet, sourceRow, destinationIndex) {
+  // 已經在目標位置時，moveRows 會丟出「目的地索引不得位於遭到移動的維度範圍中」
+  if (destinationIndex === sourceRow || destinationIndex === sourceRow + 1) {
     return;
   }
 
   sheet.moveRows(
     sheet.getRange(sourceRow, 1, 1, COLUMN_COUNT),
-    targetRow + 1
+    destinationIndex
   );
 }
 
