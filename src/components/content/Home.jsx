@@ -220,8 +220,22 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
     const committedColumns = activeContainer === overContainer
       ? nextColumns
       : { ...nextColumns, [overContainer]: targetTasks };
-    const beforeId = targetTasks[newIndex + 1]?.id;
-    const afterId = targetTasks[newIndex - 1]?.id;
+    let beforeId = targetTasks[newIndex + 1]?.id;
+    let afterId = targetTasks[newIndex - 1]?.id;
+
+    // `issues` is in sheet row order. If the row already sits right before
+    // beforeId (or right after afterId), Apps Script's moveRows rejects the
+    // no-op move, so only send the status change.
+    const sheetIndex = (id) => issues.findIndex(item => item.id === id);
+    const sourceIndex = sheetIndex(movedTask.id);
+    const beforeIndex = beforeId ? sheetIndex(beforeId) : -1;
+    const alreadyInPlace = sourceIndex >= 0 && (beforeIndex >= 0
+      ? beforeIndex === sourceIndex + 1
+      : !!afterId && sheetIndex(afterId) === sourceIndex - 1);
+    if (alreadyInPlace) {
+      beforeId = undefined;
+      afterId = undefined;
+    }
 
     setColumns(committedColumns);
     setGoogleSheetIssueApi.mutate(
