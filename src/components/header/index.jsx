@@ -5,7 +5,7 @@ import { useAtom } from 'jotai';
 import { dialogAtom } from '../content/Home'
 
 import { useAlertStore, useDialogStore } from '@/store';
-import { boardTitle, useBoards } from '@/store/boards';
+import { boardPlaceholderTitle, boardTitle, useBoards, UNTITLED_TITLE } from '@/store/boards';
 
 function index() {
   const { boards, currentBoard, switchBoard, addBoard } = useBoards();
@@ -26,8 +26,10 @@ function index() {
 
   const handleAddBoard = () => {
     setMenuAnchor(null);
-    addBoard();
-    openSettings();
+    setDefaultDialog({
+      title: "新增看板",
+      open: true, content: <NewBoardDialog onCreate={addBoard} />
+    });
   };
 
   return (
@@ -37,6 +39,7 @@ function index() {
           {boards.length > 0 ? (
             <Button
               color="inherit"
+              disableFocusRipple
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setMenuAnchor(e.currentTarget)}
               sx={{ textTransform: 'none', ml: -1, px: 1 }}
@@ -89,7 +92,7 @@ function index() {
 export default index;
 
 const SETTING_FIELDS = [
-  { field: "title", label: "Title", placeholder: "SAF Kanban" },
+  { field: "title", label: "Title" },
   { field: "sheetId", label: "Sheet ID", autoFocus: true },
   { field: "scriptId", label: "Sheet API Key" },
   { field: "userKey", label: "User Key" },
@@ -110,12 +113,12 @@ const SettingDialog = ({ closeDialog }) => {
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
       {/* Remount the fields when switching boards so defaultValue refreshes */}
       <div key={currentBoard?.id || "new"}>
-        {SETTING_FIELDS.map(({ field, label, placeholder, autoFocus }) => (
+        {SETTING_FIELDS.map(({ field, label, autoFocus }) => (
           <TextField
             key={field}
             label={label}
             variant="standard"
-            placeholder={placeholder}
+            placeholder={field === "title" ? boardPlaceholderTitle(currentBoard) : undefined}
             defaultValue={currentBoard?.[field] || ""}
             onChange={(e) => updateCurrentBoard({ [field]: e.target.value })}
             fullWidth
@@ -130,6 +133,40 @@ const SettingDialog = ({ closeDialog }) => {
           </Button>
         </Box>
       )}
+    </DialogContent>
+  )
+}
+
+const NewBoardDialog = ({ onCreate, closeDialog }) => {
+  const [fields, setFields] = React.useState({});
+
+  const handleCreate = () => {
+    onCreate(fields);
+    closeDialog?.();
+  };
+
+  return (
+    <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
+      {SETTING_FIELDS.map(({ field, label }) => (
+        <TextField
+          key={field}
+          label={label}
+          variant="standard"
+          placeholder={field === "title" ? UNTITLED_TITLE : undefined}
+          value={fields[field] || ""}
+          onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
+          fullWidth
+          autoFocus={field === "title"}
+        />
+      ))}
+      <Box className="flex items-center justify-end gap-2" sx={{ mt: 1 }}>
+        <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
+          取消
+        </Button>
+        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none' }}>
+          建立
+        </Button>
+      </Box>
     </DialogContent>
   )
 }
