@@ -34,7 +34,7 @@ function index() {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, background: "#1f1f1f" }}>
         <Toolbar>
-          {boards.length > 1 ? (
+          {boards.length > 0 ? (
             <Button
               color="inherit"
               endIcon={<ArrowDropDownIcon />}
@@ -97,7 +97,7 @@ const SETTING_FIELDS = [
 ]
 
 const SettingDialog = ({ closeDialog }) => {
-  const { currentBoard, addBoard, updateCurrentBoard, deleteBoard } = useBoards();
+  const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
   const { setAlert } = useAlertStore();
 
   const handleDelete = () => setAlert({
@@ -123,16 +123,13 @@ const SettingDialog = ({ closeDialog }) => {
           />
         ))}
       </div>
-      <Box className="flex items-center justify-between" sx={{ mt: 1 }}>
-        {currentBoard ? (
-          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none' }}>
+      {currentBoard && (
+        <Box sx={{ mt: 1 }}>
+          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
             刪除看板
           </Button>
-        ) : <span />}
-        <Button variant="outlined" startIcon={<AddIcon />} onClick={addBoard} sx={{ textTransform: 'none' }}>
-          新增看板
-        </Button>
-      </Box>
+        </Box>
+      )}
     </DialogContent>
   )
 }
