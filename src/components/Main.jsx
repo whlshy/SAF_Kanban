@@ -14,6 +14,7 @@ function Main() {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0, // let a wide board scroll inside itself instead of widening the page
           p: 0,
           // width: !matches ? "100%" : `calc(100% - ${240}px)`,
           display: "flex",

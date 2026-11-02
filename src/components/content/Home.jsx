@@ -61,7 +61,7 @@ function Home() {
   return (
     <div
       style={{ paddingTop: "80px" }}
-      className="h-screen w-screen min-h-0 overflow-hidden p-4">
+      className="h-screen min-h-0 overflow-hidden p-4">
       <WHLKanban
         tasks={tasks}
         issues={issues}
