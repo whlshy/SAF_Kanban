@@ -14,10 +14,7 @@ const App = () => {
 
   return (
     <>
-      <Header
-        title={"SAF Kanban"}
-        // logout={logoutAccountApi.mutate}
-      />
+      <Header />
       <Main />
       <Alert />
       <Snackbar />
