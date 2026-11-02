@@ -9,7 +9,8 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 ## 功能
 
 - 建立、編輯與刪除 Task
-- 自訂看板欄位
+- 自訂看板欄位，欄位數量不限
+- 同時使用多個看板，各自連到不同的 Google Sheet
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
@@ -57,7 +58,7 @@ users
 | Testing |
 | Done |
 
-目前畫面使用四欄，建議建立四筆資料。卡片在 `kanban` 工作表 E 欄的值必須與這裡的名稱完全相同。
+欄位數量不限，畫面會依欄位數平均分配寬度；欄位太多放不下時，看板可以左右捲動。卡片在 `kanban` 工作表 E 欄的值必須與這裡的名稱完全相同。
 
 ### `users` 工作表
 
@@ -365,6 +366,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 
 | 設定 | 填入內容 |
 | --- | --- |
+| Title | 看板名稱，顯示在左上角，可留空 |
 | Sheet ID | Google Sheet URL 中的 `SHEET_ID` |
 | Sheet API Key | Apps Script URL 中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
@@ -379,6 +381,18 @@ https://your-company.atlassian.net/browse/
 ```
 
 設定會儲存在目前瀏覽器的 Local Storage。更換瀏覽器或清除網站資料後，需要重新輸入。
+
+### 使用多個看板
+
+每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照第 1 到 4 步再建立一份 Sheet 與 Apps Script，然後：
+
+1. 點左上角看板名稱，開啟下拉選單。
+2. 選「新增看板」，填入新看板的 Title、Sheet ID 與 Sheet API Key，按「建立」。
+3. 之後從同一個下拉選單切換看板。
+
+- 網址會帶上 `?board=<看板 ID>`，可以加入書籤，或開多個分頁各看一個看板。
+- 要修改或刪除看板，先切換到該看板，再點右上角齒輪。刪除看板只會移除瀏覽器裡的設定，不會刪除 Google Sheet 的資料。
+- 從單一看板版本升級時，原本的設定會自動成為第一個看板，不需要重新設定。
 
 ## 6. 測試 Kanban
 

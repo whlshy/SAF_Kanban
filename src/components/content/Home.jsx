@@ -61,7 +61,7 @@ function Home() {
   return (
     <div
       style={{ paddingTop: "80px" }}
-      className="h-screen min-h-0 overflow-hidden p-4">
+      className="h-screen w-screen min-h-0 overflow-hidden p-4">
       <WHLKanban
         tasks={tasks}
         issues={issues}
@@ -314,7 +314,11 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
         getItemValue={(item) => item.id}
         className="h-full min-h-0"
       >
-        <KanbanBoard className="h-full min-h-0 grid-cols-4 auto-rows-auto">
+        <KanbanBoard
+          className="h-full min-h-0 auto-rows-auto overflow-x-auto"
+          // One row with a column per status; scroll sideways once they no longer fit.
+          style={{ gridTemplateColumns: `repeat(${Math.max(Object.keys(columns).length, 1)}, minmax(240px, 1fr))` }}
+        >
           {Object.entries(columns).map(([columnValue, tasks]) => (
             <TaskColumn
               key={columnValue}

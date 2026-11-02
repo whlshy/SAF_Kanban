@@ -301,7 +301,8 @@ function Kanban(
 
 function KanbanBoard({
   children,
-  className
+  className,
+  style
 }) {
   const { columnIds } = React.useContext(KanbanContext);
 
@@ -309,6 +310,7 @@ function KanbanBoard({
     <SortableContext items={columnIds} strategy={rectSortingStrategy}>
       <div
         data-slot="kanban-board"
+        style={style}
         className={cn('grid auto-rows-fr sm:grid-cols-4 gap-4', className)}>
         {children}
       </div>
