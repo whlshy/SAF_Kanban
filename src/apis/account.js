@@ -34,10 +34,10 @@ export const getGoogleSheetUsers = async (sheetId) => {
   return response
 }
 
-export const setGoogleSheetIssue = async ({ action, task, id, status, beforeId, afterId }) => {
+export const setGoogleSheetIssue = async ({ scriptId, action, task, id, status, beforeId, afterId }) => {
   const response = await api({
     method: "GET",
-    cmd_url: `https://script.google.com/macros/s/${localStorage.getItem('sheet')}/exec`,
+    cmd_url: `https://script.google.com/macros/s/${scriptId}/exec`,
     data: {
       action,
       ...(task ? { task: JSON.stringify(task) } : {}),

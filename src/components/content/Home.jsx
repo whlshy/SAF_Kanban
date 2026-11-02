@@ -15,7 +15,7 @@ import {
   KanbanOverlay,
 } from '@/components/ui/kanban';
 import { atom, useAtom } from 'jotai';
-import { atomWithStorage } from "jotai/utils";
+import { useBoards } from '@/store/boards';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/account';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
@@ -32,18 +32,18 @@ const changeIssue = (rows) => {
   }));
 }
 
-const sheetIdAtom = atomWithStorage("sheetId", false, undefined, { getOnInit: true });
-
 const dialogAtom = atom({ open: false })
-export { dialogAtom, sheetIdAtom }
+export { dialogAtom }
 
 function Home() {
-  const [sheetId] = useAtom(sheetIdAtom);
+  const { currentBoard } = useBoards();
+  const boardId = currentBoard?.id;
+  const sheetId = currentBoard?.sheetId;
   const { open } = useDialogStore();
 
-  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
-  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
-  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
+  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", boardId, sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
+  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", boardId, sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
+  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", boardId, sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
 
   const issues = React.useMemo(
     () => changeIssue(getGoogleSheetIssueApi?.data?.values || []),
@@ -77,7 +77,7 @@ export default Home;
 
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
-  const jiraLink = localStorage.getItem('jiraLink');
+  const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
 
 
@@ -191,7 +191,10 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
 
-  const setGoogleSheetIssueApi = useMutation({ mutationFn: setGoogleSheetIssue })
+  const { currentBoard } = useBoards();
+  const setGoogleSheetIssueApi = useMutation({
+    mutationFn: (params) => setGoogleSheetIssue({ ...params, scriptId: currentBoard?.scriptId }),
+  })
 
   useEffect(() => {
     if (Array.isArray(issues) && Array.isArray(tasks)) {
