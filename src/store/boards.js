@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import { useSearchParams } from 'react-router-dom'
+import { t } from '@/i18n'
 
 // Each board is one set of settings pointing at its own Google Sheet and
 // Apps Script deployment. The list lives in localStorage; which board a tab
@@ -11,7 +12,6 @@ const BOARDS_KEY = "boards"
 const LAST_BOARD_KEY = "lastBoardId"
 export const DEFAULT_BOARD_ID = "default"
 export const DEFAULT_TITLE = "SAF Kanban"
-export const UNTITLED_TITLE = "未命名看板"
 
 // Settings from the single-board version. The default board keeps writing
 // them so an older cached build still works.
@@ -62,6 +62,8 @@ const migrateLegacySettings = () => {
   }
 }
 
+export const BOARD_FIELDS = ["title", "sheetId", "scriptId", "userKey", "jiraLink"]
+
 const createBoard = (id, fields = {}) => ({
   id,
   title: "",
@@ -79,9 +81,9 @@ migrateLegacySettings()
 const boardsAtom = atomWithStorage(BOARDS_KEY, [], undefined, { getOnInit: true })
 
 // The default board keeps "SAF Kanban" as its fallback so upgrading users see
-// no change; other untitled boards read "未命名看板" so they are not mixed up.
+// no change; other untitled boards read "未命名看板" / "Untitled board".
 export const boardPlaceholderTitle = (board) =>
-  !board || board.id === DEFAULT_BOARD_ID ? DEFAULT_TITLE : UNTITLED_TITLE
+  !board || board.id === DEFAULT_BOARD_ID ? DEFAULT_TITLE : t("board.untitled")
 
 export const boardTitle = (board) => board?.title?.trim() || boardPlaceholderTitle(board)
 
@@ -129,6 +131,18 @@ export function useBoards() {
     if (updated.id === DEFAULT_BOARD_ID) writeLegacy(updated)
   }, [currentBoard, setBoards])
 
+  // Adds boards (e.g. from an imported file) with fresh ids. If there were no
+  // boards yet, the first one becomes the default board like any first board.
+  const importBoards = useCallback((list) => {
+    const added = list.map((fields, i) => createBoard(
+      !boards.length && i === 0 ? DEFAULT_BOARD_ID : newBoardId(),
+      Object.fromEntries(BOARD_FIELDS.map((f) => [f, fields[f] || ""]))
+    ))
+    setBoards([...boards, ...added])
+    if (added[0]?.id === DEFAULT_BOARD_ID) writeLegacy(added[0])
+    return added
+  }, [boards, setBoards])
+
   const deleteBoard = useCallback((id) => {
     const remaining = boards.filter((b) => b.id !== id)
     setBoards(remaining)
@@ -136,5 +150,5 @@ export function useBoards() {
     switchBoard(remaining[0]?.id || "")
   }, [boards, setBoards, switchBoard])
 
-  return { boards, currentBoard, switchBoard, addBoard, updateCurrentBoard, deleteBoard }
+  return { boards, currentBoard, switchBoard, addBoard, updateCurrentBoard, importBoards, deleteBoard }
 }

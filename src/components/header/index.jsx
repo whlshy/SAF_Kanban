@@ -1,17 +1,24 @@
 import React from 'react'
-import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon } from '@mui/icons-material'
+import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
+import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
-import { useAlertStore, useDialogStore } from '@/store';
-import { boardPlaceholderTitle, boardTitle, useBoards, UNTITLED_TITLE } from '@/store/boards';
+import { useDialogStore } from '@/store';
+import { boardTitle, useBoards } from '@/store/boards';
+import { exportBoards, useStartImport } from './BoardTransfer';
+import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
   const { boards, currentBoard, switchBoard, addBoard } = useBoards();
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
+  const startImport = useStartImport();
+  const openSettings = useOpenSettings();
+  const [lang] = useAtom(langAtom);
+  const t = useT();
 
   const displayTitle = boardTitle(currentBoard);
 
@@ -19,15 +26,19 @@ function index() {
     document.title = displayTitle;
   }, [displayTitle]);
 
-  const openSettings = () => setDefaultDialog({
-    title: "Settings",
-    open: true, content: <SettingDialog />
+  React.useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const openLanguage = () => setDefaultDialog({
+    title: t("language.title"),
+    open: true, content: <LanguageDialog />
   });
 
   const handleAddBoard = () => {
     setMenuAnchor(null);
     setDefaultDialog({
-      title: "新增看板",
+      title: t("board.new"),
       open: true, content: <NewBoardDialog onCreate={addBoard} />
     });
   };
@@ -73,10 +84,39 @@ function index() {
             <Divider />
             <MenuItem onClick={handleAddBoard}>
               <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>新增看板</ListItemText>
+              <ListItemText>{t("board.new")}</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => (setMenuAnchor(null), exportBoards(boards))}>
+              <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>{t("transfer.export")}</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => (setMenuAnchor(null), startImport())}>
+              <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>{t("transfer.import")}</ListItemText>
             </MenuItem>
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
+          <Button
+            color="inherit"
+            variant="outlined"
+            size="small"
+            onClick={openLanguage}
+            aria-label={`${t("language.title")}: ${LANGUAGES.find((l) => l.code === lang)?.name}`}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 9999,
+              minWidth: 0,
+              px: 1.5,
+              py: 0.25,
+              mr: 1,
+              fontSize: '0.8125rem',
+              borderColor: 'rgba(255, 255, 255, 0.5)',
+              '&:hover': { borderColor: 'white' },
+            }}
+          >
+            {LANGUAGES.find((l) => l.code === lang)?.short}
+          </Button>
           <IconButton style={{ color: "white" }} onClick={openSettings}>
             <SettingsIcon />
           </IconButton>
@@ -91,54 +131,28 @@ function index() {
 
 export default index;
 
-const SETTING_FIELDS = [
-  { field: "title", label: "Title" },
-  { field: "sheetId", label: "Sheet ID", autoFocus: true },
-  { field: "scriptId", label: "Sheet API Key" },
-  { field: "userKey", label: "User Key" },
-  { field: "jiraLink", label: "Jira Link" },
-]
-
-const SettingDialog = ({ closeDialog }) => {
-  const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
-  const { setAlert } = useAlertStore();
-
-  const handleDelete = () => setAlert({
-    title: "刪除看板",
-    content: `確定要刪除「${boardTitle(currentBoard)}」？只會移除這個瀏覽器裡的設定，不會刪除 Google Sheet 的資料。`,
-    handleAgree: (callback) => (callback?.(), deleteBoard(currentBoard.id), closeDialog?.()),
-  });
+const LanguageDialog = ({ closeDialog }) => {
+  const [lang, setLang] = useAtom(langAtom);
 
   return (
-    <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      {/* Remount the fields when switching boards so defaultValue refreshes */}
-      <div key={currentBoard?.id || "new"}>
-        {SETTING_FIELDS.map(({ field, label, autoFocus }) => (
-          <TextField
-            key={field}
-            label={label}
-            variant="standard"
-            placeholder={field === "title" ? boardPlaceholderTitle(currentBoard) : undefined}
-            defaultValue={currentBoard?.[field] || ""}
-            onChange={(e) => updateCurrentBoard({ [field]: e.target.value })}
-            fullWidth
-            autoFocus={autoFocus}
-          />
-        ))}
-      </div>
-      {currentBoard && (
-        <Box sx={{ mt: 1 }}>
-          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
-            刪除看板
-          </Button>
-        </Box>
-      )}
-    </DialogContent>
+    <List sx={{ minWidth: 280, py: 0 }}>
+      {LANGUAGES.map(({ code, name }) => (
+        <ListItemButton
+          key={code}
+          selected={code === lang}
+          onClick={() => (setLang(code), closeDialog?.())}
+        >
+          <ListItemIcon>{code === lang && <CheckIcon fontSize="small" />}</ListItemIcon>
+          <ListItemText>{name}</ListItemText>
+        </ListItemButton>
+      ))}
+    </List>
   )
 }
 
 const NewBoardDialog = ({ onCreate, closeDialog }) => {
   const [fields, setFields] = React.useState({});
+  const t = useT();
 
   const handleCreate = () => {
     onCreate(fields);
@@ -147,12 +161,12 @@ const NewBoardDialog = ({ onCreate, closeDialog }) => {
 
   return (
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      {SETTING_FIELDS.map(({ field, label }) => (
+      {SETTING_FIELDS.map(({ field, labelKey }) => (
         <TextField
           key={field}
-          label={label}
+          label={t(labelKey)}
           variant="standard"
-          placeholder={field === "title" ? UNTITLED_TITLE : undefined}
+          placeholder={field === "title" ? t("board.untitled") : undefined}
           value={fields[field] || ""}
           onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
           fullWidth
@@ -161,10 +175,10 @@ const NewBoardDialog = ({ onCreate, closeDialog }) => {
       ))}
       <Box className="flex items-center justify-end gap-2" sx={{ mt: 1 }}>
         <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none' }}>
-          建立
+          {t("board.create")}
         </Button>
       </Box>
     </DialogContent>

@@ -16,6 +16,10 @@ import {
 } from '@/components/ui/kanban';
 import { atom, useAtom } from 'jotai';
 import { useBoards } from '@/store/boards';
+import { t as translate, useT } from '@/i18n';
+import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
+import { useOpenSettings } from '@/components/header/SettingDialog';
+import { useStartImport } from '@/components/header/BoardTransfer';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/account';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
@@ -62,21 +66,54 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="h-screen min-h-0 overflow-hidden p-4">
-      <WHLKanban
-        tasks={tasks}
-        issues={issues}
-        users={users}
-        reLoadIssue={getGoogleSheetIssueApi.refetch}
-        isLoading={getGoogleSheetIssueApi.isFetching}
-      />
+      {currentBoard ? (
+        <WHLKanban
+          tasks={tasks}
+          issues={issues}
+          users={users}
+          reLoadIssue={getGoogleSheetIssueApi.refetch}
+          isLoading={getGoogleSheetIssueApi.isFetching}
+        />
+      ) : (
+        <EmptyBoards />
+      )}
     </div>
   )
 }
 
 export default Home;
 
+// Shown when there are no boards yet: set one up, or bring settings over from a file.
+function EmptyBoards() {
+  const openSettings = useOpenSettings();
+  const startImport = useStartImport();
+  const t = useT();
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-xl font-medium text-foreground">{t("board.empty.title")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t("board.empty.description")}
+        </p>
+      </div>
+      <div className="flex gap-3">
+        <MuiButton variant="contained" startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
+          {t("board.empty.settings")}
+        </MuiButton>
+        <MuiButton variant="outlined" startIcon={<ImportIcon />} onClick={startImport} sx={{ textTransform: 'none' }}>
+          {t("board.empty.import")}
+        </MuiButton>
+      </div>
+    </div>
+  );
+}
+
+const PRIORITIES = ["high", "medium", "low"];
+
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
+  const t = useT();
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
 
@@ -104,7 +141,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
             appearance="outline"
             className="pointer-events-none h-5 rounded-sm px-1.5 text-[11px] capitalize shrink-0"
           >
-            {task.priority}
+            {PRIORITIES.includes(task.priority) ? t(`priority.${task.priority}`) : task.priority}
           </Badge>
         </div>
 
@@ -190,6 +227,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
+  const t = useT();
 
   const { currentBoard } = useBoards();
   const setGoogleSheetIssueApi = useMutation({
@@ -250,7 +288,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
         afterId,
       },
       {
-        onSuccess: () => (reLoadIssue(), message.success("success")),
+        onSuccess: () => (reLoadIssue(), message.success(translate("common.success"))),
         onError: () => setColumns(previousColumns),
       }
     );
@@ -267,7 +305,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
       setGoogleSheetIssueApi.mutate(
         { action: "upsert", task: newTask },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
+          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
           onError: () => callback?.(false)
         }
       );
@@ -283,7 +321,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
       setGoogleSheetIssueApi.mutate(
         { action: "upsert", task },
         {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
+          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
           onError: () => callback?.(false)
         }
       );
@@ -299,7 +337,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
     setGoogleSheetIssueApi.mutate(
       { action: "delete", id: taskId },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success("success")),
+        onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
         onError: () => callback?.(false)
       }
     );
@@ -386,6 +424,7 @@ const EditTask = ({
   const [data, setData] = useState(task);
   const [loading, setLoading] = useState(false);
   const { setAlert } = useAlertStore();
+  const t = useT();
 
   const handleCallback = (tf) => {
     setLoading(false);
@@ -395,10 +434,10 @@ const EditTask = ({
 
   return (
     <>
-      <DialogTitle>{task?.id ? 'Edit Task' : 'Create Task'}</DialogTitle>
+      <DialogTitle>{task?.id ? t("task.edit") : t("task.create")}</DialogTitle>
       <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
         <TextField
-          label="Title"
+          label={t("task.title")}
           variant="standard"
           value={data?.title || ""}
           disabled={loading}
@@ -407,7 +446,7 @@ const EditTask = ({
           autoFocus
         />
         <TextField
-          label="jiraId"
+          label={t("task.jiraId")}
           variant="standard"
           defaultValue={data?.jiraId || ""}
           onChange={(e) => setData(d => ({ ...d, jiraId: e.target.value }))}
@@ -415,7 +454,7 @@ const EditTask = ({
           fullWidth
         />
         <TextField
-          label="Des"
+          label={t("task.description")}
           variant="standard"
           defaultValue={data?.des || ""}
           onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
@@ -423,22 +462,22 @@ const EditTask = ({
           fullWidth
         />
         <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Priority</InputLabel>
+          <InputLabel>{t("task.priority")}</InputLabel>
           <Select
-            label="Priority"
+            label={t("task.priority")}
             value={data?.priority || ""}
             onChange={(e) => setData(d => ({ ...d, priority: e.target.value }))}
             disabled={loading}
           >
-            <MenuItem value="high">High</MenuItem>
-            <MenuItem value="medium">Medium</MenuItem>
-            <MenuItem value="low">Low</MenuItem>
+            <MenuItem value="high">{t("priority.high")}</MenuItem>
+            <MenuItem value="medium">{t("priority.medium")}</MenuItem>
+            <MenuItem value="low">{t("priority.low")}</MenuItem>
           </Select>
         </FormControl>
         <FormControl variant="standard" fullWidth>
-          <InputLabel>Assignee</InputLabel>
+          <InputLabel>{t("task.assignee")}</InputLabel>
           <Select
-            label="Assignee"
+            label={t("task.assignee")}
             value={data?.assignee || ""}
             onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
@@ -458,8 +497,8 @@ const EditTask = ({
               <MuiButton
                 onClick={() =>
                   setAlert({
-                    title: "刪除",
-                    content: "確定要刪除？",
+                    title: t("task.delete"),
+                    content: t("task.deleteConfirm"),
                     handleAgree: (callback) => (callback?.(), setLoading(true), onDel(task?.id, handleCallback))
                   })
                 }
@@ -468,16 +507,16 @@ const EditTask = ({
                 sx={{ p: "8px 16px", fontWeight: "500", lineHeight: "1.25rem", fontSize: "0.875rem", textTransform: 'none' }}
                 disabled={loading}
               >
-                Delete
+                {t("task.delete")}
               </MuiButton>
             }
           </div>
           <div>
             <Button onClick={onClose} variant="outlined" disabled={loading}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => (setLoading(true), onOk(data, handleCallback))} disabled={loading}>
-              OK
+              {t("task.ok")}
             </Button>
           </div>
         </div>

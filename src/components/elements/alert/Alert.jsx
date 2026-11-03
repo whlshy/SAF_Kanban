@@ -1,9 +1,11 @@
 import React from 'react'
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material'
 import useAlertStore from '../../../store/alert'
+import { useT } from '@/i18n'
 
 function Alert() {
   const { open, closeAlert, title, content, handleAgree, handleDisagree } = useAlertStore(state => state)
+  const t = useT()
 
   return (
     <Dialog
@@ -19,9 +21,9 @@ function Alert() {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={(handleDisagree, closeAlert)}>取消</Button>
+        <Button onClick={(handleDisagree, closeAlert)}>{t("common.cancel")}</Button>
         <Button onClick={() => handleAgree(closeAlert)} autoFocus>
-          確認
+          {t("common.confirm")}
         </Button>
       </DialogActions>
     </Dialog>

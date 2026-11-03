@@ -9,6 +9,7 @@ import { message } from 'antd'
 import { BrowserRouter } from "react-router-dom"
 import useSnackbarStore from "@/store/snackbar"
 import useApiDataStore from "./store/apidata"
+import { t } from '@/i18n'
 
 const isProd = import.meta.env.MODE === 'production'
 
@@ -22,7 +23,7 @@ const Index = () => {
       str += ((idx == 0 ? "" : "\n\n") + (d?.displayName || d?.field) + '：\n' + d?.error)
     })
     setAlert({
-      title: "錯誤",
+      title: t("common.error"),
       content: str,
       handleAgree: (callback) => callback()
     })
@@ -30,7 +31,7 @@ const Index = () => {
 
   const onError = (error, variables, context) => {
     console.log('onError', error, variables)
-    message.error("API發生未知錯誤")
+    message.error(t("common.apiError"))
   }
 
   const onSuccess = async (data, query) => {
@@ -42,7 +43,7 @@ const Index = () => {
       handleErrorAlert(data?.body?.errorArray)
     } else if (status !== null && data?.body?.message)
       setSnackMsg({ message: data?.body?.message })
-    !data?.ok && status == null && !data?.pages && message.error("API發生未知錯誤！")
+    !data?.ok && status == null && !data?.pages && message.error(t("common.apiError"))
   }
 
   const onSettled = (data, error) => {

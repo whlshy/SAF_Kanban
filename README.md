@@ -11,6 +11,8 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 建立、編輯與刪除 Task
 - 自訂看板欄位，欄位數量不限
 - 同時使用多個看板，各自連到不同的 Google Sheet
+- 匯出、匯入看板設定，方便換電腦或備份
+- 介面支援繁體中文與 English，點右上角的語言按鈕切換
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
@@ -366,7 +368,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 
 | 設定 | 填入內容 |
 | --- | --- |
-| Title | 看板名稱，顯示在左上角，可留空 |
+| 看板名稱 | 顯示在左上角，可留空 |
 | Sheet ID | Google Sheet URL 中的 `SHEET_ID` |
 | Sheet API Key | Apps Script URL 中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
@@ -387,19 +389,29 @@ https://your-company.atlassian.net/browse/
 每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照第 1 到 4 步再建立一份 Sheet 與 Apps Script，然後：
 
 1. 點左上角看板名稱，開啟下拉選單。
-2. 選「新增看板」，填入新看板的 Title、Sheet ID 與 Sheet API Key，按「建立」。
+2. 選「新增看板」，填入新看板的看板名稱、Sheet ID 與 Sheet API Key，按「建立」。
 3. 之後從同一個下拉選單切換看板。
 
 - 網址會帶上 `?board=<看板 ID>`，可以加入書籤，或開多個分頁各看一個看板。
 - 要修改或刪除看板，先切換到該看板，再點右上角齒輪。刪除看板只會移除瀏覽器裡的設定，不會刪除 Google Sheet 的資料。
 - 從單一看板版本升級時，原本的設定會自動成為第一個看板，不需要重新設定。
 
+### 匯出與匯入設定
+
+設定只存在目前的瀏覽器。要換電腦、換瀏覽器或備份時，可以把設定匯出成檔案再匯入：
+
+1. 點左上角看板名稱，選「匯出設定」，會下載一個包含所有看板設定的 JSON 檔。
+2. 在另一個瀏覽器點看板名稱選「匯入設定」，選擇剛剛的檔案。還沒有任何看板時，直接點畫面中間的「匯入」。
+3. 匯入前會用看板名稱和目前的看板比對：名稱重複的需要先改名，不想匯入的取消勾選，再按「匯入」。
+
+匯出的檔案包含 Sheet API Key（Apps Script Deployment ID），拿到檔案的人就能寫入你的 Sheet，請妥善保管，不要公開分享。
+
 ## 6. 測試 Kanban
 
 完成設定後，建議依序測試：
 
 1. 點右上角 `＋` 新增 Task。
-2. 編輯 Title、Description、Priority 與 Assignee。
+2. 編輯標題、描述、優先順序與負責人。
 3. 在同一個欄位內拖曳調整順序。
 4. 將 Task 拖曳到其他欄位。
 5. 重新整理頁面，確認欄位及順序仍然正確。
