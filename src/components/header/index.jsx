@@ -1,6 +1,6 @@
 import React from 'react'
 import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, Translate as TranslateIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
@@ -99,11 +99,23 @@ function index() {
           <Box sx={{ flexGrow: 1 }} />
           <Button
             color="inherit"
-            startIcon={<TranslateIcon />}
+            variant="outlined"
+            size="small"
             onClick={openLanguage}
-            sx={{ textTransform: 'none', mr: 1 }}
+            aria-label={`${t("language.title")}: ${LANGUAGES.find((l) => l.code === lang)?.name}`}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 9999,
+              minWidth: 0,
+              px: 1.5,
+              py: 0.25,
+              mr: 1,
+              fontSize: '0.8125rem',
+              borderColor: 'rgba(255, 255, 255, 0.5)',
+              '&:hover': { borderColor: 'white' },
+            }}
           >
-            {LANGUAGES.find((l) => l.code === lang)?.name}
+            {LANGUAGES.find((l) => l.code === lang)?.short}
           </Button>
           <IconButton style={{ color: "white" }} onClick={openSettings}>
             <SettingsIcon />

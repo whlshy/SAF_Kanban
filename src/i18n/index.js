@@ -4,9 +4,10 @@ import { atomWithStorage } from 'jotai/utils'
 import zhTW from './zh-TW'
 import en from './en'
 
+// `short` is the label on the header button.
 export const LANGUAGES = [
-  { code: "zh-TW", name: "繁體中文" },
-  { code: "en", name: "English" },
+  { code: "zh-TW", short: "zh-TW", name: "繁體中文" },
+  { code: "en", short: "en-US", name: "English" },
 ]
 
 const DICTIONARIES = { "zh-TW": zhTW, en }
