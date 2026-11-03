@@ -4,9 +4,10 @@ import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDow
 import { useAtom } from 'jotai';
 import { dialogAtom } from '../content/Home'
 
-import { useAlertStore, useDialogStore } from '@/store';
-import { boardPlaceholderTitle, boardTitle, useBoards, UNTITLED_TITLE } from '@/store/boards';
+import { useDialogStore } from '@/store';
+import { boardTitle, useBoards, UNTITLED_TITLE } from '@/store/boards';
 import { exportBoards, useStartImport } from './BoardTransfer';
+import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
   const { boards, currentBoard, switchBoard, addBoard } = useBoards();
@@ -14,17 +15,13 @@ function index() {
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
   const startImport = useStartImport();
+  const openSettings = useOpenSettings();
 
   const displayTitle = boardTitle(currentBoard);
 
   React.useEffect(() => {
     document.title = displayTitle;
   }, [displayTitle]);
-
-  const openSettings = () => setDefaultDialog({
-    title: "Settings",
-    open: true, content: <SettingDialog />
-  });
 
   const handleAddBoard = () => {
     setMenuAnchor(null);
@@ -101,58 +98,6 @@ function index() {
 }
 
 export default index;
-
-const SETTING_FIELDS = [
-  { field: "title", label: "Title" },
-  { field: "sheetId", label: "Sheet ID", autoFocus: true },
-  { field: "scriptId", label: "Sheet API Key" },
-  { field: "userKey", label: "User Key" },
-  { field: "jiraLink", label: "Jira Link" },
-]
-
-const SettingDialog = ({ closeDialog }) => {
-  const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
-  const { setAlert } = useAlertStore();
-  const startImport = useStartImport();
-
-  const handleDelete = () => setAlert({
-    title: "刪除看板",
-    content: `確定要刪除「${boardTitle(currentBoard)}」？只會移除這個瀏覽器裡的設定，不會刪除 Google Sheet 的資料。`,
-    handleAgree: (callback) => (callback?.(), deleteBoard(currentBoard.id), closeDialog?.()),
-  });
-
-  return (
-    <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      {/* Remount the fields when switching boards so defaultValue refreshes */}
-      <div key={currentBoard?.id || "new"}>
-        {SETTING_FIELDS.map(({ field, label, autoFocus }) => (
-          <TextField
-            key={field}
-            label={label}
-            variant="standard"
-            placeholder={field === "title" ? boardPlaceholderTitle(currentBoard) : undefined}
-            defaultValue={currentBoard?.[field] || ""}
-            onChange={(e) => updateCurrentBoard({ [field]: e.target.value })}
-            fullWidth
-            autoFocus={autoFocus}
-          />
-        ))}
-      </div>
-      <Box sx={{ mt: 1 }}>
-        {currentBoard ? (
-          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
-            刪除看板
-          </Button>
-        ) : (
-          // No boards yet, so there is no title menu: offer import here instead.
-          <Button startIcon={<ImportIcon />} onClick={startImport} sx={{ textTransform: 'none', ml: -1 }}>
-            從檔案匯入設定
-          </Button>
-        )}
-      </Box>
-    </DialogContent>
-  )
-}
 
 const NewBoardDialog = ({ onCreate, closeDialog }) => {
   const [fields, setFields] = React.useState({});

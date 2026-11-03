@@ -16,6 +16,9 @@ import {
 } from '@/components/ui/kanban';
 import { atom, useAtom } from 'jotai';
 import { useBoards } from '@/store/boards';
+import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
+import { useOpenSettings } from '@/components/header/SettingDialog';
+import { useStartImport } from '@/components/header/BoardTransfer';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/account';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
@@ -62,18 +65,47 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="h-screen min-h-0 overflow-hidden p-4">
-      <WHLKanban
-        tasks={tasks}
-        issues={issues}
-        users={users}
-        reLoadIssue={getGoogleSheetIssueApi.refetch}
-        isLoading={getGoogleSheetIssueApi.isFetching}
-      />
+      {currentBoard ? (
+        <WHLKanban
+          tasks={tasks}
+          issues={issues}
+          users={users}
+          reLoadIssue={getGoogleSheetIssueApi.refetch}
+          isLoading={getGoogleSheetIssueApi.isFetching}
+        />
+      ) : (
+        <EmptyBoards />
+      )}
     </div>
   )
 }
 
 export default Home;
+
+// Shown when there are no boards yet: set one up, or bring settings over from a file.
+function EmptyBoards() {
+  const openSettings = useOpenSettings();
+  const startImport = useStartImport();
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-xl font-medium text-foreground">還沒有看板</h2>
+        <p className="text-sm text-muted-foreground">
+          設定 Google Sheet 建立第一個看板，或從匯出的設定檔匯入。
+        </p>
+      </div>
+      <div className="flex gap-3">
+        <MuiButton variant="contained" startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
+          設定
+        </MuiButton>
+        <MuiButton variant="outlined" startIcon={<ImportIcon />} onClick={startImport} sx={{ textTransform: 'none' }}>
+          匯入
+        </MuiButton>
+      </div>
+    </div>
+  );
+}
 
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
