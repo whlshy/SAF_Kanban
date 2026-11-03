@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import { useSearchParams } from 'react-router-dom'
+import { t } from '@/i18n'
 
 // Each board is one set of settings pointing at its own Google Sheet and
 // Apps Script deployment. The list lives in localStorage; which board a tab
@@ -11,7 +12,6 @@ const BOARDS_KEY = "boards"
 const LAST_BOARD_KEY = "lastBoardId"
 export const DEFAULT_BOARD_ID = "default"
 export const DEFAULT_TITLE = "SAF Kanban"
-export const UNTITLED_TITLE = "未命名看板"
 
 // Settings from the single-board version. The default board keeps writing
 // them so an older cached build still works.
@@ -81,9 +81,9 @@ migrateLegacySettings()
 const boardsAtom = atomWithStorage(BOARDS_KEY, [], undefined, { getOnInit: true })
 
 // The default board keeps "SAF Kanban" as its fallback so upgrading users see
-// no change; other untitled boards read "未命名看板" so they are not mixed up.
+// no change; other untitled boards read "未命名看板" / "Untitled board".
 export const boardPlaceholderTitle = (board) =>
-  !board || board.id === DEFAULT_BOARD_ID ? DEFAULT_TITLE : UNTITLED_TITLE
+  !board || board.id === DEFAULT_BOARD_ID ? DEFAULT_TITLE : t("board.untitled")
 
 export const boardTitle = (board) => board?.title?.trim() || boardPlaceholderTitle(board)
 

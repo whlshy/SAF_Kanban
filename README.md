@@ -12,6 +12,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 自訂看板欄位，欄位數量不限
 - 同時使用多個看板，各自連到不同的 Google Sheet
 - 匯出、匯入看板設定，方便換電腦或備份
+- 介面支援繁體中文與 English，點右上角的語言按鈕切換
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
@@ -367,7 +368,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 
 | 設定 | 填入內容 |
 | --- | --- |
-| Title | 看板名稱，顯示在左上角，可留空 |
+| 看板名稱 | 顯示在左上角，可留空 |
 | Sheet ID | Google Sheet URL 中的 `SHEET_ID` |
 | Sheet API Key | Apps Script URL 中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
@@ -388,7 +389,7 @@ https://your-company.atlassian.net/browse/
 每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照第 1 到 4 步再建立一份 Sheet 與 Apps Script，然後：
 
 1. 點左上角看板名稱，開啟下拉選單。
-2. 選「新增看板」，填入新看板的 Title、Sheet ID 與 Sheet API Key，按「建立」。
+2. 選「新增看板」，填入新看板的看板名稱、Sheet ID 與 Sheet API Key，按「建立」。
 3. 之後從同一個下拉選單切換看板。
 
 - 網址會帶上 `?board=<看板 ID>`，可以加入書籤，或開多個分頁各看一個看板。
@@ -410,7 +411,7 @@ https://your-company.atlassian.net/browse/
 完成設定後，建議依序測試：
 
 1. 點右上角 `＋` 新增 Task。
-2. 編輯 Title、Description、Priority 與 Assignee。
+2. 編輯標題、描述、優先順序與負責人。
 3. 在同一個欄位內拖曳調整順序。
 4. 將 Task 拖曳到其他欄位。
 5. 重新整理頁面，確認欄位及順序仍然正確。

@@ -3,7 +3,8 @@ import { Box, Button, Checkbox, Chip, DialogContent, TextField, Typography } fro
 import { message } from 'antd'
 
 import { useDialogStore } from '@/store';
-import { BOARD_FIELDS, boardTitle, UNTITLED_TITLE, useBoards } from '@/store/boards';
+import { BOARD_FIELDS, boardTitle, useBoards } from '@/store/boards';
+import { t, useT } from '@/i18n';
 
 // Export file format. Bump the version if the shape changes.
 const FILE_APP = "saf-kanban"
@@ -35,19 +36,19 @@ const parseImportFile = (text) => {
   try {
     data = JSON.parse(text)
   } catch {
-    throw new Error("檔案不是有效的 JSON")
+    throw new Error(t("transfer.error.json"))
   }
   if (data?.app !== FILE_APP || !Array.isArray(data.boards)) {
-    throw new Error("這不是 SAF Kanban 的設定檔")
+    throw new Error(t("transfer.error.format"))
   }
   if (data.version > FILE_VERSION) {
-    throw new Error("設定檔版本較新，請重新整理網頁後再匯入")
+    throw new Error(t("transfer.error.version"))
   }
   const boards = data.boards
     .filter((b) => b && typeof b === "object")
     .map((b) => Object.fromEntries(BOARD_FIELDS.map((f) => [f, typeof b[f] === "string" ? b[f] : ""])))
   if (!boards.length) {
-    throw new Error("設定檔裡沒有看板")
+    throw new Error(t("transfer.error.empty"))
   }
   return boards
 }
@@ -74,7 +75,7 @@ export function useStartImport() {
       return
     }
     setDialog({
-      title: "匯入設定",
+      title: t("transfer.import"),
       open: true,
       fullWidth: true,
       maxWidth: "md",
@@ -85,10 +86,11 @@ export function useStartImport() {
 
 const ImportDialog = ({ incoming, closeDialog }) => {
   const { boards, importBoards } = useBoards()
+  const t = useT()
   const [rows, setRows] = React.useState(() => incoming.map((b, i) => ({
     key: i,
     selected: true,
-    name: b.title.trim() || UNTITLED_TITLE,
+    name: b.title.trim() || t("board.untitled"),
     board: b,
   })))
 
@@ -105,11 +107,11 @@ const ImportDialog = ({ incoming, closeDialog }) => {
     if (!row.selected) return { ...row, status: "skip" }
     const name = row.name.trim()
     let error = ""
-    if (!name) error = "請輸入名稱"
-    else if (existingByName.has(name)) error = "已有同名的看板，請改名"
-    else if (rows.some((r) => r.selected && r.key !== row.key && r.name.trim() === name)) error = "與其他要匯入的看板同名，請改名"
+    if (!name) error = t("transfer.nameRequired")
+    else if (existingByName.has(name)) error = t("transfer.nameExists")
+    else if (rows.some((r) => r.selected && r.key !== row.key && r.name.trim() === name)) error = t("transfer.nameDuplicate")
     const sameSheet = existingBySheet.get(row.board.sheetId)
-    const note = sameSheet ? `這份 Sheet 已在看板「${boardTitle(sameSheet)}」使用` : ""
+    const note = sameSheet ? t("transfer.sameSheet", { name: boardTitle(sameSheet) }) : ""
     return { ...row, status: error ? "conflict" : "new", error, note }
   })
 
@@ -120,14 +122,14 @@ const ImportDialog = ({ incoming, closeDialog }) => {
 
   const handleImport = () => {
     importBoards(checked.filter((r) => r.selected).map((r) => ({ ...r.board, title: r.name.trim() })))
-    message.success(`已匯入 ${selectedCount} 個看板`)
+    message.success(t("transfer.imported", { count: selectedCount }))
     closeDialog?.()
   }
 
   return (
     <DialogContent>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        檔案裡有 {incoming.length} 個看板。用名稱和目前的看板比對，名稱重複的請改名，不想匯入的取消勾選。
+        {t("transfer.intro", { count: incoming.length })}
       </Typography>
 
       <Box className="flex flex-col gap-1">
@@ -141,13 +143,13 @@ const ImportDialog = ({ incoming, closeDialog }) => {
             <Checkbox
               checked={row.selected}
               onChange={(e) => update(row.key, { selected: e.target.checked })}
-              inputProps={{ 'aria-label': `匯入 ${row.name}` }}
+              inputProps={{ 'aria-label': t("transfer.importOne", { name: row.name }) }}
               sx={{ mt: 0.5 }}
             />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <TextField
                 variant="standard"
-                label="看板名稱"
+                label={t("field.title")}
                 value={row.name}
                 disabled={!row.selected}
                 onChange={(e) => update(row.key, { name: e.target.value })}
@@ -156,13 +158,13 @@ const ImportDialog = ({ incoming, closeDialog }) => {
                 fullWidth
               />
               <Typography variant="caption" color="text.secondary" component="div" noWrap>
-                Sheet ID：{row.board.sheetId || "（未設定）"}
+                {t("transfer.sheetId", { id: row.board.sheetId || t("transfer.notSet") })}
               </Typography>
             </Box>
             <Box sx={{ width: 88, textAlign: 'right', mt: 2 }}>
-              {row.status === "new" && <Chip size="small" color="success" variant="outlined" label="新增" />}
-              {row.status === "conflict" && <Chip size="small" color="error" variant="outlined" label="名稱衝突" />}
-              {row.status === "skip" && <Chip size="small" variant="outlined" label="不匯入" />}
+              {row.status === "new" && <Chip size="small" color="success" variant="outlined" label={t("transfer.status.new")} />}
+              {row.status === "conflict" && <Chip size="small" color="error" variant="outlined" label={t("transfer.status.conflict")} />}
+              {row.status === "skip" && <Chip size="small" variant="outlined" label={t("transfer.status.skip")} />}
             </Box>
           </Box>
         ))}
@@ -170,11 +172,11 @@ const ImportDialog = ({ incoming, closeDialog }) => {
 
       <Box className="flex items-center justify-between gap-2" sx={{ mt: 2 }}>
         <Typography variant="body2" color={conflictCount ? "error" : "text.secondary"}>
-          {conflictCount ? `還有 ${conflictCount} 個名稱衝突` : `將匯入 ${selectedCount} 個看板`}
+          {conflictCount ? t("transfer.conflictsLeft", { count: conflictCount }) : t("transfer.willImport", { count: selectedCount })}
         </Typography>
         <Box className="flex gap-2">
           <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="contained"
@@ -182,7 +184,7 @@ const ImportDialog = ({ incoming, closeDialog }) => {
             disabled={!selectedCount || conflictCount > 0}
             sx={{ textTransform: 'none' }}
           >
-            匯入
+            {t("transfer.importButton")}
           </Button>
         </Box>
       </Box>
