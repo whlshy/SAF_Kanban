@@ -62,6 +62,8 @@ const migrateLegacySettings = () => {
   }
 }
 
+export const BOARD_FIELDS = ["title", "sheetId", "scriptId", "userKey", "jiraLink"]
+
 const createBoard = (id, fields = {}) => ({
   id,
   title: "",
@@ -129,6 +131,18 @@ export function useBoards() {
     if (updated.id === DEFAULT_BOARD_ID) writeLegacy(updated)
   }, [currentBoard, setBoards])
 
+  // Adds boards (e.g. from an imported file) with fresh ids. If there were no
+  // boards yet, the first one becomes the default board like any first board.
+  const importBoards = useCallback((list) => {
+    const added = list.map((fields, i) => createBoard(
+      !boards.length && i === 0 ? DEFAULT_BOARD_ID : newBoardId(),
+      Object.fromEntries(BOARD_FIELDS.map((f) => [f, fields[f] || ""]))
+    ))
+    setBoards([...boards, ...added])
+    if (added[0]?.id === DEFAULT_BOARD_ID) writeLegacy(added[0])
+    return added
+  }, [boards, setBoards])
+
   const deleteBoard = useCallback((id) => {
     const remaining = boards.filter((b) => b.id !== id)
     setBoards(remaining)
@@ -136,5 +150,5 @@ export function useBoards() {
     switchBoard(remaining[0]?.id || "")
   }, [boards, setBoards, switchBoard])
 
-  return { boards, currentBoard, switchBoard, addBoard, updateCurrentBoard, deleteBoard }
+  return { boards, currentBoard, switchBoard, addBoard, updateCurrentBoard, importBoards, deleteBoard }
 }

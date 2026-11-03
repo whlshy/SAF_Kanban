@@ -1,17 +1,19 @@
 import React from 'react'
 import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { dialogAtom } from '../content/Home'
 
 import { useAlertStore, useDialogStore } from '@/store';
 import { boardPlaceholderTitle, boardTitle, useBoards, UNTITLED_TITLE } from '@/store/boards';
+import { exportBoards, useStartImport } from './BoardTransfer';
 
 function index() {
   const { boards, currentBoard, switchBoard, addBoard } = useBoards();
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
+  const startImport = useStartImport();
 
   const displayTitle = boardTitle(currentBoard);
 
@@ -75,6 +77,15 @@ function index() {
               <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
               <ListItemText>新增看板</ListItemText>
             </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => (setMenuAnchor(null), exportBoards(boards))}>
+              <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>匯出設定</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => (setMenuAnchor(null), startImport())}>
+              <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>匯入設定</ListItemText>
+            </MenuItem>
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
           <IconButton style={{ color: "white" }} onClick={openSettings}>
@@ -102,6 +113,7 @@ const SETTING_FIELDS = [
 const SettingDialog = ({ closeDialog }) => {
   const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
   const { setAlert } = useAlertStore();
+  const startImport = useStartImport();
 
   const handleDelete = () => setAlert({
     title: "刪除看板",
@@ -126,13 +138,18 @@ const SettingDialog = ({ closeDialog }) => {
           />
         ))}
       </div>
-      {currentBoard && (
-        <Box sx={{ mt: 1 }}>
+      <Box sx={{ mt: 1 }}>
+        {currentBoard ? (
           <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
             刪除看板
           </Button>
-        </Box>
-      )}
+        ) : (
+          // No boards yet, so there is no title menu: offer import here instead.
+          <Button startIcon={<ImportIcon />} onClick={startImport} sx={{ textTransform: 'none', ml: -1 }}>
+            從檔案匯入設定
+          </Button>
+        )}
+      </Box>
     </DialogContent>
   )
 }
