@@ -136,14 +136,14 @@ const LanguageDialog = ({ closeDialog }) => {
 
   return (
     <List sx={{ minWidth: 280, py: 0 }}>
-      {LANGUAGES.map(({ code, name }) => (
+      {LANGUAGES.map(({ code, short, name }) => (
         <ListItemButton
           key={code}
           selected={code === lang}
           onClick={() => (setLang(code), closeDialog?.())}
         >
           <ListItemIcon>{code === lang && <CheckIcon fontSize="small" />}</ListItemIcon>
-          <ListItemText>{name}</ListItemText>
+          <ListItemText>{name} ({short})</ListItemText>
         </ListItemButton>
       ))}
     </List>

@@ -56,7 +56,8 @@ export default {
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",
   "task.ok": "確定",
-  "priority.high": "高",
-  "priority.medium": "中",
-  "priority.low": "低",
+  // Priority values stay in English in both languages.
+  "priority.high": "High",
+  "priority.medium": "Medium",
+  "priority.low": "Low",
 }
