@@ -1,5 +1,7 @@
 # SAF Kanban
 
+繁體中文 | [English](README.en.md)
+
 SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需要安裝程式或自行架設網站，只要建立自己的 Google Sheet 與 Apps Script，就能直接使用線上版本。
 
 ## 開啟 Kanban
@@ -250,7 +252,7 @@ F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設�
 
 確認方式：用**無痕視窗**直接開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`。
 
-- 看到 `{"status":"error", ...缺少 action...}` 這類 JSON，表示部署正常。
+- 看到 `{"status":"error","code":"UNKNOWN_ACTION", ...}`（舊版 Script 是 `...缺少 action...`）這類 JSON，表示部署正常。
 - 看到「需要存取權」或 Google 登入頁，表示存取權限不是「所有人」。
 - 如果是公司的 Google Workspace 帳號，存取權限可能沒有「所有人」可選，需要改用個人 Google 帳號建立 Sheet 與 Apps Script。
 
@@ -281,4 +283,4 @@ https://github.com/OWNER/REPO/issues/
 - Sheet 必須開放知道連結者檢視，請勿存放密碼、Token 或其他敏感資料。
 - Apps Script 會以建立者的 Google 帳號權限寫入指定 Sheet。
 - Apps Script Deployment ID 應視為敏感資訊，不要任意公開分享。
-- 目前刪除 Task 會直接刪除 Sheet 資料，不會保留歷史記錄。
+- 使用新版 Apps Script 時，刪除的 Task 會保存在 `history` 工作表；舊版 Script 會直接刪除，不會保留。
