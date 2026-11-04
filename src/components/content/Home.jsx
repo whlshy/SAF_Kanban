@@ -259,7 +259,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 
       <KanbanColumnContent
         value={value}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-0.5 pr-1"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-0.5 pr-1"
       >
         {tasks.map((task) => (
           <TaskCard
