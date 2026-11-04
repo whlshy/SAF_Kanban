@@ -11,6 +11,23 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.9.0 — 2026-11-05
+
+### Added
+
+- On portrait phones each column fills the screen, and swiping snaps to whole columns instead of showing half of one.
+- The assignee can be cleared with "Unassigned", for example when a task goes back to Todo until someone picks it up. The task dialog shows "Unassigned" when there is no assignee.
+- Deleted tasks can be recreated: the **Recreate** icon opens the new-task dialog filled with the old values, and **OK** creates a new task in the board's first column. The `history` record is kept, and the Apps Script doesn't need updating.
+
+### Changed
+
+- The header's settings and add buttons now use the same small size as the other icons.
+- The light theme goes back to a white page with light gray columns, the header is set apart by a soft shadow, and the footer gets a layered light gray gradient like the dark one.
+
+### Fixed
+
+- On narrow phones the header wrapped onto several lines. The board name now stays on one line with an ellipsis, and the buttons and language tag are no longer squeezed.
+
 ## 1.8.0 — 2026-11-05
 
 ### Added

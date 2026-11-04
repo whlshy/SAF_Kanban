@@ -150,7 +150,7 @@ function EmptyBoards() {
   );
 }
 
-const PRIORITIES = ["high", "medium", "low"];
+export const PRIORITIES = ["high", "medium", "low"];
 
 // Priority tag shared by the board cards and the deleted-tasks dialog.
 export function PriorityBadge({ priority }) {
@@ -240,7 +240,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
     <KanbanColumn
       value={value}
       {...props}
-      className="h-full min-h-0 overflow-hidden rounded-md border bg-[#eaeef2] dark:bg-card p-2.5 shadow-xs"
+      className="h-full min-h-0 overflow-hidden rounded-md border bg-muted/60 dark:bg-card p-2.5 shadow-xs"
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2.5">
@@ -409,9 +409,9 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
         className="h-full min-h-0"
       >
         <KanbanBoard
-          className="h-full min-h-0 auto-rows-auto overflow-x-auto"
-          // One row with a column per status; scroll sideways once they no longer fit.
-          style={{ gridTemplateColumns: `repeat(${Math.max(Object.keys(columns).length, 1)}, minmax(240px, 1fr))` }}
+          className="kanban-columns h-full min-h-0 auto-rows-auto overflow-x-auto"
+          // Column widths are set in tailwind.css (.kanban-columns), per screen size.
+          style={{ '--kanban-columns': Math.max(Object.keys(columns).length, 1) }}
         >
           {Object.entries(columns).map(([columnValue, tasks]) => (
             <TaskColumn
@@ -531,14 +531,21 @@ const EditTask = ({
           </Select>
         </FormControl>
         <FormControl variant="standard" fullWidth>
-          <InputLabel>{t("task.assignee")}</InputLabel>
+          <InputLabel shrink>{t("task.assignee")}</InputLabel>
           <Select
             label={t("task.assignee")}
             value={data?.assignee || ""}
             onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
+            displayEmpty
+            renderValue={(value) => value || <span style={{ color: 'rgba(0, 0, 0, 0.38)' }}>{t("task.unassigned")}</span>}
           >
-            {users.map(name => (
+            {/* Lets a task go back to nobody, e.g. back in Todo waiting for someone to pick it up. */}
+            <MenuItem value="">
+              <em>{t("task.unassigned")}</em>
+            </MenuItem>
+            {/* Keep a current assignee who is no longer in the users sheet selectable. */}
+            {(data?.assignee && !users.includes(data.assignee) ? [...users, data.assignee] : users).map(name => (
               <MenuItem key={name} value={name}>
                 {name}
               </MenuItem>

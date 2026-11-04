@@ -18,6 +18,8 @@ export default {
   "history.column": "原本在「{name}」",
   "history.more": "顯示更多（還有 {count} 筆）",
   "history.noTime": "（沒有時間）",
+  "history.recreate": "重新建立",
+  "history.recreateHint": "用這個任務的內容新增一個任務，可以先修改再建立",
 
   "common.cancel": "取消",
   "common.confirm": "確認",
@@ -91,6 +93,7 @@ export default {
   "task.description": "描述",
   "task.priority": "優先順序",
   "task.assignee": "負責人",
+  "task.unassigned": "未指派",
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",
   "task.ok": "確定",

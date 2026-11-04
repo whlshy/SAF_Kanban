@@ -60,24 +60,26 @@ function index() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           background: isDark ? "#1f1f1f" : "#ffffff",
           color: isDark ? "#ffffff" : "rgba(0, 0, 0, 0.87)",
-          boxShadow: isDark ? undefined : "0 1px 0 #d0d7de",
+          boxShadow: isDark ? undefined : "0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06)",
         }}
       >
-        <Toolbar>
+        {/* On narrow screens the title shrinks to one line with an ellipsis and the
+            buttons keep their size, so nothing wraps. */}
+        <Toolbar sx={{ px: { xs: 1.5, sm: 3 } }}>
           {boards.length > 0 ? (
             <Button
               color="inherit"
               disableFocusRipple
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setMenuAnchor(e.currentTarget)}
-              sx={{ textTransform: 'none', ml: -1, px: 1 }}
+              sx={{ textTransform: 'none', ml: -1, px: 1, minWidth: 0, justifyContent: 'flex-start' }}
             >
-              <Typography variant="h6" component="div">
+              <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
                 {displayTitle}
               </Typography>
             </Button>
           ) : (
-            <Typography variant="h6" component="div">
+            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
               {displayTitle}
             </Typography>
           )}
@@ -120,7 +122,7 @@ function index() {
             onClick={toggleTheme}
             aria-label={isDark ? t("theme.toLight") : t("theme.toDark")}
             title={isDark ? t("theme.toLight") : t("theme.toDark")}
-            sx={{ mr: 1 }}
+            sx={iconSx}
           >
             {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
           </IconButton>
@@ -134,9 +136,11 @@ function index() {
               textTransform: 'none',
               borderRadius: 9999,
               minWidth: 0,
-              px: 1.5,
+              px: { xs: 1, sm: 1.5 },
               py: 0.25,
-              mr: 1,
+              mr: { xs: 0.5, sm: 1 },
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
               fontSize: '0.8125rem',
               borderColor: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)',
               '&:hover': { borderColor: isDark ? 'white' : 'rgba(0, 0, 0, 0.6)' },
@@ -151,16 +155,16 @@ function index() {
               onClick={openHistory}
               aria-label={t("history.open")}
               title={t("history.open")}
-              sx={{ mr: 1 }}
+              sx={iconSx}
             >
               <HistoryIcon fontSize="small" />
             </IconButton>
           )}
-          <IconButton color="inherit" onClick={openSettings}>
-            <SettingsIcon />
+          <IconButton color="inherit" size="small" onClick={openSettings} aria-label={t("settings.title")} title={t("settings.title")} sx={iconSx}>
+            <SettingsIcon fontSize="small" />
           </IconButton>
-          <IconButton color="inherit" onClick={() => setDialog({ open: true })}>
-            <AddIcon />
+          <IconButton color="inherit" size="small" onClick={() => setDialog({ open: true })} aria-label={t("task.create")} title={t("task.create")} sx={{ flexShrink: 0 }}>
+            <AddIcon fontSize="small" />
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -169,6 +173,9 @@ function index() {
 }
 
 export default index;
+
+const titleSx = { minWidth: 0, fontSize: { xs: '1.1rem', sm: '1.25rem' } };
+const iconSx = { mr: { xs: 0.5, sm: 1 }, flexShrink: 0 };
 
 const LanguageDialog = ({ closeDialog }) => {
   const [lang, setLang] = useAtom(langAtom);

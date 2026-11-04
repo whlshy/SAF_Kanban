@@ -171,9 +171,10 @@
 
   /* The theme class sits on #root (not <html>) so MUI dialogs, which render
      outside #root, keep their light look in both themes. */
-  /* Light theme: white header, light gray page, darker gray columns, white cards. */
+  /* Light theme: white page, light gray columns, white cards; the header is
+     set apart by a soft shadow. */
   #root {
-    background-color: #f6f8fa;
+    background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
 
@@ -182,9 +183,35 @@
     color: #C9D1D9;
   }
 
+  /* One row with a column per status, sharing the width with a 240px minimum;
+     the board scrolls sideways once they no longer fit. The attribute selector
+     outranks the board's default grid-cols utility. */
+  [data-slot="kanban-board"].kanban-columns {
+    grid-template-columns: repeat(var(--kanban-columns, 1), minmax(240px, 1fr));
+  }
+
+  /* Portrait phones: each column fills the board; swipe between whole columns. */
+  @media (max-width: 640px) {
+    [data-slot="kanban-board"].kanban-columns {
+      grid-template-columns: repeat(var(--kanban-columns, 1), 100%);
+      scroll-snap-type: x mandatory;
+    }
+
+    [data-slot="kanban-board"].kanban-columns > * {
+      scroll-snap-align: start;
+    }
+
+    /* Snapping would fight the auto-scroll while a card is dragged to another column. */
+    [data-slot="kanban"][data-dragging="true"] [data-slot="kanban-board"].kanban-columns {
+      scroll-snap-type: none;
+    }
+  }
+
+  /* Mirrors the dark footer's layering: a slightly darker band that deepens
+     toward a darker strip along the bottom edge. */
   #root:not(.dark) footer {
-    background-color: #eaeef2;
-    border-bottom-color: #eaeef2;
+    background: linear-gradient(to bottom, #f8f8f8, #f0f0f0);
+    border-bottom-color: #d9d9d9;
     color: hsl(var(--foreground));
   }
 }

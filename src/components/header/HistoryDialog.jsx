@@ -1,13 +1,13 @@
 import React from 'react'
-import { Box, Button, CircularProgress, DialogContent, InputAdornment, Link, TextField, Typography } from '@mui/material'
-import { Search as SearchIcon } from '@mui/icons-material'
+import { Box, Button, CircularProgress, DialogContent, IconButton, InputAdornment, Link, TextField, Tooltip, Typography } from '@mui/material'
+import { Search as SearchIcon, Replay as ReplayIcon } from '@mui/icons-material'
 
 import { getGoogleSheetHistory } from '@/apis/sheet'
-import { PriorityBadge } from '@/components/content/Home'
+import { dialogAtom, PriorityBadge, PRIORITIES } from '@/components/content/Home'
 import { langAtom, useT } from '@/i18n'
 import { filterHistory, parseHistory } from '@/lib/history'
 import { useBoards } from '@/store/boards'
-import { useAtomValue } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 
 const PAGE_SIZE = 50
 
@@ -30,9 +30,10 @@ const loadHistory = async (sheetId) => {
   return { status: "error", records: [] }
 }
 
-export default function HistoryDialog() {
+export default function HistoryDialog({ closeDialog }) {
   const { currentBoard } = useBoards()
   const lang = useAtomValue(langAtom)
+  const setTaskDialog = useSetAtom(dialogAtom)
   const t = useT()
   const [state, setState] = React.useState({ status: "loading", records: [] })
   const [query, setQuery] = React.useState("")
@@ -52,6 +53,24 @@ export default function HistoryDialog() {
 
   const matches = React.useMemo(() => filterHistory(state.records, deferredQuery), [state.records, deferredQuery])
   const shown = matches.slice(0, limit)
+
+  // Open the usual "Create task" dialog filled with the deleted task's values;
+  // saving creates a new task (new ID) in the first column. history is untouched.
+  const recreate = (record) => {
+    closeDialog?.()
+    setTaskDialog({
+      open: true,
+      task: {
+        id: null,
+        title: record.title,
+        jiraId: record.issueId,
+        des: record.des,
+        task: "",
+        priority: PRIORITIES.includes(record.priority) ? record.priority : "high",
+        assignee: record.assignee,
+      },
+    })
+  }
   const searching = !!deferredQuery.trim()
 
   return (
@@ -118,7 +137,8 @@ export default function HistoryDialog() {
                   {record.deletedAt || t("history.noTime")}
                 </Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
+              <Box className="flex items-center gap-2" sx={{ mt: 0.25 }}>
+              <Typography variant="caption" color="text.secondary" component="div" sx={{ flex: 1, minWidth: 0 }}>
                 {[
                   record.issueId && (jiraLink
                     ? <Link key="issue" href={`${jiraLink}${record.issueId}`} target="_blank" rel="noopener noreferrer">{record.issueId}</Link>
@@ -127,6 +147,18 @@ export default function HistoryDialog() {
                   record.assignee && <span key="assignee">{record.assignee}</span>,
                 ].filter(Boolean).map((part, i) => <React.Fragment key={i}>{i > 0 && " · "}{part}</React.Fragment>)}
               </Typography>
+                <Tooltip title={t("history.recreateHint")}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => recreate(record)}
+                    aria-label={t("history.recreate")}
+                    sx={{ flexShrink: 0, my: -0.5 }}
+                  >
+                    <ReplayIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               {record.des && (
                 <Typography
                   variant="body2"
