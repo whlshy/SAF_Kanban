@@ -33,15 +33,16 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 
 ## 1. 建立 Google Sheet
 
-建立一份新的 Google Sheet，並將三個工作表命名為：
+建立一份新的 Google Sheet，並將四個工作表命名為：
 
 ```text
 kanban
 columns
 users
+history
 ```
 
-名稱必須完全相同，包含英文大小寫。另外還有一個 `history` 工作表，用來保存刪除的 Task，第一次刪除時 Apps Script 會自動建立，不需要手動新增。
+名稱必須完全相同，包含英文大小寫。`history` 如果沒有建立，第一次刪除 Task 時 Apps Script 也會自動建立。
 
 目前程式不會略過標題列，因此工作表都不要加入欄位標題，資料直接從第一列開始。
 
@@ -87,7 +88,14 @@ users
 
 ### `history` 工作表
 
-刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除。欄位與 `kanban` 相同（A:G），H 欄是刪除時間。需要使用[新版 Apps Script](#更新-apps-script)。
+這張表用來保存刪除的 Task，可以先保持空白。刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除：
+
+| 欄位 | 內容 | 範例 |
+| --- | --- | --- |
+| A～G | 與 `kanban` 工作表相同：Task ID、Title、Jira ID、Description、Kanban Column、Priority、Assignee | |
+| H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
+
+需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
 
 ## 2. 開放 Sheet 讀取權限
 
