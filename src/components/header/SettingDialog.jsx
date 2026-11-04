@@ -10,7 +10,7 @@ export const SETTING_FIELDS = [
   { field: "sheetId", labelKey: "field.sheetId", hintKey: "field.sheetId.hint", autoFocus: true },
   { field: "scriptId", labelKey: "field.scriptId", hintKey: "field.scriptId.hint" },
   { field: "userKey", labelKey: "field.userKey" },
-  { field: "jiraLink", labelKey: "field.jiraLink" },
+  { field: "jiraLink", labelKey: "field.jiraLink", hintKey: "field.jiraLink.hint" },
 ]
 
 const SettingDialog = ({ closeDialog }) => {

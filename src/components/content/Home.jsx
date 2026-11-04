@@ -20,7 +20,7 @@ import { t as translate, useT } from '@/i18n';
 import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 import { useOpenSettings } from '@/components/header/SettingDialog';
 import { useStartImport } from '@/components/header/BoardTransfer';
-import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/account';
+import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/sheet';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
 

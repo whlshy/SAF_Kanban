@@ -10,16 +10,6 @@ export class ScriptError extends Error {
   }
 }
 
-export const getAccount = async () => {
-  const response = await api({ method: "GET", cmd: "api/Member" })
-  return response
-}
-
-export const logoutAccount = async () => {
-  const response = await api({ method: "POST", cmd: "api/Auth/logout" })
-  return response
-}
-
 export const getGoogleSheetIssue = async (sheetId) => {
   const response = await api({
     method: "GET",

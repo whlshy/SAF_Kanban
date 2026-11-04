@@ -16,7 +16,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
-- 連結 Jira Issue
+- 連結 Jira、GitHub 等 Issue
 - 刪除的 Task 會保留在 `history` 工作表
 - 所有資料儲存在你自己的 Google Sheet
 
@@ -54,7 +54,7 @@ history
 | --- | --- | --- |
 | A | Task ID | `4836540b` |
 | B | Title | `Implement login page` |
-| C | Jira ID | `PROJECT-101` |
+| C | Issue ID | `PROJECT-101` |
 | D | Description | `Create login form` |
 | E | Kanban Column | `Todo` |
 | F | Priority | `high`、`medium`、`low` |
@@ -92,7 +92,7 @@ history
 
 | 欄位 | 內容 | 範例 |
 | --- | --- | --- |
-| A～G | 與 `kanban` 工作表相同：Task ID、Title、Jira ID、Description、Kanban Column、Priority、Assignee | |
+| A～G | 與 `kanban` 工作表相同：Task ID、Title、Issue ID、Description、Kanban Column、Priority、Assignee | |
 | H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
 
 需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
@@ -162,15 +162,18 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 | Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
 | Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
-| Jira Link | Jira Issue 基底網址，可留空 |
+| Issue Link | Issue 的基底網址，任務的 Issue ID 會接在後面，可留空 |
 
 「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。
 
-Jira Link 範例：
+Issue Link 範例：
 
-```text
-https://your-company.atlassian.net/browse/
-```
+| 系統 | Issue Link |
+| --- | --- |
+| Jira | `https://your-company.atlassian.net/browse/` |
+| GitHub Issues | `https://github.com/OWNER/REPO/issues/` |
+
+舊版介面把 Issue Link 叫做「Jira Link」，任務的 Issue ID 叫做「Jira ID」，設定和資料都不受改名影響。
 
 設定會儲存在目前瀏覽器的 Local Storage。更換瀏覽器或清除網站資料後，需要重新輸入。
 
@@ -263,12 +266,13 @@ F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設�
 部署 → 管理部署 → 編輯 → 版本：新版本 → 部署
 ```
 
-### Jira 連結無法開啟
+### Issue 連結無法開啟
 
-確認 Jira Link 結尾包含 `/browse/`，例如：
+點任務上的 Issue ID 時，會開啟「Issue Link + Issue ID」。確認 Issue Link 的結尾正確，例如 Jira 要包含 `/browse/`，GitHub 要包含 `/issues/`：
 
 ```text
 https://your-company.atlassian.net/browse/
+https://github.com/OWNER/REPO/issues/
 ```
 
 ## 資料與隱私
