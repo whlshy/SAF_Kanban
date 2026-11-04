@@ -12,6 +12,8 @@ const BOARDS_KEY = "boards"
 const LAST_BOARD_KEY = "lastBoardId"
 export const DEFAULT_BOARD_ID = "default"
 export const DEFAULT_TITLE = "SAF Kanban"
+// "Make a copy" link of the template Sheet (tabs and Apps Script ready to deploy).
+export const TEMPLATE_COPY_URL = "https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy"
 
 // Settings from the single-board version. The default board keeps writing
 // them so an older cached build still works.
@@ -64,6 +66,23 @@ const migrateLegacySettings = () => {
 
 export const BOARD_FIELDS = ["title", "sheetId", "scriptId", "userKey", "jiraLink"]
 
+// The Sheet ID and Apps Script Deployment ID fields also accept the full URLs
+// people copy (the Sheet's address bar, the deployment's .../exec URL).
+export const normalizeBoardField = (field, value) => {
+  if (field === "sheetId") {
+    const text = String(value ?? "").trim()
+    return text.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/)?.[1] || text
+  }
+  if (field === "scriptId") {
+    const text = String(value ?? "").trim()
+    return text.match(/\/macros\/s\/([A-Za-z0-9_-]+)\/exec/)?.[1] || text
+  }
+  return value
+}
+
+const normalizeBoardFields = (fields = {}) =>
+  Object.fromEntries(Object.entries(fields).map(([field, value]) => [field, normalizeBoardField(field, value)]))
+
 const createBoard = (id, fields = {}) => ({
   id,
   title: "",
@@ -113,7 +132,7 @@ export function useBoards() {
   }, [setSearchParams])
 
   const addBoard = useCallback((fields) => {
-    const board = createBoard(boards.length ? newBoardId() : DEFAULT_BOARD_ID, fields)
+    const board = createBoard(boards.length ? newBoardId() : DEFAULT_BOARD_ID, normalizeBoardFields(fields))
     setBoards([...boards, board])
     if (board.id === DEFAULT_BOARD_ID) writeLegacy(board)
     switchBoard(board.id)
@@ -136,7 +155,7 @@ export function useBoards() {
   const importBoards = useCallback((list) => {
     const added = list.map((fields, i) => createBoard(
       !boards.length && i === 0 ? DEFAULT_BOARD_ID : newBoardId(),
-      Object.fromEntries(BOARD_FIELDS.map((f) => [f, fields[f] || ""]))
+      normalizeBoardFields(Object.fromEntries(BOARD_FIELDS.map((f) => [f, fields[f] || ""])))
     ))
     setBoards([...boards, ...added])
     if (added[0]?.id === DEFAULT_BOARD_ID) writeLegacy(added[0])

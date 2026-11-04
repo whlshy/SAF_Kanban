@@ -2,13 +2,13 @@ import React from 'react'
 import { Box, Button, DialogContent, TextField } from '@mui/material'
 
 import { useAlertStore, useDialogStore } from '@/store';
-import { boardPlaceholderTitle, boardTitle, useBoards } from '@/store/boards';
+import { boardPlaceholderTitle, boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
 import { t, useT } from '@/i18n';
 
 export const SETTING_FIELDS = [
   { field: "title", labelKey: "field.title" },
-  { field: "sheetId", labelKey: "field.sheetId", autoFocus: true },
-  { field: "scriptId", labelKey: "field.scriptId" },
+  { field: "sheetId", labelKey: "field.sheetId", hintKey: "field.sheetId.hint", autoFocus: true },
+  { field: "scriptId", labelKey: "field.scriptId", hintKey: "field.scriptId.hint" },
   { field: "userKey", labelKey: "field.userKey" },
   { field: "jiraLink", labelKey: "field.jiraLink" },
 ]
@@ -28,14 +28,20 @@ const SettingDialog = ({ closeDialog }) => {
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
       {/* Remount the fields when switching boards so defaultValue refreshes */}
       <div key={currentBoard?.id || "new"}>
-        {SETTING_FIELDS.map(({ field, labelKey, autoFocus }) => (
+        {SETTING_FIELDS.map(({ field, labelKey, hintKey, autoFocus }) => (
           <TextField
             key={field}
             label={t(labelKey)}
             variant="standard"
             placeholder={field === "title" ? boardPlaceholderTitle(currentBoard) : undefined}
+            helperText={hintKey && t(hintKey)}
             defaultValue={currentBoard?.[field] || ""}
-            onChange={(e) => updateCurrentBoard({ [field]: e.target.value })}
+            onChange={(e) => {
+              // A pasted URL is reduced to its ID right away, so the field shows what is saved.
+              const value = normalizeBoardField(field, e.target.value);
+              if (value !== e.target.value) e.target.value = value;
+              updateCurrentBoard({ [field]: value });
+            }}
             fullWidth
             autoFocus={autoFocus}
           />

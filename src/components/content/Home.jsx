@@ -15,7 +15,7 @@ import {
   KanbanOverlay,
 } from '@/components/ui/kanban';
 import { atom, useAtom } from 'jotai';
-import { useBoards } from '@/store/boards';
+import { TEMPLATE_COPY_URL, useBoards } from '@/store/boards';
 import { t as translate, useT } from '@/i18n';
 import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
 import { useOpenSettings } from '@/components/header/SettingDialog';
@@ -59,8 +59,13 @@ function Home() {
     () => (getGoogleSheetTaskApi?.data?.values || []).filter((row) => row?.[0]),
     [getGoogleSheetTaskApi?.data?.values]
   );
+  // users rows are either [name] or the older [id, name]; keep the names.
   const users = React.useMemo(
-    () => getGoogleSheetUsersApi?.data?.values || [],
+    () => [...new Set(
+      (getGoogleSheetUsersApi?.data?.values || [])
+        .map((row) => (row?.[1] || row?.[0] || "").trim())
+        .filter(Boolean)
+    )],
     [getGoogleSheetUsersApi?.data?.values]
   );
 
@@ -133,6 +138,14 @@ function EmptyBoards() {
           {t("board.empty.import")}
         </MuiButton>
       </div>
+      <a
+        href={TEMPLATE_COPY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        {t("board.empty.template")}
+      </a>
     </div>
   );
 }
@@ -259,7 +272,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
 
   const { currentBoard } = useBoards();
   const setGoogleSheetIssueApi = useMutation({
-    mutationFn: (params) => setGoogleSheetIssue({ ...params, scriptId: currentBoard?.scriptId }),
+    mutationFn: (params) => setGoogleSheetIssue({ ...params, scriptId: currentBoard?.scriptId, sheetId: currentBoard?.sheetId }),
   })
 
   useEffect(() => {
@@ -516,9 +529,9 @@ const EditTask = ({
             onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
           >
-            {users.map(user => (
-              <MenuItem key={user[0]} value={user[1]}>
-                {user[1]}
+            {users.map(name => (
+              <MenuItem key={name} value={name}>
+                {name}
               </MenuItem>
             ))}
           </Select>

@@ -6,12 +6,12 @@ import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
 import { useDialogStore } from '@/store';
-import { boardTitle, useBoards } from '@/store/boards';
+import { boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
 import { exportBoards, useStartImport } from './BoardTransfer';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
-  const { boards, currentBoard, switchBoard, addBoard } = useBoards();
+  const { boards, currentBoard, switchBoard } = useBoards();
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
@@ -39,7 +39,7 @@ function index() {
     setMenuAnchor(null);
     setDefaultDialog({
       title: t("board.new"),
-      open: true, content: <NewBoardDialog onCreate={addBoard} />
+      open: true, content: <NewBoardDialog />
     });
   };
 
@@ -150,29 +150,38 @@ const LanguageDialog = ({ closeDialog }) => {
   )
 }
 
-const NewBoardDialog = ({ onCreate, closeDialog }) => {
+const NewBoardDialog = ({ closeDialog }) => {
+  const { boards, addBoard } = useBoards();
   const [fields, setFields] = React.useState({});
   const t = useT();
 
+  const sameSheet = fields.sheetId?.trim() && boards.find((b) => b.sheetId?.trim() === fields.sheetId.trim());
+
   const handleCreate = () => {
-    onCreate(fields);
+    addBoard(fields);
     closeDialog?.();
   };
 
   return (
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      {SETTING_FIELDS.map(({ field, labelKey }) => (
+      {SETTING_FIELDS.map(({ field, labelKey, hintKey }) => (
         <TextField
           key={field}
           label={t(labelKey)}
           variant="standard"
           placeholder={field === "title" ? t("board.untitled") : undefined}
+          helperText={hintKey && t(hintKey)}
           value={fields[field] || ""}
-          onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
+          onChange={(e) => setFields((f) => ({ ...f, [field]: normalizeBoardField(field, e.target.value) }))}
           fullWidth
           autoFocus={field === "title"}
         />
       ))}
+      {sameSheet && (
+        <Typography variant="body2" color="warning.main">
+          {t("board.sameSheet", { name: boardTitle(sameSheet) })}
+        </Typography>
+      )}
       <Box className="flex items-center justify-end gap-2" sx={{ mt: 1 }}>
         <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
           {t("common.cancel")}
