@@ -11,7 +11,17 @@ function index(props) {
         </Link>
       </div> */}
       <div className='footer-content footer-info flex aic'>
-        <div className='flex rowTitle'>SAF Kanban. WHL. All rights reserved.</div>
+        <div className='flex rowTitle'>
+          <a
+            href="https://github.com/whlshy/SAF_Kanban"
+            target="_blank"
+            rel="noopener noreferrer"
+            className='reset-link underline-offset-2 hover:underline'
+          >
+            SAF Kanban
+          </a>
+          . WHL. All rights reserved.
+        </div>
       </div>
     </footer>
 
