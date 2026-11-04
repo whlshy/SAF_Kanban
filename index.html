@@ -37,6 +37,7 @@
         }
       } catch (e) {}
       if (theme === 'dark') document.getElementById('root').classList.add('dark');
+      document.documentElement.dataset.theme = theme;
     })();
   </script>
   <script type="module" src="/src/main.jsx"></script>

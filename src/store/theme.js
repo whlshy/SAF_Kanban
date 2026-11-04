@@ -14,6 +14,8 @@ export function useTheme() {
 
   useEffect(() => {
     document.getElementById('root')?.classList.toggle('dark', isDark)
+    // Page background only (not the tailwind `dark` class), for areas outside #root.
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
   }, [isDark])
 
   return { theme, isDark, toggleTheme: () => setTheme(isDark ? 'light' : 'dark') }
