@@ -8,7 +8,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -82,9 +83,16 @@ function Kanban(
   const [activeId, setActiveId] = React.useState(null);
   const dragStartColumnsRef = React.useRef(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, {
+  // Mouse drags start after moving 10px. Touch drags need a short long-press,
+  // so a quick swipe over a card scrolls the board instead of grabbing it.
+  const sensors = useSensors(useSensor(MouseSensor, {
     activationConstraint: {
       distance: 10,
+    },
+  }), useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 8,
     },
   }), useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
