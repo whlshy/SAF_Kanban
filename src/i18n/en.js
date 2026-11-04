@@ -20,6 +20,8 @@ export default {
   "history.column": "Was in \"{name}\"",
   "history.more": "Show more ({count} more)",
   "history.noTime": "(no time)",
+  "history.recreate": "Recreate",
+  "history.recreateHint": "Create a new task from this one; you can edit it before saving",
 
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",

@@ -150,7 +150,7 @@ function EmptyBoards() {
   );
 }
 
-const PRIORITIES = ["high", "medium", "low"];
+export const PRIORITIES = ["high", "medium", "low"];
 
 // Priority tag shared by the board cards and the deleted-tasks dialog.
 export function PriorityBadge({ priority }) {

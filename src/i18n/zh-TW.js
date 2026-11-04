@@ -18,6 +18,8 @@ export default {
   "history.column": "原本在「{name}」",
   "history.more": "顯示更多（還有 {count} 筆）",
   "history.noTime": "（沒有時間）",
+  "history.recreate": "重新建立",
+  "history.recreateHint": "用這個任務的內容新增一個任務，可以先修改再建立",
 
   "common.cancel": "取消",
   "common.confirm": "確認",

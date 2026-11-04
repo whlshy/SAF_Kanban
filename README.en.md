@@ -102,7 +102,7 @@ Keeps deleted tasks and can start empty. When a task is deleted, the Apps Script
 
 This needs the [current Apps Script](#update-the-apps-script). Older scripts delete tasks without saving them here.
 
-In SAF Kanban, click the clock icon right of the language tag to see the current board's deleted tasks, most recently deleted first. You can search them by title, description, Issue ID, column or assignee.
+In SAF Kanban, click the clock icon right of the language tag to see the current board's deleted tasks, most recently deleted first. You can search them by title, description, Issue ID, column or assignee. The **Recreate** icon on the right opens the new-task dialog filled with the task's old values; edit them if needed and click **OK** to create a new task in the board's first column. The `history` record is kept.
 
 ## 2. Let SAF Kanban read the Sheet
 
