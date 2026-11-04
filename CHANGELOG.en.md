@@ -22,6 +22,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 ### Changed
 
 - The header's settings and add buttons now use the same small size as the other icons.
+- The light theme goes back to a white page with light gray columns, and the header is set apart by a soft shadow.
 
 ### Fixed
 

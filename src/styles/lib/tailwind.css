@@ -171,9 +171,10 @@
 
   /* The theme class sits on #root (not <html>) so MUI dialogs, which render
      outside #root, keep their light look in both themes. */
-  /* Light theme: white header, light gray page, darker gray columns, white cards. */
+  /* Light theme: white page, light gray columns, white cards; the header is
+     set apart by a soft shadow. */
   #root {
-    background-color: #f6f8fa;
+    background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
 
@@ -207,8 +208,8 @@
   }
 
   #root:not(.dark) footer {
-    background-color: #eaeef2;
-    border-bottom-color: #eaeef2;
+    background-color: hsl(var(--muted));
+    border-bottom-color: hsl(var(--muted));
     color: hsl(var(--foreground));
   }
 }

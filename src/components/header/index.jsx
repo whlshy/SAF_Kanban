@@ -60,7 +60,7 @@ function index() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           background: isDark ? "#1f1f1f" : "#ffffff",
           color: isDark ? "#ffffff" : "rgba(0, 0, 0, 0.87)",
-          boxShadow: isDark ? undefined : "0 1px 0 #d0d7de",
+          boxShadow: isDark ? undefined : "0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06)",
         }}
       >
         {/* On narrow screens the title shrinks to one line with an ellipsis and the
