@@ -165,7 +165,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 | 看板名稱 | 顯示在左上角，可留空 |
 | Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
 | Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
-| User Key | 目前未使用，可留空 |
+| User Name | 你的名稱，目前未使用，可留空 |
 | Issue Link | Issue 的基底網址，任務的 Issue ID 會接在後面，可留空 |
 
 「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。

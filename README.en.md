@@ -165,7 +165,7 @@ Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/), click the gear icon at 
 | Title | Shown at the top left; optional |
 | Sheet ID | The Google Sheet's URL, or the `SHEET_ID` in it |
 | Apps Script Deployment ID | The web app URL from your deployment, or the `DEPLOYMENT_ID` in it |
-| User Key | Not used yet; leave empty |
+| User Name | Your name; not used yet, leave empty |
 | Issue Link | The base URL of your issues; a task's Issue ID is appended to it. Optional |
 
 The Apps Script Deployment ID comes from the Apps Script you deployed yourself; you don't need a Google Cloud API key. Older versions of the site called this field "Sheet API Key".

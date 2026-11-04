@@ -40,7 +40,7 @@ export default {
   "field.sheetId.hint": "可以直接貼上 Google Sheet 的網址",
   "field.scriptId": "Apps Script 部署 ID",
   "field.scriptId.hint": "可以直接貼上部署後的網頁應用程式網址（結尾是 /exec）",
-  "field.userKey": "User Key",
+  "field.userKey": "User Name",
   "field.jiraLink": "Issue Link",
   "field.jiraLink.hint": "任務的 Issue ID 會接在這個網址後面，例如 https://your-company.atlassian.net/browse/",
 
