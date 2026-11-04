@@ -6,6 +6,9 @@ export default {
   "common.error": "錯誤",
   "common.success": "成功",
   "common.apiError": "API 發生未知錯誤",
+  "script.missing": "這個看板還沒設定 Sheet API Key，請到「設定」填入 Apps Script 的 Deployment ID。",
+  "script.unreachable": "無法寫入 Google Sheet。請確認 Apps Script 的 SPREADSHEET_ID 是這份 Sheet 的 ID（或留空）、部署的存取權限是「所有人」，以及「設定」裡的 Sheet API Key 正確。",
+  "script.error": "Apps Script 回傳錯誤：{message}",
 
   "board.untitled": "未命名看板",
   "board.new": "新增看板",
@@ -16,6 +19,10 @@ export default {
   "board.empty.description": "設定 Google Sheet 建立第一個看板，或從匯出的設定檔匯入。",
   "board.empty.settings": "設定",
   "board.empty.import": "匯入",
+  "board.notice.noSheet.title": "這個看板還沒設定 Sheet ID",
+  "board.notice.noSheet.description": "點「設定」填入 Google Sheet 的 Sheet ID 與 Sheet API Key。",
+  "board.notice.noColumns.title": "讀不到這個看板的欄位",
+  "board.notice.noColumns.description": "請確認 Sheet ID 是否正確、Sheet 已開放「知道連結的任何人」檢視，以及有名為 columns 的工作表，且 A 欄填有欄位名稱。",
 
   "settings.title": "設定",
   "field.title": "看板名稱",
@@ -56,6 +63,7 @@ export default {
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",
   "task.ok": "確定",
+  "task.noColumns": "這個看板沒有欄位，無法新增任務。請先確認 Google Sheet 的 columns 工作表。",
   // Priority values stay in English in both languages.
   "priority.high": "High",
   "priority.medium": "Medium",

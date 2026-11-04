@@ -6,6 +6,9 @@ export default {
   "common.error": "Error",
   "common.success": "Success",
   "common.apiError": "Unknown API error",
+  "script.missing": "This board has no Sheet API Key yet. Open Settings and enter the Apps Script Deployment ID.",
+  "script.unreachable": "Couldn't write to the Google Sheet. Check that the Apps Script's SPREADSHEET_ID is this Sheet's ID (or empty), the deployment is shared with \"Anyone\", and the Sheet API Key in Settings is correct.",
+  "script.error": "Apps Script returned an error: {message}",
 
   "board.untitled": "Untitled board",
   "board.new": "New board",
@@ -16,6 +19,10 @@ export default {
   "board.empty.description": "Set up a Google Sheet to create your first board, or import an exported settings file.",
   "board.empty.settings": "Settings",
   "board.empty.import": "Import",
+  "board.notice.noSheet.title": "This board has no Sheet ID yet",
+  "board.notice.noSheet.description": "Open Settings and enter the Google Sheet's Sheet ID and Sheet API Key.",
+  "board.notice.noColumns.title": "Can't read this board's columns",
+  "board.notice.noColumns.description": "Check that the Sheet ID is correct, the Sheet is shared with \"Anyone with the link\" as a viewer, and it has a sheet named columns with column names in column A.",
 
   "settings.title": "Settings",
   "field.title": "Title",
@@ -60,6 +67,7 @@ export default {
   "task.delete": "Delete",
   "task.deleteConfirm": "Delete this task?",
   "task.ok": "OK",
+  "task.noColumns": "This board has no columns, so tasks can't be added. Check the columns sheet in the Google Sheet.",
   "priority.high": "High",
   "priority.medium": "Medium",
   "priority.low": "Low",

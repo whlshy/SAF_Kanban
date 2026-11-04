@@ -44,6 +44,7 @@ function Home() {
   const boardId = currentBoard?.id;
   const sheetId = currentBoard?.sheetId;
   const { open } = useDialogStore();
+  const t = useT();
 
   const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", boardId, sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
   const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", boardId, sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
@@ -53,8 +54,9 @@ function Home() {
     () => changeIssue(getGoogleSheetIssueApi?.data?.values || []),
     [getGoogleSheetIssueApi?.data?.values]
   );
+  // Blank rows in the columns sheet would become a nameless column, so skip them.
   const tasks = React.useMemo(
-    () => getGoogleSheetTaskApi?.data?.values || [],
+    () => (getGoogleSheetTaskApi?.data?.values || []).filter((row) => row?.[0]),
     [getGoogleSheetTaskApi?.data?.values]
   );
   const users = React.useMemo(
@@ -66,22 +68,48 @@ function Home() {
     <div
       style={{ paddingTop: "80px" }}
       className="h-screen min-h-0 overflow-hidden p-4">
-      {currentBoard ? (
+      {!currentBoard ? (
+        <EmptyBoards />
+      ) : (
         <WHLKanban
+          notice={
+            !sheetId ? (
+              <BoardNotice title={t("board.notice.noSheet.title")} description={t("board.notice.noSheet.description")} />
+            ) : getGoogleSheetTaskApi.isFetched && !getGoogleSheetTaskApi.isFetching && !tasks.length ? (
+              <BoardNotice title={t("board.notice.noColumns.title")} description={t("board.notice.noColumns.description")} />
+            ) : null
+          }
           tasks={tasks}
           issues={issues}
           users={users}
           reLoadIssue={getGoogleSheetIssueApi.refetch}
           isLoading={getGoogleSheetIssueApi.isFetching}
         />
-      ) : (
-        <EmptyBoards />
       )}
     </div>
   )
 }
 
 export default Home;
+
+// Shown instead of the board when it cannot be displayed (no Sheet ID, or no
+// columns could be read), so the page is not just blank.
+function BoardNotice({ title, description }) {
+  const openSettings = useOpenSettings();
+  const t = useT();
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+      <div className="flex max-w-xl flex-col gap-2">
+        <h2 className="text-xl font-medium text-foreground">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <MuiButton variant="contained" startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
+        {t("board.empty.settings")}
+      </MuiButton>
+    </div>
+  );
+}
 
 // Shown when there are no boards yet: set one up, or bring settings over from a file.
 function EmptyBoards() {
@@ -224,7 +252,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
   );
 };
 
-function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
+function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
   const t = useT();
@@ -315,6 +343,11 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
       let newColumns = JSON.parse(JSON.stringify(columns));
       const newId = crypto.randomUUID().split('-')[0];
       const firstColumn = tasks?.[0]?.[0];
+      if (!newColumns[firstColumn]) {
+        message.error(translate("task.noColumns"));
+        callback?.(false);
+        return;
+      }
       const task = { ...newTask, id: newId, task: firstColumn };
       newColumns[firstColumn] = newColumns[firstColumn].concat([task]);
 
@@ -345,7 +378,8 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
 
   return (
     <>
-      <Kanban
+      {/* The notice replaces only the board, so the task dialog below still works. */}
+      {notice || <Kanban
         value={columns}
         onValueChange={setColumns}
         onMove={handleMoveTask}
@@ -389,7 +423,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading }) {
             return <TaskCard task={task} />;
           }}
         </KanbanOverlay>
-      </Kanban>
+      </Kanban>}
       {!!dialogProps.open &&
         <Dialog
           open={dialogProps.open}

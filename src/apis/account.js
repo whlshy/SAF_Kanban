@@ -1,4 +1,13 @@
 import api from '../lib/api'
+import { t } from '@/i18n'
+
+// An Apps Script failure with a message the user can act on (shown as is).
+export class ScriptError extends Error {
+  constructor(userMessage) {
+    super(userMessage)
+    this.userMessage = userMessage
+  }
+}
 
 export const getAccount = async () => {
   const response = await api({ method: "GET", cmd: "api/Member" })
@@ -35,6 +44,12 @@ export const getGoogleSheetUsers = async (sheetId) => {
 }
 
 export const setGoogleSheetIssue = async ({ scriptId, action, task, id, status, beforeId, afterId }) => {
+  if (!scriptId) {
+    throw new ScriptError(t("script.missing"))
+  }
+
+  // A deployment that is misconfigured answers with a Google login or error
+  // page instead of JSON; the browser reports that as a CORS/network error.
   const response = await api({
     method: "GET",
     cmd_url: `https://script.google.com/macros/s/${scriptId}/exec`,
@@ -46,10 +61,15 @@ export const setGoogleSheetIssue = async ({ scriptId, action, task, id, status, 
       ...(beforeId ? { beforeId } : {}),
       ...(afterId ? { afterId } : {}),
     },
+  }).catch(() => {
+    throw new ScriptError(t("script.unreachable"))
   })
 
-  if (!response.ok || response.body?.status === "error") {
-    throw new Error(response.body?.message || "Google Sheet update failed")
+  if (response.body?.status === "error") {
+    throw new ScriptError(t("script.error", { message: response.body?.message || "" }))
+  }
+  if (!response.ok) {
+    throw new ScriptError(t("script.unreachable"))
   }
 
   return response
