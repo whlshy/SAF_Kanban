@@ -531,14 +531,21 @@ const EditTask = ({
           </Select>
         </FormControl>
         <FormControl variant="standard" fullWidth>
-          <InputLabel>{t("task.assignee")}</InputLabel>
+          <InputLabel shrink>{t("task.assignee")}</InputLabel>
           <Select
             label={t("task.assignee")}
             value={data?.assignee || ""}
             onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
+            displayEmpty
+            renderValue={(value) => value || <span style={{ color: 'rgba(0, 0, 0, 0.38)' }}>{t("task.unassigned")}</span>}
           >
-            {users.map(name => (
+            {/* Lets a task go back to nobody, e.g. back in Todo waiting for someone to pick it up. */}
+            <MenuItem value="">
+              <em>{t("task.unassigned")}</em>
+            </MenuItem>
+            {/* Keep a current assignee who is no longer in the users sheet selectable. */}
+            {(data?.assignee && !users.includes(data.assignee) ? [...users, data.assignee] : users).map(name => (
               <MenuItem key={name} value={name}>
                 {name}
               </MenuItem>

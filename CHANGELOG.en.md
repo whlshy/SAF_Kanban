@@ -15,6 +15,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Added
 
+- The assignee can be cleared with "Unassigned", for example when a task goes back to Todo until someone picks it up. The task dialog shows "Unassigned" when there is no assignee.
 - Deleted tasks can be recreated: the **Recreate** icon opens the new-task dialog filled with the old values, and **OK** creates a new task in the board's first column. The `history` record is kept, and the Apps Script doesn't need updating.
 
 ## 1.8.0 — 2026-11-05

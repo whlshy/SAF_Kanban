@@ -99,6 +99,7 @@ export default {
   "task.description": "Description",
   "task.priority": "Priority",
   "task.assignee": "Assignee",
+  "task.unassigned": "Unassigned",
   "task.delete": "Delete",
   "task.deleteConfirm": "Delete this task?",
   "task.ok": "OK",

@@ -93,6 +93,7 @@ export default {
   "task.description": "描述",
   "task.priority": "優先順序",
   "task.assignee": "負責人",
+  "task.unassigned": "未指派",
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",
   "task.ok": "確定",
