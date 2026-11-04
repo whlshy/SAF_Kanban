@@ -6,6 +6,9 @@ export default {
   "common.error": "Error",
   "common.success": "Success",
   "common.apiError": "Unknown API error",
+  "script.missing": "This board has no Sheet API Key yet. Open Settings and enter the Apps Script Deployment ID.",
+  "script.unreachable": "Couldn't write to the Google Sheet. Check that the Apps Script's SPREADSHEET_ID is this Sheet's ID (or empty), the deployment is shared with \"Anyone\", and the Sheet API Key in Settings is correct.",
+  "script.error": "Apps Script returned an error: {message}",
 
   "board.untitled": "Untitled board",
   "board.new": "New board",

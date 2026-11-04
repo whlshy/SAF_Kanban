@@ -94,7 +94,9 @@ SAF Kanban 會從瀏覽器讀取你的 Google Sheet，因此需要設定：
 刪除預設程式，貼上以下完整內容：
 
 ```javascript
-const SPREADSHEET_ID = "換成你的 Sheet ID";
+// 留空即可：會使用這個 Apps Script 所屬的 Google Sheet。
+// 如果要填，必須是這份 Sheet 的 ID；從其他看板複製 Script 時請特別注意。
+const SPREADSHEET_ID = "";
 const KANBAN_SHEET_NAME = "kanban";
 const COLUMN_COUNT = 7;
 
@@ -106,7 +108,14 @@ function doGet(e) {
 
     var params = e && e.parameter ? e.parameter : {};
     var action = params.action || "";
-    var spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var spreadsheet = SPREADSHEET_ID
+      ? SpreadsheetApp.openById(SPREADSHEET_ID)
+      : SpreadsheetApp.getActiveSpreadsheet();
+
+    if (!spreadsheet) {
+      throw new Error("找不到 Google Sheet，請在 SPREADSHEET_ID 填入 Sheet ID");
+    }
+
     var sheet = spreadsheet.getSheetByName(KANBAN_SHEET_NAME);
 
     if (!sheet) {
@@ -337,7 +346,9 @@ Google Sheet 網址格式如下：
 https://docs.google.com/spreadsheets/d/SHEET_ID/edit
 ```
 
-將 `/d/` 與 `/edit` 中間的字串填入 Apps Script 的 `SPREADSHEET_ID`。
+`/d/` 與 `/edit` 中間的字串就是 Sheet ID，第 5 步要填入 SAF Kanban 的設定。
+
+Apps Script 的 `SPREADSHEET_ID` 可以留空，會自動使用這份 Sheet。如果你有填，必須是**同一份** Sheet 的 ID。從其他看板複製 Script 過來時，最容易忘記修改，導致寫入失敗。
 
 ## 4. 部署 Apps Script
 
@@ -430,6 +441,21 @@ https://your-company.atlassian.net/browse/
 ### 顯示 403 或無法讀取資料
 
 確認 Google Sheet 已設成「知道連結的任何人皆可檢視」。
+
+### 新增或移動 Task 時出現 CORS 錯誤、寫入失敗
+
+F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設定的問題，而是 Apps Script 沒有回傳正常的 JSON。請依序確認：
+
+1. Apps Script 的 `SPREADSHEET_ID` 是這份 Sheet 的 ID，或留空。
+2. 部署的存取權限是「所有人」，不是「僅限自己」或「擁有 Google 帳戶的任何人」。
+3. SAF Kanban 設定裡的 Sheet API Key 是這份 Script 的 Deployment ID。
+4. 修改 Script 或部署設定後，有到「管理部署 → 編輯 → 版本：新版本 → 部署」。
+
+確認方式：用**無痕視窗**直接開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`。
+
+- 看到 `{"status":"error", ...缺少 action...}` 這類 JSON，表示部署正常。
+- 看到「需要存取權」或 Google 登入頁，表示存取權限不是「所有人」。
+- 如果是公司的 Google Workspace 帳號，存取權限可能沒有「所有人」可選，需要改用個人 Google 帳號建立 Sheet 與 Apps Script。
 
 ### Apps Script 回傳 `undefined is not valid JSON`
 

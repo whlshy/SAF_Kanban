@@ -31,7 +31,9 @@ const Index = () => {
 
   const onError = (error, variables, context) => {
     console.log('onError', error, variables)
-    message.error(t("common.apiError"))
+    // Apps Script errors carry a specific hint; keep those on screen longer.
+    if (error?.userMessage) message.error(error.userMessage, 8)
+    else message.error(t("common.apiError"))
   }
 
   const onSuccess = async (data, query) => {

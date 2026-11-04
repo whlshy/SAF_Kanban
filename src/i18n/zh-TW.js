@@ -6,6 +6,9 @@ export default {
   "common.error": "錯誤",
   "common.success": "成功",
   "common.apiError": "API 發生未知錯誤",
+  "script.missing": "這個看板還沒設定 Sheet API Key，請到「設定」填入 Apps Script 的 Deployment ID。",
+  "script.unreachable": "無法寫入 Google Sheet。請確認 Apps Script 的 SPREADSHEET_ID 是這份 Sheet 的 ID（或留空）、部署的存取權限是「所有人」，以及「設定」裡的 Sheet API Key 正確。",
+  "script.error": "Apps Script 回傳錯誤：{message}",
 
   "board.untitled": "未命名看板",
   "board.new": "新增看板",
