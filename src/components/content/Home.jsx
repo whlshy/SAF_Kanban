@@ -23,6 +23,7 @@ import { useStartImport } from '@/components/header/BoardTransfer';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/sheet';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
+import usePhone from '@/lib/usePhone';
 
 const changeIssue = (rows) => {
   return rows.map(row => ({
@@ -152,10 +153,30 @@ function EmptyBoards() {
 
 export const PRIORITIES = ["high", "medium", "low"];
 
-function DescriptionView({ des }) {
+// Read-only view of a task: an article-style info line, then the full description.
+function DescriptionView({ task, jiraLink }) {
+  const t = useT();
+  const parts = [
+    task.task && <span key="column">{task.task}</span>,
+    task.priority && <PriorityBadge key="priority" priority={task.priority} />,
+    <span key="assignee">{task.assignee || t("task.unassigned")}</span>,
+    task.jiraId && (jiraLink
+      ? <a key="issue" href={`${jiraLink}${task.jiraId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.jiraId}</a>
+      : <span key="issue">{task.jiraId}</span>),
+  ].filter(Boolean);
+
   return (
-    <DialogContent>
-      <div className="whitespace-pre-wrap break-words text-sm">{des}</div>
+    <DialogContent sx={{ pt: 0 }}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+        {parts.map((part, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span aria-hidden="true">·</span>}
+            {part}
+          </React.Fragment>
+        ))}
+      </div>
+      <hr className="my-4 border-gray-200" />
+      <div className="whitespace-pre-wrap break-words text-sm">{task.des}</div>
     </DialogContent>
   );
 }
@@ -193,7 +214,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
     setDefaultDialog({
       title: task.title,
       open: true, fullWidth: true, maxWidth: "sm",
-      content: <DescriptionView des={task.des} />,
+      content: <DescriptionView task={task} jiraLink={jiraLink} />,
     });
   };
 
@@ -306,6 +327,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
+  const phone = usePhone();
   const t = useT();
 
   const { currentBoard } = useBoards();
@@ -486,6 +508,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
             }
           }}
           fullWidth={true}
+          fullScreen={phone}
           maxWidth="lg"
         >
           <EditTask

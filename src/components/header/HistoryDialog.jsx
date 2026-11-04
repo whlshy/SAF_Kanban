@@ -128,14 +128,18 @@ export default function HistoryDialog({ closeDialog }) {
               data-testid="history-row"
               sx={{ py: 1.25, borderBottom: 1, borderColor: 'divider' }}
             >
-              <Box className="flex items-center gap-2">
-                <Typography sx={{ fontWeight: 500, flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+              {/* The title takes the rest of the line; when less than 12em is left
+                  (phones), priority and time move below it instead of squeezing it. */}
+              <Box className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <Typography sx={{ fontWeight: 500, flex: '1 1 12em', minWidth: 0, wordBreak: 'break-word' }}>
                   {record.title}
                 </Typography>
-                {record.priority && <PriorityBadge priority={record.priority} />}
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                  {record.deletedAt || t("history.noTime")}
-                </Typography>
+                <Box className="flex items-center gap-2">
+                  {record.priority && <PriorityBadge priority={record.priority} />}
+                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {record.deletedAt || t("history.noTime")}
+                  </Typography>
+                </Box>
               </Box>
               <Box className="flex items-center gap-2" sx={{ mt: 0.25 }}>
               <Typography variant="caption" color="text.secondary" component="div" sx={{ flex: 1, minWidth: 0 }}>
@@ -145,7 +149,12 @@ export default function HistoryDialog({ closeDialog }) {
                     : <span key="issue">{record.issueId}</span>),
                   record.column && <span key="column">{t("history.column", { name: record.column })}</span>,
                   record.assignee && <span key="assignee">{record.assignee}</span>,
-                ].filter(Boolean).map((part, i) => <React.Fragment key={i}>{i > 0 && " · "}{part}</React.Fragment>)}
+                ].filter(Boolean).map((part, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && " · "}
+                    <span className="inline-block max-w-full break-words">{part}</span>
+                  </React.Fragment>
+                ))}
               </Typography>
                 <Tooltip title={t("history.recreateHint")}>
                   <IconButton

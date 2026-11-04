@@ -3,6 +3,7 @@ import { Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, 
 import { styled } from '@mui/material/styles'
 import CloseIcon from '@mui/icons-material/Close'
 import RwdWrapper from '../wrapper/RwdWrapper'
+import usePhone from '@/lib/usePhone'
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialogContent-root': {
@@ -28,7 +29,9 @@ export default Index
 
 const CustomDialog = (props) => {
   const { content_width,
-    open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, contentProps = {} } = props
+    open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, compact, contentProps = {} } = props
+  // On phones dialogs fill the screen, except small pickers opened with compact.
+  const fill = usePhone() && !compact
 
   const p = isRwdWidth ? {
     sx: {
@@ -36,13 +39,16 @@ const CustomDialog = (props) => {
       maxWidth: `${content_width} !important`,
       height: fullHeight ? "100%" : "auto",
     }
-  } : { fullWidth, maxWidth, fullScreen }
+  } : { fullWidth, maxWidth, fullScreen: fullScreen || fill }
 
   return (
     <BootstrapDialog
       onClose={closeDialog}
       open={open}
       disableScrollLock={!!disableScrollLock}
+      // Content components bring their own DialogContent; on a full-screen phone
+      // dialog drop its side padding so the two paddings don't add up.
+      sx={fill ? { '& .MuiDialogContent-root .MuiDialogContent-root': { px: 0 } } : undefined}
       {...(!!isRwdWidth ? {} : p)}
       PaperProps={{
         ...(!!isRwdWidth ? p : {})
