@@ -17,7 +17,19 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
 - 連結 Jira Issue
+- 刪除的 Task 會保留在 `history` 工作表
 - 所有資料儲存在你自己的 Google Sheet
+
+## 快速建立（推薦）
+
+用範本建立，不需要自己建工作表，也不用修改程式：
+
+1. 開啟 [SAF Kanban 範本](https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy)，按「建立副本」，存到自己的 Google 雲端硬碟。範本已包含工作表與 Apps Script。
+2. 在副本點右上角「共用」，「一般存取權」改成「知道連結的任何人」，角色選「檢視者」。
+3. 選「擴充功能 → Apps Script」，依照[第 4 步](#4-部署-apps-script)部署成網頁應用程式，並複製部署後的網址。
+4. 開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，新增看板（還沒有看板時點畫面中間的「設定」）。在 Sheet ID 貼上副本的網址，在 Apps Script 部署 ID 貼上部署網址，按「建立」。
+
+網址會自動轉成 ID，不需要自己擷取。如果複製出來的副本沒有 Apps Script，或想自己從頭建立，請依照以下第 1～5 步。
 
 ## 1. 建立 Google Sheet
 
@@ -29,9 +41,9 @@ columns
 users
 ```
 
-名稱必須完全相同，包含英文大小寫。
+名稱必須完全相同，包含英文大小寫。另外還有一個 `history` 工作表，用來保存刪除的 Task，第一次刪除時 Apps Script 會自動建立，不需要手動新增。
 
-目前程式不會略過標題列，因此三張工作表都不要加入欄位標題，資料直接從第一列開始。
+目前程式不會略過標題列，因此工作表都不要加入欄位標題，資料直接從第一列開始。
 
 ### `kanban` 工作表
 
@@ -64,14 +76,18 @@ users
 
 ### `users` 工作表
 
-將可指派的使用者放在 A:B：
+將可指派的使用者名稱放在 A 欄，會顯示在負責人的下拉選單中：
 
-| A | B |
-| --- | --- |
-| `user-001` | 王小明 |
-| `user-002` | 陳小華 |
+| A |
+| --- |
+| 王小明 |
+| 陳小華 |
 
-A 欄是自訂 User ID，B 欄是 Assignee 下拉選單顯示及儲存的名稱。
+舊格式（A 欄 User ID、B 欄名稱）仍然可以使用：有填 B 欄時會使用 B 欄的名稱。
+
+### `history` 工作表
+
+刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除。欄位與 `kanban` 相同（A:G），H 欄是刪除時間。需要使用[新版 Apps Script](#更新-apps-script)。
 
 ## 2. 開放 Sheet 讀取權限
 
@@ -91,252 +107,9 @@ SAF Kanban 會從瀏覽器讀取你的 Google Sheet，因此需要設定：
 擴充功能 → Apps Script
 ```
 
-刪除預設程式，貼上以下完整內容：
+刪除預設程式，貼上 [`apps-script/Code.gs`](apps-script/Code.gs) 的完整內容並儲存。在 GitHub 打開這個檔案後，可以用右上角的「Copy raw file」按鈕一次複製全部程式。
 
-```javascript
-// 留空即可：會使用這個 Apps Script 所屬的 Google Sheet。
-// 如果要填，必須是這份 Sheet 的 ID；從其他看板複製 Script 時請特別注意。
-const SPREADSHEET_ID = "";
-const KANBAN_SHEET_NAME = "kanban";
-const COLUMN_COUNT = 7;
-
-function doGet(e) {
-  var lock = LockService.getScriptLock();
-
-  try {
-    lock.waitLock(10000);
-
-    var params = e && e.parameter ? e.parameter : {};
-    var action = params.action || "";
-    var spreadsheet = SPREADSHEET_ID
-      ? SpreadsheetApp.openById(SPREADSHEET_ID)
-      : SpreadsheetApp.getActiveSpreadsheet();
-
-    if (!spreadsheet) {
-      throw new Error("找不到 Google Sheet，請在 SPREADSHEET_ID 填入 Sheet ID");
-    }
-
-    var sheet = spreadsheet.getSheetByName(KANBAN_SHEET_NAME);
-
-    if (!sheet) {
-      throw new Error("找不到工作表：" + KANBAN_SHEET_NAME);
-    }
-
-    switch (action) {
-      case "upsert":
-        return handleUpsert(sheet, params);
-      case "move":
-        return handleMove(sheet, params);
-      case "delete":
-        return handleDelete(sheet, params);
-      default:
-        throw new Error("不支援或缺少 action：" + action);
-    }
-  } catch (error) {
-    return createJsonResponse({
-      status: "error",
-      message: error.toString()
-    });
-  } finally {
-    if (lock.hasLock()) {
-      lock.releaseLock();
-    }
-  }
-}
-
-function handleUpsert(sheet, params) {
-  if (!params.task) {
-    throw new Error("缺少 task 參數");
-  }
-
-  var task;
-
-  try {
-    task = JSON.parse(params.task);
-  } catch (error) {
-    throw new Error("task JSON 格式錯誤");
-  }
-
-  if (!task || !task.id) {
-    throw new Error("Task 缺少 id");
-  }
-
-  var rowData = taskToRow(task);
-  var rowNumber = findTaskRow(sheet, task.id);
-
-  if (rowNumber) {
-    sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).setValues([rowData]);
-  } else {
-    sheet.appendRow(rowData);
-    rowNumber = sheet.getLastRow();
-  }
-
-  SpreadsheetApp.flush();
-
-  return createJsonResponse({
-    status: "success",
-    action: "upsert",
-    id: task.id,
-    row: rowNumber
-  });
-}
-
-function handleMove(sheet, params) {
-  var taskId = params.id;
-  var newStatus = params.status;
-  var beforeId = params.beforeId || "";
-  var afterId = params.afterId || "";
-
-  if (!taskId) {
-    throw new Error("缺少 Task ID");
-  }
-
-  if (!newStatus) {
-    throw new Error("缺少目標 Status");
-  }
-
-  var sourceRow = findTaskRow(sheet, taskId);
-
-  if (!sourceRow) {
-    throw new Error("找不到 Task：" + taskId);
-  }
-
-  sheet.getRange(sourceRow, 5).setValue(newStatus);
-
-  if (beforeId && beforeId !== taskId) {
-    var beforeRow = findTaskRow(sheet, beforeId);
-
-    if (beforeRow) {
-      moveRowBefore(sheet, sourceRow, beforeRow);
-      SpreadsheetApp.flush();
-
-      return createJsonResponse({
-        status: "success",
-        action: "move",
-        id: taskId,
-        statusValue: newStatus,
-        position: "before",
-        targetId: beforeId
-      });
-    }
-  }
-
-  if (afterId && afterId !== taskId) {
-    var afterRow = findTaskRow(sheet, afterId);
-
-    if (afterRow) {
-      moveRowAfter(sheet, sourceRow, afterRow);
-      SpreadsheetApp.flush();
-
-      return createJsonResponse({
-        status: "success",
-        action: "move",
-        id: taskId,
-        statusValue: newStatus,
-        position: "after",
-        targetId: afterId
-      });
-    }
-  }
-
-  // 目標欄位原本沒有其他 Task，只需要更新 Status。
-  SpreadsheetApp.flush();
-
-  return createJsonResponse({
-    status: "success",
-    action: "move",
-    id: taskId,
-    statusValue: newStatus,
-    position: "only-item"
-  });
-}
-
-function handleDelete(sheet, params) {
-  var taskId = params.id;
-
-  if (!taskId) {
-    throw new Error("缺少 Task ID");
-  }
-
-  var rowNumber = findTaskRow(sheet, taskId);
-
-  if (!rowNumber) {
-    throw new Error("找不到 Task：" + taskId);
-  }
-
-  sheet.deleteRow(rowNumber);
-  SpreadsheetApp.flush();
-
-  return createJsonResponse({
-    status: "success",
-    action: "delete",
-    id: taskId
-  });
-}
-
-function taskToRow(task) {
-  return [
-    normalizeValue(task.id),
-    normalizeValue(task.title),
-    normalizeValue(task.jiraId),
-    normalizeValue(task.des),
-    normalizeValue(task.task),
-    normalizeValue(task.priority),
-    normalizeValue(task.assignee)
-  ];
-}
-
-function findTaskRow(sheet, taskId) {
-  var lastRow = sheet.getLastRow();
-
-  if (lastRow < 1) {
-    return null;
-  }
-
-  var result = sheet
-    .getRange(1, 1, lastRow, 1)
-    .createTextFinder(taskId.toString())
-    .matchEntireCell(true)
-    .useRegularExpression(false)
-    .findNext();
-
-  return result ? result.getRow() : null;
-}
-
-function moveRowBefore(sheet, sourceRow, targetRow) {
-  moveRowTo(sheet, sourceRow, targetRow);
-}
-
-function moveRowAfter(sheet, sourceRow, targetRow) {
-  moveRowTo(sheet, sourceRow, targetRow + 1);
-}
-
-function moveRowTo(sheet, sourceRow, destinationIndex) {
-  // 已經在目標位置時，moveRows 會丟出「目的地索引不得位於遭到移動的維度範圍中」
-  if (destinationIndex === sourceRow || destinationIndex === sourceRow + 1) {
-    return;
-  }
-
-  sheet.moveRows(
-    sheet.getRange(sourceRow, 1, 1, COLUMN_COUNT),
-    destinationIndex
-  );
-}
-
-function normalizeValue(value) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return value.toString();
-}
-
-function createJsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-```
+程式最上方的 `SPREADSHEET_ID` 保持空白即可，會自動使用這份 Sheet。只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID；如果有填，必須是**同一份** Sheet 的 ID。
 
 ### 找到 Sheet ID
 
@@ -346,9 +119,7 @@ Google Sheet 網址格式如下：
 https://docs.google.com/spreadsheets/d/SHEET_ID/edit
 ```
 
-`/d/` 與 `/edit` 中間的字串就是 Sheet ID，第 5 步要填入 SAF Kanban 的設定。
-
-Apps Script 的 `SPREADSHEET_ID` 可以留空，會自動使用這份 Sheet。如果你有填，必須是**同一份** Sheet 的 ID。從其他看板複製 Script 過來時，最容易忘記修改，導致寫入失敗。
+`/d/` 與 `/edit` 中間的字串就是 Sheet ID。第 5 步可以直接貼上整個網址，SAF Kanban 會自動取出 Sheet ID。
 
 ## 4. 部署 Apps Script
 
@@ -365,7 +136,7 @@ Apps Script 的 `SPREADSHEET_ID` 可以留空，會自動使用這份 Sheet。�
 https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 ```
 
-請記下 `DEPLOYMENT_ID`，也就是 `/s/` 與 `/exec` 中間的字串。
+`/s/` 與 `/exec` 中間的字串就是部署 ID。第 5 步可以直接貼上整個網址，SAF Kanban 會自動取出部署 ID。
 
 如果日後修改 Apps Script，只有按儲存不會更新線上版本。請進入：
 
@@ -380,12 +151,12 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 | 設定 | 填入內容 |
 | --- | --- |
 | 看板名稱 | 顯示在左上角，可留空 |
-| Sheet ID | Google Sheet URL 中的 `SHEET_ID` |
-| Sheet API Key | Apps Script URL 中的 `DEPLOYMENT_ID` |
+| Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
+| Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
 | Jira Link | Jira Issue 基底網址，可留空 |
 
-請注意：這裡的 `Sheet API Key` 是 Apps Script 的 Deployment ID，不是 Google Cloud API Key。
+「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。
 
 Jira Link 範例：
 
@@ -397,10 +168,10 @@ https://your-company.atlassian.net/browse/
 
 ### 使用多個看板
 
-每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照第 1 到 4 步再建立一份 Sheet 與 Apps Script，然後：
+每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照[快速建立](#快速建立推薦)或第 1～4 步再建立一份 Sheet 與 Apps Script，然後：
 
 1. 點左上角看板名稱，開啟下拉選單。
-2. 選「新增看板」，填入新看板的看板名稱、Sheet ID 與 Sheet API Key，按「建立」。
+2. 選「新增看板」，填入看板名稱，貼上 Sheet 網址與部署網址，按「建立」。
 3. 之後從同一個下拉選單切換看板。
 
 - 網址會帶上 `?board=<看板 ID>`，可以加入書籤，或開多個分頁各看一個看板。
@@ -415,7 +186,22 @@ https://your-company.atlassian.net/browse/
 2. 在另一個瀏覽器點看板名稱選「匯入設定」，選擇剛剛的檔案。還沒有任何看板時，直接點畫面中間的「匯入」。
 3. 匯入前會用看板名稱和目前的看板比對：名稱重複的需要先改名，不想匯入的取消勾選，再按「匯入」。
 
-匯出的檔案包含 Sheet API Key（Apps Script Deployment ID），拿到檔案的人就能寫入你的 Sheet，請妥善保管，不要公開分享。
+匯出的檔案包含 Apps Script 部署 ID，拿到檔案的人就能寫入你的 Sheet，請妥善保管，不要公開分享。
+
+### 更新 Apps Script
+
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。目前新版 Script 提供：
+
+- 刪除 Task 時保存到 `history` 工作表。
+- 確認 Script 連到的就是看板設定的 Sheet，不一致時拒絕寫入，避免寫到別份 Sheet。
+- 錯誤訊息會依照介面語言顯示。
+
+更新方式：
+
+1. 打開 Sheet 的「擴充功能 → Apps Script」，用 `apps-script/Code.gs` 的內容取代全部程式。原本 `SPREADSHEET_ID` 有填的話，可以保留，也可以清空。
+2. 儲存後進入「部署 → 管理部署 → 編輯（鉛筆）→ 版本：新版本 → 部署」。
+
+照這個方式更新，部署 ID 不會改變，SAF Kanban 的設定不用修改。
 
 ## 6. 測試 Kanban
 
@@ -448,7 +234,7 @@ F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設�
 
 1. Apps Script 的 `SPREADSHEET_ID` 是這份 Sheet 的 ID，或留空。
 2. 部署的存取權限是「所有人」，不是「僅限自己」或「擁有 Google 帳戶的任何人」。
-3. SAF Kanban 設定裡的 Sheet API Key 是這份 Script 的 Deployment ID。
+3. SAF Kanban 設定裡的 Apps Script 部署 ID 是這份 Script 的部署 ID。
 4. 修改 Script 或部署設定後，有到「管理部署 → 編輯 → 版本：新版本 → 部署」。
 
 確認方式：用**無痕視窗**直接開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`。
