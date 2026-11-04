@@ -152,6 +152,14 @@ function EmptyBoards() {
 
 export const PRIORITIES = ["high", "medium", "low"];
 
+function DescriptionView({ des }) {
+  return (
+    <DialogContent>
+      <div className="whitespace-pre-wrap break-words text-sm">{des}</div>
+    </DialogContent>
+  );
+}
+
 // Priority tag shared by the board cards and the deleted-tasks dialog.
 export function PriorityBadge({ priority }) {
   const t = useT();
@@ -175,10 +183,19 @@ export function PriorityBadge({ priority }) {
 
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
+  const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
-
+  // Clicking the description shows all of it read-only, instead of editing the task.
+  const openDescription = (e) => {
+    e.stopPropagation();
+    setDefaultDialog({
+      title: task.title,
+      open: true, fullWidth: true, maxWidth: "sm",
+      content: <DescriptionView des={task.des} />,
+    });
+  };
 
   const cardContent = (
     <div
@@ -196,9 +213,20 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
         </div>
 
         {/* At most two lines; only text that runs past them ends with an ellipsis. */}
-        <div className="line-clamp-2 break-words text-muted-foreground text-xs">
-          {task?.des || ""}
-        </div>
+        {task?.des ? (
+          <div
+            role="button"
+            tabIndex={0}
+            title={t("task.viewDescription")}
+            onClick={openDescription}
+            onKeyDown={(e) => e.key === "Enter" && openDescription(e)}
+            className="line-clamp-2 break-words text-muted-foreground text-xs cursor-pointer underline-offset-2 hover:underline"
+          >
+            {task.des}
+          </div>
+        ) : (
+          <div className="line-clamp-2 break-words text-muted-foreground text-xs" />
+        )}
 
         <div className="flex items-center justify-between text-muted-foreground text-xs">
           <div className="flex items-center gap-1">

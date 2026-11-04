@@ -15,6 +15,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Added
 
+- Clicking a card's description opens a read-only view of all of it, line breaks included; it underlines on hover.
 - Task descriptions can span several lines: the description field is now multi-line (Enter adds a line break) and grows up to 6 lines before scrolling.
 
 ### Changed
