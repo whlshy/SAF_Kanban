@@ -19,7 +19,11 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Changed
 
-- Card descriptions show at most two lines, keeping line breaks, and end with an ellipsis when longer. Deleted tasks keep line breaks too.
+- Card descriptions show at most two lines and end with an ellipsis when longer (line breaks show as spaces on cards).
+
+### Fixed
+
+- In the dark theme on phones, a white band showed below the board when scrolled down.
 
 ## 1.9.2 — 2026-11-05
 

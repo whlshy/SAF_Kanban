@@ -195,8 +195,8 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
           <PriorityBadge priority={task.priority} />
         </div>
 
-        {/* At most two lines (keeping line breaks); the rest is cut with an ellipsis. */}
-        <div className="line-clamp-2 whitespace-pre-line break-words text-muted-foreground text-xs">
+        {/* At most two lines; only text that runs past them ends with an ellipsis. */}
+        <div className="line-clamp-2 break-words text-muted-foreground text-xs">
           {task?.des || ""}
         </div>
 
