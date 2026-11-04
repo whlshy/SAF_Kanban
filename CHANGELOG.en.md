@@ -11,6 +11,13 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.10.1 — 2026-11-05
+
+### Fixed
+
+- The page was taller than its frame: the board alone filled the screen and the footer below it fell outside the page's frame, so scrolling down showed an area without the theme's background (white in the dark theme). The frame now grows with the board and footer.
+- On phones the board's height assumed the address bar was hidden, so its bottom was cut off while the bar was showing. It now fits the screen with the address bar shown.
+
 ## 1.10.0 — 2026-11-05
 
 ### Added

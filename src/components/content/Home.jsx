@@ -73,7 +73,7 @@ function Home() {
   return (
     <div
       style={{ paddingTop: "80px" }}
-      className="h-screen min-h-0 overflow-hidden p-4">
+      className="board-page min-h-0 overflow-hidden p-4">
       {!currentBoard ? (
         <EmptyBoards />
       ) : (
