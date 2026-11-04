@@ -17,6 +17,7 @@ See the [changelog](CHANGELOG.en.md) for what changed in each release.
 - Several boards at once, each connected to its own Google Sheet
 - Export and import board settings to move to another computer or keep a backup
 - Interface in Traditional Chinese and English: switch with the language button at the top right
+- Light and dark themes: switch with the sun or moon icon at the top right
 - Priority and assignee per task
 - Drag to reorder within a column and to move between columns
 - Each column scrolls on its own

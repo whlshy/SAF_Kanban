@@ -168,4 +168,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* The theme class sits on #root (not <html>) so MUI dialogs, which render
+     outside #root, keep their light look in both themes. */
+  #root {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  #root.dark {
+    background-color: #0D1117;
+    color: #C9D1D9;
+  }
+
+  #root:not(.dark) footer {
+    background-color: hsl(var(--muted));
+    border-bottom-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
 }

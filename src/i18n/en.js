@@ -1,5 +1,7 @@
 export default {
   "language.title": "Language",
+  "theme.toLight": "Switch to light theme",
+  "theme.toDark": "Switch to dark theme",
 
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",

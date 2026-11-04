@@ -1,5 +1,7 @@
 export default {
   "language.title": "語言",
+  "theme.toLight": "切換為淺色主題",
+  "theme.toDark": "切換為深色主題",
 
   "common.cancel": "取消",
   "common.confirm": "確認",
