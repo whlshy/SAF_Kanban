@@ -8,6 +8,8 @@ SAF Kanban is a personal kanban board that stores its data in Google Sheets. The
 
 [Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)
 
+See the [changelog](CHANGELOG.en.md) for what changed in each release.
+
 ## Features
 
 - Create, edit and delete tasks
@@ -203,7 +205,7 @@ The exported file contains the Apps Script Deployment IDs, so anyone who has it 
 
 ### Update the Apps Script
 
-When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working but don't get the new features. The current script:
+When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working but don't get the new features. The [changelog](CHANGELOG.en.md#apps-script-versions) lists what each script version adds. The current script:
 
 - Saves deleted tasks to the `history` sheet.
 - Checks that it's connected to the Sheet set for the board, and refuses to write otherwise so data never lands in the wrong Sheet.

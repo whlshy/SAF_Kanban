@@ -8,6 +8,8 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 
 [開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)
 
+每次更新的內容請見[版本紀錄](CHANGELOG.md)。
+
 ## 功能
 
 - 建立、編輯與刪除 Task
@@ -203,7 +205,7 @@ Issue Link 範例：
 
 ### 更新 Apps Script
 
-[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。目前新版 Script 提供：
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。各版 Script 的差異請見[版本紀錄](CHANGELOG.md#apps-script-版本)。目前新版 Script 提供：
 
 - 刪除 Task 時保存到 `history` 工作表。
 - 確認 Script 連到的就是看板設定的 Sheet，不一致時拒絕寫入，避免寫到別份 Sheet。
