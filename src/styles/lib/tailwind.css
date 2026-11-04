@@ -183,9 +183,8 @@
     color: #C9D1D9;
   }
 
-  /* The page can be taller than #root (mobile browsers' 100vh includes the
-     hidden URL bar, and the footer sits below the board), so the page
-     background has to follow the theme as well. */
+  /* The page background shows when scrolling bounces past the ends (iOS),
+     so it follows the theme as well. */
   html[data-theme="dark"],
   html[data-theme="dark"] body {
     background-color: #0D1117;
