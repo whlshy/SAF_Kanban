@@ -209,6 +209,14 @@
 
   /* Mirrors the dark footer's layering: a slightly darker band that deepens
      toward a darker strip along the bottom edge. */
+  /* Long-pressing a card starts a drag on touch screens: don't let iOS select
+     its text or open the callout menu instead. */
+  [data-slot="kanban-item"] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   #root:not(.dark) footer {
     background: linear-gradient(to bottom, #f8f8f8, #f0f0f0);
     border-bottom-color: #d9d9d9;

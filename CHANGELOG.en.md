@@ -11,6 +11,12 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.9.1 — 2026-11-05
+
+### Fixed
+
+- On phones, swiping over a task card didn't scroll the board, and tasks couldn't be dragged. A quick swipe now scrolls the board, and long-pressing a task for about 0.25 seconds lets you drag it to another column, auto-scrolling at the screen edge. Dragging with a mouse is unchanged.
+
 ## 1.9.0 — 2026-11-05
 
 ### Added
