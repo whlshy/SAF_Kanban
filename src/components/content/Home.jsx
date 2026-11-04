@@ -195,7 +195,8 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
           <PriorityBadge priority={task.priority} />
         </div>
 
-        <div className="flex items-center text-muted-foreground text-xs">
+        {/* At most two lines (keeping line breaks); the rest is cut with an ellipsis. */}
+        <div className="line-clamp-2 whitespace-pre-line break-words text-muted-foreground text-xs">
           {task?.des || ""}
         </div>
 
@@ -516,6 +517,8 @@ const EditTask = ({
           onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
           disabled={loading}
           fullWidth
+          multiline
+          maxRows={6}
         />
         <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
           <InputLabel>{t("task.priority")}</InputLabel>

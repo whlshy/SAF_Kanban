@@ -11,6 +11,16 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.10.0 — 2026-11-05
+
+### Added
+
+- Task descriptions can span several lines: the description field is now multi-line (Enter adds a line break) and grows up to 6 lines before scrolling.
+
+### Changed
+
+- Card descriptions show at most two lines, keeping line breaks, and end with an ellipsis when longer. Deleted tasks keep line breaks too.
+
 ## 1.9.2 — 2026-11-05
 
 ### Fixed

@@ -163,7 +163,7 @@ export default function HistoryDialog({ closeDialog }) {
                 <Typography
                   variant="body2"
                   color="text.secondary"
-                  sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                  sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-line', wordBreak: 'break-word' }}
                 >
                   {record.des}
                 </Typography>
