@@ -16,6 +16,10 @@ export default {
   "board.empty.description": "設定 Google Sheet 建立第一個看板，或從匯出的設定檔匯入。",
   "board.empty.settings": "設定",
   "board.empty.import": "匯入",
+  "board.notice.noSheet.title": "這個看板還沒設定 Sheet ID",
+  "board.notice.noSheet.description": "點「設定」填入 Google Sheet 的 Sheet ID 與 Sheet API Key。",
+  "board.notice.noColumns.title": "讀不到這個看板的欄位",
+  "board.notice.noColumns.description": "請確認 Sheet ID 是否正確、Sheet 已開放「知道連結的任何人」檢視，以及有名為 columns 的工作表，且 A 欄填有欄位名稱。",
 
   "settings.title": "設定",
   "field.title": "看板名稱",
@@ -56,6 +60,7 @@ export default {
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",
   "task.ok": "確定",
+  "task.noColumns": "這個看板沒有欄位，無法新增任務。請先確認 Google Sheet 的 columns 工作表。",
   // Priority values stay in English in both languages.
   "priority.high": "High",
   "priority.medium": "Medium",
