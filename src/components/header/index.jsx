@@ -160,11 +160,11 @@ function index() {
               <HistoryIcon fontSize="small" />
             </IconButton>
           )}
-          <IconButton color="inherit" onClick={openSettings} sx={actionSx}>
-            <SettingsIcon />
+          <IconButton color="inherit" size="small" onClick={openSettings} aria-label={t("settings.title")} title={t("settings.title")} sx={iconSx}>
+            <SettingsIcon fontSize="small" />
           </IconButton>
-          <IconButton color="inherit" onClick={() => setDialog({ open: true })} sx={actionSx}>
-            <AddIcon />
+          <IconButton color="inherit" size="small" onClick={() => setDialog({ open: true })} aria-label={t("task.create")} title={t("task.create")} sx={{ flexShrink: 0 }}>
+            <AddIcon fontSize="small" />
           </IconButton>
         </Toolbar>
       </AppBar>
@@ -176,7 +176,6 @@ export default index;
 
 const titleSx = { minWidth: 0, fontSize: { xs: '1.1rem', sm: '1.25rem' } };
 const iconSx = { mr: { xs: 0.5, sm: 1 }, flexShrink: 0 };
-const actionSx = { flexShrink: 0, p: { xs: 0.75, sm: 1 } };
 
 const LanguageDialog = ({ closeDialog }) => {
   const [lang, setLang] = useAtom(langAtom);
