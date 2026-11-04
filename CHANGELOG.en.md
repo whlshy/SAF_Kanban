@@ -15,8 +15,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Fixed
 
-- The page was taller than its frame: the board alone filled the screen and the footer below it fell outside the page's frame, so scrolling down showed an area without the theme's background (white in the dark theme). The frame now grows with the board and footer.
-- On phones the board's height assumed the address bar was hidden, so its bottom was cut off while the bar was showing. It now fits the screen with the address bar shown.
+- Scrolling down to the footer showed an area outside the page's frame, without the theme's background (white in the dark theme). The frame now grows with the board and footer; the board still fills the screen and the footer is still below it.
 
 ## 1.10.0 — 2026-11-05
 

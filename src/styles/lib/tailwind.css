@@ -196,14 +196,6 @@
     border-bottom-color: #111111;
   }
 
-  /* The board fills the screen minus the browser's address bar (svh; 100vh
-     counts the bar as hidden, so the board ran under it). The footer follows
-     below the board. */
-  .board-page {
-    height: 100vh;
-    height: 100svh;
-  }
-
   /* One row with a column per status, sharing the width with a 240px minimum;
      the board scrolls sideways once they no longer fit. The attribute selector
      outranks the board's default grid-cols utility. */
