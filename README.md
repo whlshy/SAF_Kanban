@@ -20,7 +20,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 淺色與深色主題，點右上角的太陽或月亮圖示切換
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
-- 每個欄位獨立捲動
+- 每個欄位獨立捲動；手機直式時每個欄位佔滿寬度，左右滑動切換
 - 連結 Jira、GitHub 等 Issue
 - 刪除的 Task 會保留在 `history` 工作表，並可在網站上由新到舊查看、搜尋
 - 所有資料儲存在你自己的 Google Sheet

@@ -20,7 +20,7 @@ See the [changelog](CHANGELOG.en.md) for what changed in each release.
 - Light and dark themes: switch with the sun or moon icon at the top right
 - Priority and assignee per task
 - Drag to reorder within a column and to move between columns
-- Each column scrolls on its own
+- Each column scrolls on its own; on portrait phones each column fills the screen and you swipe between them
 - Links to Jira, GitHub or other issue trackers
 - Deleted tasks are kept in a `history` sheet, and you can browse and search them on the site, newest first
 - All data stays in your own Google Sheet

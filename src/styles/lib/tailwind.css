@@ -182,6 +182,30 @@
     color: #C9D1D9;
   }
 
+  /* One row with a column per status, sharing the width with a 240px minimum;
+     the board scrolls sideways once they no longer fit. The attribute selector
+     outranks the board's default grid-cols utility. */
+  [data-slot="kanban-board"].kanban-columns {
+    grid-template-columns: repeat(var(--kanban-columns, 1), minmax(240px, 1fr));
+  }
+
+  /* Portrait phones: each column fills the board; swipe between whole columns. */
+  @media (max-width: 640px) {
+    [data-slot="kanban-board"].kanban-columns {
+      grid-template-columns: repeat(var(--kanban-columns, 1), 100%);
+      scroll-snap-type: x mandatory;
+    }
+
+    [data-slot="kanban-board"].kanban-columns > * {
+      scroll-snap-align: start;
+    }
+
+    /* Snapping would fight the auto-scroll while a card is dragged to another column. */
+    [data-slot="kanban"][data-dragging="true"] [data-slot="kanban-board"].kanban-columns {
+      scroll-snap-type: none;
+    }
+  }
+
   #root:not(.dark) footer {
     background-color: #eaeef2;
     border-bottom-color: #eaeef2;

@@ -409,9 +409,9 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
         className="h-full min-h-0"
       >
         <KanbanBoard
-          className="h-full min-h-0 auto-rows-auto overflow-x-auto"
-          // One row with a column per status; scroll sideways once they no longer fit.
-          style={{ gridTemplateColumns: `repeat(${Math.max(Object.keys(columns).length, 1)}, minmax(240px, 1fr))` }}
+          className="kanban-columns h-full min-h-0 auto-rows-auto overflow-x-auto"
+          // Column widths are set in tailwind.css (.kanban-columns), per screen size.
+          style={{ '--kanban-columns': Math.max(Object.keys(columns).length, 1) }}
         >
           {Object.entries(columns).map(([columnValue, tasks]) => (
             <TaskColumn
