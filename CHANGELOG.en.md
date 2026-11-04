@@ -11,7 +11,11 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
-## 1.7.1 — 2026-11-05
+## 1.8.0 — 2026-11-05
+
+### Added
+
+- View deleted tasks: the clock icon right of the language tag lists the `history` sheet, most recently deleted first. Search by title, description, Issue ID, column or assignee; 50 tasks are shown at a time. It only reads the Sheet, so the Apps Script doesn't need updating.
 
 ### Changed
 

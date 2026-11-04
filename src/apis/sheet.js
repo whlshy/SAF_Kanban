@@ -34,6 +34,16 @@ export const getGoogleSheetUsers = async (sheetId) => {
   return response
 }
 
+// Raw values so the deletion time comes back as a date serial number (or the
+// text the script wrote) instead of a string formatted in the Sheet's locale.
+export const getGoogleSheetHistory = async (sheetId) => {
+  const response = await api({
+    method: "GET",
+    cmd_url: `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/history!A:H?alt=json&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&key=AIzaSyDPwaw0jfTbUMM1qrdEwB4ZUivo8dBdEbA`
+  })
+  return response
+}
+
 export const setGoogleSheetIssue = async ({ scriptId, sheetId, action, task, id, status, beforeId, afterId }) => {
   if (!scriptId) {
     throw new ScriptError(t("script.missing"))

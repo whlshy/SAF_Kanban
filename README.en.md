@@ -22,7 +22,7 @@ See the [changelog](CHANGELOG.en.md) for what changed in each release.
 - Drag to reorder within a column and to move between columns
 - Each column scrolls on its own
 - Links to Jira, GitHub or other issue trackers
-- Deleted tasks are kept in a `history` sheet
+- Deleted tasks are kept in a `history` sheet, and you can browse and search them on the site, newest first
 - All data stays in your own Google Sheet
 
 ## Quick setup (recommended)
@@ -101,6 +101,8 @@ Keeps deleted tasks and can start empty. When a task is deleted, the Apps Script
 | H | When it was deleted (in the Sheet's time zone) | `2026-11-04 15:30:00` |
 
 This needs the [current Apps Script](#update-the-apps-script). Older scripts delete tasks without saving them here.
+
+In SAF Kanban, click the clock icon right of the language tag to see the current board's deleted tasks, most recently deleted first. You can search them by title, description, Issue ID, column or assignee.
 
 ## 2. Let SAF Kanban read the Sheet
 
