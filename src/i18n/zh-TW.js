@@ -3,7 +3,6 @@ export default {
 
   "common.cancel": "取消",
   "common.confirm": "確認",
-  "common.error": "錯誤",
   "common.success": "成功",
   "common.apiError": "API 發生未知錯誤",
   "script.missing": "這個看板還沒設定 Apps Script 部署 ID，請到「設定」填入。",
@@ -42,7 +41,8 @@ export default {
   "field.scriptId": "Apps Script 部署 ID",
   "field.scriptId.hint": "可以直接貼上部署後的網頁應用程式網址（結尾是 /exec）",
   "field.userKey": "User Key",
-  "field.jiraLink": "Jira Link",
+  "field.jiraLink": "Issue Link",
+  "field.jiraLink.hint": "任務的 Issue ID 會接在這個網址後面，例如 https://your-company.atlassian.net/browse/",
 
   "transfer.export": "匯出設定",
   "transfer.import": "匯入設定",
@@ -69,7 +69,7 @@ export default {
   "task.create": "新增任務",
   "task.edit": "編輯任務",
   "task.title": "標題",
-  "task.jiraId": "Jira ID",
+  "task.jiraId": "Issue ID",
   "task.description": "描述",
   "task.priority": "優先順序",
   "task.assignee": "負責人",

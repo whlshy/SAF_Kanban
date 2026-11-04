@@ -3,7 +3,6 @@ export default {
 
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
-  "common.error": "Error",
   "common.success": "Success",
   "common.apiError": "Unknown API error",
   "script.missing": "This board has no Apps Script Deployment ID yet. Open Settings and enter it.",
@@ -42,7 +41,8 @@ export default {
   "field.scriptId": "Apps Script Deployment ID",
   "field.scriptId.hint": "You can paste the web app URL from your deployment (ends with /exec)",
   "field.userKey": "User Key",
-  "field.jiraLink": "Jira Link",
+  "field.jiraLink": "Issue Link",
+  "field.jiraLink.hint": "A task's Issue ID is appended to this URL, e.g. https://your-company.atlassian.net/browse/",
 
   "transfer.export": "Export settings",
   "transfer.import": "Import settings",
@@ -73,7 +73,7 @@ export default {
   "task.create": "Create Task",
   "task.edit": "Edit Task",
   "task.title": "Title",
-  "task.jiraId": "Jira ID",
+  "task.jiraId": "Issue ID",
   "task.description": "Description",
   "task.priority": "Priority",
   "task.assignee": "Assignee",

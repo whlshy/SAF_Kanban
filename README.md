@@ -1,10 +1,14 @@
 # SAF Kanban
 
+繁體中文 | [English](README.en.md)
+
 SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需要安裝程式或自行架設網站，只要建立自己的 Google Sheet 與 Apps Script，就能直接使用線上版本。
 
 ## 開啟 Kanban
 
 [開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)
+
+每次更新的內容請見[版本紀錄](CHANGELOG.md)。
 
 ## 功能
 
@@ -16,7 +20,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
-- 連結 Jira Issue
+- 連結 Jira、GitHub 等 Issue
 - 刪除的 Task 會保留在 `history` 工作表
 - 所有資料儲存在你自己的 Google Sheet
 
@@ -33,15 +37,16 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 
 ## 1. 建立 Google Sheet
 
-建立一份新的 Google Sheet，並將三個工作表命名為：
+建立一份新的 Google Sheet，並將四個工作表命名為：
 
 ```text
 kanban
 columns
 users
+history
 ```
 
-名稱必須完全相同，包含英文大小寫。另外還有一個 `history` 工作表，用來保存刪除的 Task，第一次刪除時 Apps Script 會自動建立，不需要手動新增。
+名稱必須完全相同，包含英文大小寫。`history` 如果沒有建立，第一次刪除 Task 時 Apps Script 也會自動建立。
 
 目前程式不會略過標題列，因此工作表都不要加入欄位標題，資料直接從第一列開始。
 
@@ -53,7 +58,7 @@ users
 | --- | --- | --- |
 | A | Task ID | `4836540b` |
 | B | Title | `Implement login page` |
-| C | Jira ID | `PROJECT-101` |
+| C | Issue ID | `PROJECT-101` |
 | D | Description | `Create login form` |
 | E | Kanban Column | `Todo` |
 | F | Priority | `high`、`medium`、`low` |
@@ -87,7 +92,14 @@ users
 
 ### `history` 工作表
 
-刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除。欄位與 `kanban` 相同（A:G），H 欄是刪除時間。需要使用[新版 Apps Script](#更新-apps-script)。
+這張表用來保存刪除的 Task，可以先保持空白。刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除：
+
+| 欄位 | 內容 | 範例 |
+| --- | --- | --- |
+| A～G | 與 `kanban` 工作表相同：Task ID、Title、Issue ID、Description、Kanban Column、Priority、Assignee | |
+| H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
+
+需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
 
 ## 2. 開放 Sheet 讀取權限
 
@@ -154,15 +166,18 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 | Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
 | Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
 | User Key | 目前未使用，可留空 |
-| Jira Link | Jira Issue 基底網址，可留空 |
+| Issue Link | Issue 的基底網址，任務的 Issue ID 會接在後面，可留空 |
 
 「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。
 
-Jira Link 範例：
+Issue Link 範例：
 
-```text
-https://your-company.atlassian.net/browse/
-```
+| 系統 | Issue Link |
+| --- | --- |
+| Jira | `https://your-company.atlassian.net/browse/` |
+| GitHub Issues | `https://github.com/OWNER/REPO/issues/` |
+
+舊版介面把 Issue Link 叫做「Jira Link」，任務的 Issue ID 叫做「Jira ID」，設定和資料都不受改名影響。
 
 設定會儲存在目前瀏覽器的 Local Storage。更換瀏覽器或清除網站資料後，需要重新輸入。
 
@@ -190,7 +205,7 @@ https://your-company.atlassian.net/browse/
 
 ### 更新 Apps Script
 
-[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。目前新版 Script 提供：
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。各版 Script 的差異請見[版本紀錄](CHANGELOG.md#apps-script-版本)。目前新版 Script 提供：
 
 - 刪除 Task 時保存到 `history` 工作表。
 - 確認 Script 連到的就是看板設定的 Sheet，不一致時拒絕寫入，避免寫到別份 Sheet。
@@ -239,7 +254,7 @@ F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設�
 
 確認方式：用**無痕視窗**直接開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`。
 
-- 看到 `{"status":"error", ...缺少 action...}` 這類 JSON，表示部署正常。
+- 看到 `{"status":"error","code":"UNKNOWN_ACTION", ...}`（舊版 Script 是 `...缺少 action...`）這類 JSON，表示部署正常。
 - 看到「需要存取權」或 Google 登入頁，表示存取權限不是「所有人」。
 - 如果是公司的 Google Workspace 帳號，存取權限可能沒有「所有人」可選，需要改用個人 Google 帳號建立 Sheet 與 Apps Script。
 
@@ -255,12 +270,13 @@ F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設�
 部署 → 管理部署 → 編輯 → 版本：新版本 → 部署
 ```
 
-### Jira 連結無法開啟
+### Issue 連結無法開啟
 
-確認 Jira Link 結尾包含 `/browse/`，例如：
+點任務上的 Issue ID 時，會開啟「Issue Link + Issue ID」。確認 Issue Link 的結尾正確，例如 Jira 要包含 `/browse/`，GitHub 要包含 `/issues/`：
 
 ```text
 https://your-company.atlassian.net/browse/
+https://github.com/OWNER/REPO/issues/
 ```
 
 ## 資料與隱私
@@ -269,4 +285,4 @@ https://your-company.atlassian.net/browse/
 - Sheet 必須開放知道連結者檢視，請勿存放密碼、Token 或其他敏感資料。
 - Apps Script 會以建立者的 Google 帳號權限寫入指定 Sheet。
 - Apps Script Deployment ID 應視為敏感資訊，不要任意公開分享。
-- 目前刪除 Task 會直接刪除 Sheet 資料，不會保留歷史記錄。
+- 使用新版 Apps Script 時，刪除的 Task 會保存在 `history` 工作表；舊版 Script 會直接刪除，不會保留。
