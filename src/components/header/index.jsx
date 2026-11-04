@@ -1,6 +1,6 @@
 import React from 'react'
 import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
@@ -8,6 +8,7 @@ import { dialogAtom } from '../content/Home'
 import { useDialogStore } from '@/store';
 import { boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
 import { useTheme } from '@/store/theme';
+import HistoryDialog from './HistoryDialog';
 import { exportBoards, useStartImport } from './BoardTransfer';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
@@ -32,6 +33,12 @@ function index() {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  const openHistory = () => setDefaultDialog({
+    title: t("history.title", { name: displayTitle }),
+    open: true, fullWidth: true, maxWidth: "md",
+    content: <HistoryDialog />
+  });
+
   const openLanguage = () => setDefaultDialog({
     title: t("language.title"),
     open: true, content: <LanguageDialog />
@@ -53,7 +60,7 @@ function index() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           background: isDark ? "#1f1f1f" : "#ffffff",
           color: isDark ? "#ffffff" : "rgba(0, 0, 0, 0.87)",
-          boxShadow: isDark ? undefined : "0 1px 0 rgba(0, 0, 0, 0.12)",
+          boxShadow: isDark ? undefined : "0 1px 0 #d0d7de",
         }}
       >
         <Toolbar>
@@ -137,6 +144,18 @@ function index() {
           >
             {LANGUAGES.find((l) => l.code === lang)?.short}
           </Button>
+          {currentBoard && (
+            <IconButton
+              color="inherit"
+              size="small"
+              onClick={openHistory}
+              aria-label={t("history.open")}
+              title={t("history.open")}
+              sx={{ mr: 1 }}
+            >
+              <HistoryIcon fontSize="small" />
+            </IconButton>
+          )}
           <IconButton color="inherit" onClick={openSettings}>
             <SettingsIcon />
           </IconButton>

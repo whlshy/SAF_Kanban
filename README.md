@@ -22,7 +22,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
 - 連結 Jira、GitHub 等 Issue
-- 刪除的 Task 會保留在 `history` 工作表
+- 刪除的 Task 會保留在 `history` 工作表，並可在網站上由新到舊查看、搜尋
 - 所有資料儲存在你自己的 Google Sheet
 
 ## 快速建立（推薦）
@@ -101,6 +101,8 @@ history
 | H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
 
 需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
+
+在 SAF Kanban 點右上角語言標籤右邊的時鐘圖示，就能查看目前看板已刪除的 Task。最新刪除的排在最前面，可以用標題、描述、Issue ID、欄位或負責人搜尋。
 
 ## 2. 開放 Sheet 讀取權限
 

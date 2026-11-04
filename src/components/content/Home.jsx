@@ -152,6 +152,27 @@ function EmptyBoards() {
 
 const PRIORITIES = ["high", "medium", "low"];
 
+// Priority tag shared by the board cards and the deleted-tasks dialog.
+export function PriorityBadge({ priority }) {
+  const t = useT();
+
+  return (
+    <Badge
+      variant={
+        priority === 'high'
+          ? 'destructive'
+          : priority === 'medium'
+            ? 'secondary'
+            : 'primary'
+      }
+      appearance="outline"
+      className="pointer-events-none h-5 rounded-sm px-1.5 text-[11px] capitalize shrink-0"
+    >
+      {PRIORITIES.includes(priority) ? t(`priority.${priority}`) : priority}
+    </Badge>
+  );
+}
+
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const t = useT();
@@ -171,19 +192,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
               {task.title}
             </span>
           </Tooltip>
-          <Badge
-            variant={
-              task.priority === 'high'
-                ? 'destructive'
-                : task.priority === 'medium'
-                  ? 'secondary'
-                  : 'primary'
-            }
-            appearance="outline"
-            className="pointer-events-none h-5 rounded-sm px-1.5 text-[11px] capitalize shrink-0"
-          >
-            {PRIORITIES.includes(task.priority) ? t(`priority.${task.priority}`) : task.priority}
-          </Badge>
+          <PriorityBadge priority={task.priority} />
         </div>
 
         <div className="flex items-center text-muted-foreground text-xs">
@@ -231,7 +240,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
     <KanbanColumn
       value={value}
       {...props}
-      className="h-full min-h-0 overflow-hidden rounded-md border bg-muted/60 dark:bg-card p-2.5 shadow-xs"
+      className="h-full min-h-0 overflow-hidden rounded-md border bg-[#eaeef2] dark:bg-card p-2.5 shadow-xs"
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2.5">
