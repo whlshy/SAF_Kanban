@@ -183,6 +183,20 @@
     color: #C9D1D9;
   }
 
+  /* The page can be taller than #root (mobile browsers' 100vh includes the
+     hidden URL bar, and the footer sits below the board), so the page
+     background has to follow the theme as well. */
+  html[data-theme="dark"],
+  html[data-theme="dark"] body {
+    background-color: #0D1117;
+  }
+
+  /* Solid colours: these used to be translucent black over the white page. */
+  #root.dark footer {
+    background-color: #424242;
+    border-bottom-color: #111111;
+  }
+
   /* One row with a column per status, sharing the width with a 240px minimum;
      the board scrolls sideways once they no longer fit. The attribute selector
      outranks the board's default grid-cols utility. */

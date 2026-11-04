@@ -41,7 +41,7 @@ function index() {
 
   const openLanguage = () => setDefaultDialog({
     title: t("language.title"),
-    open: true, content: <LanguageDialog />
+    open: true, compact: true, content: <LanguageDialog />
   });
 
   const handleAddBoard = () => {

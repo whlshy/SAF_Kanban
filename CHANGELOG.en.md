@@ -11,6 +11,23 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.10.0 — 2026-11-05
+
+### Added
+
+- Clicking a card's description opens a read-only view of all of it, line breaks included, with an article-style info line on top: column, priority, assignee and Issue ID. The description underlines on hover.
+- Task descriptions can span several lines: the description field is now multi-line (Enter adds a line break) and grows up to 6 lines before scrolling.
+
+### Changed
+
+- Card descriptions show at most two lines and end with an ellipsis when longer (line breaks show as spaces on cards).
+- On phone-width screens (640px or less) dialogs fill the screen, such as editing a task, deleted tasks and Settings. The language picker and confirmations stay small.
+
+### Fixed
+
+- In the dark theme on phones, a white band showed below the board when scrolled down.
+- On phones, deleted tasks' titles were squeezed into a narrow column by the priority and deletion time. The title now gets its own line, with priority and time on the next.
+
 ## 1.9.2 — 2026-11-05
 
 ### Fixed

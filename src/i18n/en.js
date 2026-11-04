@@ -97,6 +97,7 @@ export default {
   "task.title": "Title",
   "task.jiraId": "Issue ID",
   "task.description": "Description",
+  "task.viewDescription": "View the full description",
   "task.priority": "Priority",
   "task.assignee": "Assignee",
   "task.unassigned": "Unassigned",

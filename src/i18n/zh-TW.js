@@ -91,6 +91,7 @@ export default {
   "task.title": "標題",
   "task.jiraId": "Issue ID",
   "task.description": "描述",
+  "task.viewDescription": "查看完整描述",
   "task.priority": "優先順序",
   "task.assignee": "負責人",
   "task.unassigned": "未指派",

@@ -23,6 +23,7 @@ import { useStartImport } from '@/components/header/BoardTransfer';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/sheet';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
+import usePhone from '@/lib/usePhone';
 
 const changeIssue = (rows) => {
   return rows.map(row => ({
@@ -152,6 +153,34 @@ function EmptyBoards() {
 
 export const PRIORITIES = ["high", "medium", "low"];
 
+// Read-only view of a task: an article-style info line, then the full description.
+function DescriptionView({ task, jiraLink }) {
+  const t = useT();
+  const parts = [
+    task.task && <span key="column">{task.task}</span>,
+    task.priority && <PriorityBadge key="priority" priority={task.priority} />,
+    <span key="assignee">{task.assignee || t("task.unassigned")}</span>,
+    task.jiraId && (jiraLink
+      ? <a key="issue" href={`${jiraLink}${task.jiraId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.jiraId}</a>
+      : <span key="issue">{task.jiraId}</span>),
+  ].filter(Boolean);
+
+  return (
+    <DialogContent sx={{ pt: 0 }}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+        {parts.map((part, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span aria-hidden="true">·</span>}
+            {part}
+          </React.Fragment>
+        ))}
+      </div>
+      <hr className="my-4 border-gray-200" />
+      <div className="whitespace-pre-wrap break-words text-sm">{task.des}</div>
+    </DialogContent>
+  );
+}
+
 // Priority tag shared by the board cards and the deleted-tasks dialog.
 export function PriorityBadge({ priority }) {
   const t = useT();
@@ -175,10 +204,19 @@ export function PriorityBadge({ priority }) {
 
 function TaskCard({ task, asHandle, disabled, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
+  const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
-
+  // Clicking the description shows all of it read-only, instead of editing the task.
+  const openDescription = (e) => {
+    e.stopPropagation();
+    setDefaultDialog({
+      title: task.title,
+      open: true, fullWidth: true, maxWidth: "sm",
+      content: <DescriptionView task={task} jiraLink={jiraLink} />,
+    });
+  };
 
   const cardContent = (
     <div
@@ -195,9 +233,21 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
           <PriorityBadge priority={task.priority} />
         </div>
 
-        <div className="flex items-center text-muted-foreground text-xs">
-          {task?.des || ""}
-        </div>
+        {/* At most two lines; only text that runs past them ends with an ellipsis. */}
+        {task?.des ? (
+          <div
+            role="button"
+            tabIndex={0}
+            title={t("task.viewDescription")}
+            onClick={openDescription}
+            onKeyDown={(e) => e.key === "Enter" && openDescription(e)}
+            className="line-clamp-2 break-words text-muted-foreground text-xs cursor-pointer underline-offset-2 hover:underline"
+          >
+            {task.des}
+          </div>
+        ) : (
+          <div className="line-clamp-2 break-words text-muted-foreground text-xs" />
+        )}
 
         <div className="flex items-center justify-between text-muted-foreground text-xs">
           <div className="flex items-center gap-1">
@@ -277,6 +327,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
+  const phone = usePhone();
   const t = useT();
 
   const { currentBoard } = useBoards();
@@ -457,6 +508,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
             }
           }}
           fullWidth={true}
+          fullScreen={phone}
           maxWidth="lg"
         >
           <EditTask
@@ -516,6 +568,8 @@ const EditTask = ({
           onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
           disabled={loading}
           fullWidth
+          multiline
+          maxRows={6}
         />
         <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
           <InputLabel>{t("task.priority")}</InputLabel>
