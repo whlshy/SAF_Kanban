@@ -12,7 +12,7 @@
   <meta property="og:title" content="SAF Kanban" />
   <meta property="og:description" content="SAF Kanban" />
   <meta property="og:type" content="website" />
-  <script type="module" crossorigin src="/SAF_Kanban/assets/index-BcTX3yUq.js"></script>
+  <script type="module" crossorigin src="/SAF_Kanban/assets/index-DzwEn-pX.js"></script>
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@babel-CS6Uy5Jq.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/react-ClING0Yz.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/scheduler-C323NY8X.js">
@@ -25,7 +25,7 @@
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/stylis-DDa9OTMq.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@emotion-tgIqJ5k3.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@popperjs-CMBiYTiD.js">
-  <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@mui-D5YeHinS.js">
+  <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@mui-BwMZRNsa.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/jotai-CbUN4kLx.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@tanstack-CneHLWVf.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@radix-ui-DFM491Ig.js">
@@ -39,14 +39,34 @@
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/@ant-design-BYsPSdCY.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/antd-CuxWXEhW.js">
   <link rel="modulepreload" crossorigin href="/SAF_Kanban/assets/axios-Dnk_-Q5K.js">
-  <link rel="stylesheet" crossorigin href="/SAF_Kanban/assets/index-Br4zl4Ui.css">
+  <link rel="stylesheet" crossorigin href="/SAF_Kanban/assets/index-D68jGKJe.css">
 </head>
 
 <body>
   <noscript>
     You need to enable JavaScript to run this app.
   </noscript>
-  <div id="root" class="cover dark bg-[#0D1117] text-[#C9D1D9]"></div>
+  <div id="root" class="cover"></div>
+  <script>
+    // Apply the theme before React renders so the page doesn't flash.
+    // Existing users keep the dark theme; new users follow the system setting.
+    (function () {
+      var theme = 'dark';
+      try {
+        var saved = JSON.parse(localStorage.getItem('theme'));
+        if (saved === 'light' || saved === 'dark') {
+          theme = saved;
+        } else {
+          var boards = JSON.parse(localStorage.getItem('boards') || '[]');
+          var existingUser = localStorage.getItem('sheetId') !== null || boards.length > 0;
+          var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+          theme = !existingUser && prefersLight ? 'light' : 'dark';
+          localStorage.setItem('theme', JSON.stringify(theme));
+        }
+      } catch (e) {}
+      if (theme === 'dark') document.getElementById('root').classList.add('dark');
+    })();
+  </script>
 </body>
 
 </html>

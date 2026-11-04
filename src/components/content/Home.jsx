@@ -231,7 +231,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
     <KanbanColumn
       value={value}
       {...props}
-      className="h-full min-h-0 overflow-hidden rounded-md border bg-card p-2.5 shadow-xs"
+      className="h-full min-h-0 overflow-hidden rounded-md border bg-muted/60 dark:bg-card p-2.5 shadow-xs"
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2.5">

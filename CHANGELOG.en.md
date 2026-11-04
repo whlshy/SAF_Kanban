@@ -11,6 +11,16 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.7.0 — 2026-11-05
+
+### Added
+
+- Switch between light and dark themes with the button left of the language switch. Existing users stay on the dark theme; new users start with their system setting, and the choice is remembered.
+
+### Changed
+
+- "User Key" in Settings is now "User Name". Only the name changed; any value you entered is kept.
+
 ## 1.6.0 — 2026-11-05
 
 ### Added

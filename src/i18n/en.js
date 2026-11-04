@@ -1,5 +1,7 @@
 export default {
   "language.title": "Language",
+  "theme.toLight": "Switch to light theme",
+  "theme.toDark": "Switch to dark theme",
 
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
@@ -40,7 +42,7 @@ export default {
   "field.sheetId.hint": "You can paste the Google Sheet's URL",
   "field.scriptId": "Apps Script Deployment ID",
   "field.scriptId.hint": "You can paste the web app URL from your deployment (ends with /exec)",
-  "field.userKey": "User Key",
+  "field.userKey": "User Name",
   "field.jiraLink": "Issue Link",
   "field.jiraLink.hint": "A task's Issue ID is appended to this URL, e.g. https://your-company.atlassian.net/browse/",
 

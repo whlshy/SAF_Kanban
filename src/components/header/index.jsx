@@ -1,12 +1,13 @@
 import React from 'react'
 import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
 import { useDialogStore } from '@/store';
 import { boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
+import { useTheme } from '@/store/theme';
 import { exportBoards, useStartImport } from './BoardTransfer';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
@@ -19,6 +20,7 @@ function index() {
   const openSettings = useOpenSettings();
   const [lang] = useAtom(langAtom);
   const t = useT();
+  const { isDark, toggleTheme } = useTheme();
 
   const displayTitle = boardTitle(currentBoard);
 
@@ -45,7 +47,15 @@ function index() {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, background: "#1f1f1f" }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          background: isDark ? "#1f1f1f" : "#ffffff",
+          color: isDark ? "#ffffff" : "rgba(0, 0, 0, 0.87)",
+          boxShadow: isDark ? undefined : "0 1px 0 rgba(0, 0, 0, 0.12)",
+        }}
+      >
         <Toolbar>
           {boards.length > 0 ? (
             <Button
@@ -97,6 +107,16 @@ function index() {
             </MenuItem>
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
+          <IconButton
+            color="inherit"
+            size="small"
+            onClick={toggleTheme}
+            aria-label={isDark ? t("theme.toLight") : t("theme.toDark")}
+            title={isDark ? t("theme.toLight") : t("theme.toDark")}
+            sx={{ mr: 1 }}
+          >
+            {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+          </IconButton>
           <Button
             color="inherit"
             variant="outlined"
@@ -111,16 +131,16 @@ function index() {
               py: 0.25,
               mr: 1,
               fontSize: '0.8125rem',
-              borderColor: 'rgba(255, 255, 255, 0.5)',
-              '&:hover': { borderColor: 'white' },
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)',
+              '&:hover': { borderColor: isDark ? 'white' : 'rgba(0, 0, 0, 0.6)' },
             }}
           >
             {LANGUAGES.find((l) => l.code === lang)?.short}
           </Button>
-          <IconButton style={{ color: "white" }} onClick={openSettings}>
+          <IconButton color="inherit" onClick={openSettings}>
             <SettingsIcon />
           </IconButton>
-          <IconButton style={{ color: "white" }} onClick={() => setDialog({ open: true })}>
+          <IconButton color="inherit" onClick={() => setDialog({ open: true })}>
             <AddIcon />
           </IconButton>
         </Toolbar>

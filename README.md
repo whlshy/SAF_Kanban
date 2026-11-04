@@ -17,6 +17,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 同時使用多個看板，各自連到不同的 Google Sheet
 - 匯出、匯入看板設定，方便換電腦或備份
 - 介面支援繁體中文與 English，點右上角的語言按鈕切換
+- 淺色與深色主題，點右上角的太陽或月亮圖示切換
 - 設定 Priority 與 Assignee
 - 同欄及跨欄拖曳排序
 - 每個欄位獨立捲動
@@ -165,7 +166,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 | 看板名稱 | 顯示在左上角，可留空 |
 | Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
 | Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
-| User Key | 目前未使用，可留空 |
+| User Name | 你的名稱，目前未使用，可留空 |
 | Issue Link | Issue 的基底網址，任務的 Issue ID 會接在後面，可留空 |
 
 「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。
