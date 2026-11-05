@@ -106,6 +106,21 @@ export const boardPlaceholderTitle = (board) =>
 
 export const boardTitle = (board) => board?.title?.trim() || boardPlaceholderTitle(board)
 
+// A new board whose name another board already shows gets the first free
+// number: "Kanban" → "Kanban (1)", "Kanban (2)", … ("Kanban (1)" counts on
+// from "Kanban"). Names match exactly, as when importing. An untitled board is
+// matched by its placeholder and, when numbered, keeps it as its title.
+export const uniqueBoardTitle = (title, boards, placeholder) => {
+  const name = String(title ?? "").trim()
+  const shown = name || placeholder
+  const taken = new Set(boards.map(boardTitle))
+  if (!taken.has(shown)) return name
+  const base = shown.replace(/\s*\(\d+\)$/, "") || shown
+  let n = 1
+  while (taken.has(`${base} (${n})`)) n++
+  return `${base} (${n})`
+}
+
 export function useBoards() {
   const [boards, setBoards] = useAtom(boardsAtom)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -132,7 +147,11 @@ export function useBoards() {
   }, [setSearchParams])
 
   const addBoard = useCallback((fields) => {
-    const board = createBoard(boards.length ? newBoardId() : DEFAULT_BOARD_ID, normalizeBoardFields(fields))
+    const id = boards.length ? newBoardId() : DEFAULT_BOARD_ID
+    const board = createBoard(id, {
+      ...normalizeBoardFields(fields),
+      title: uniqueBoardTitle(fields.title, boards, boardPlaceholderTitle({ id })),
+    })
     setBoards([...boards, board])
     if (board.id === DEFAULT_BOARD_ID) writeLegacy(board)
     switchBoard(board.id)

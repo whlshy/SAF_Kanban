@@ -11,6 +11,12 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.11.0 — 2026-11-05
+
+### Added
+
+- A new board whose name another board already has gets a number, such as `Kanban (1)` or `Kanban (2)`, using the lowest one not taken. The dialog shows the final name while you type. Untitled boards work the same way and become "Untitled board (1)".
+
 ## 1.10.1 — 2026-11-05
 
 ### Fixed

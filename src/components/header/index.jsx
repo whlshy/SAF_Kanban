@@ -6,7 +6,7 @@ import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
 import { useDialogStore } from '@/store';
-import { boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
+import { boardTitle, normalizeBoardField, uniqueBoardTitle, useBoards } from '@/store/boards';
 import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
 import { exportBoards, useStartImport } from './BoardTransfer';
@@ -202,6 +202,9 @@ const NewBoardDialog = ({ closeDialog }) => {
   const t = useT();
 
   const sameSheet = fields.sheetId?.trim() && boards.find((b) => b.sheetId?.trim() === fields.sheetId.trim());
+  // Tell the user up front when the name is taken and what it will become.
+  const shownTitle = fields.title?.trim() || t("board.untitled");
+  const finalTitle = uniqueBoardTitle(fields.title, boards, t("board.untitled")) || shownTitle;
 
   const handleCreate = () => {
     addBoard(fields);
@@ -216,7 +219,9 @@ const NewBoardDialog = ({ closeDialog }) => {
           label={t(labelKey)}
           variant="standard"
           placeholder={field === "title" ? t("board.untitled") : undefined}
-          helperText={hintKey && t(hintKey)}
+          helperText={field === "title" && finalTitle !== shownTitle
+            ? t("board.nameTaken", { name: finalTitle })
+            : hintKey && t(hintKey)}
           value={fields[field] || ""}
           onChange={(e) => setFields((f) => ({ ...f, [field]: normalizeBoardField(field, e.target.value) }))}
           fullWidth
