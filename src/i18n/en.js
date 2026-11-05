@@ -50,6 +50,7 @@ export default {
   "board.empty.settings": "Settings",
   "board.empty.import": "Import",
   "board.empty.template": "No Google Sheet yet? Create one from the template",
+  "board.nameTaken": "A board already has this name, so it will be created as \"{name}\".",
   "board.sameSheet": "This Sheet is already used by \"{name}\".",
   "board.notice.noSheet.title": "This board has no Sheet ID yet",
   "board.notice.noSheet.description": "Open Settings and enter the Google Sheet's Sheet ID and Sheet API Key.",

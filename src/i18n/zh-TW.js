@@ -48,6 +48,7 @@ export default {
   "board.empty.settings": "設定",
   "board.empty.import": "匯入",
   "board.empty.template": "還沒有 Google Sheet？用範本建立",
+  "board.nameTaken": "已有同名的看板，會建立為「{name}」。",
   "board.sameSheet": "這份 Sheet 已在看板「{name}」使用。",
   "board.notice.noSheet.title": "這個看板還沒設定 Sheet ID",
   "board.notice.noSheet.description": "點「設定」填入 Google Sheet 的 Sheet ID 與 Sheet API Key。",

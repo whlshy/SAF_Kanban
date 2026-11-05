@@ -189,7 +189,7 @@ Settings are stored in this browser's Local Storage. After switching browsers or
 Each board is connected to its own Google Sheet and Apps Script. To add a board, first create another Sheet and Apps Script with the [quick setup](#quick-setup-recommended) or steps 1–4, then:
 
 1. Click the board name at the top left to open the board menu.
-2. Choose **New board**, enter a title, paste the Sheet URL and the deployment URL, and click **Create**.
+2. Choose **New board**, enter a title, paste the Sheet URL and the deployment URL, and click **Create**. If another board already has that name, a number is added, such as `Kanban (1)` or `Kanban (2)`.
 3. Switch boards from the same menu.
 
 - The address includes `?board=<board ID>`, so you can bookmark a board or open boards in separate tabs.
