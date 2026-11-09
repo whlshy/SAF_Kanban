@@ -9,7 +9,8 @@ import { useDialogStore } from '@/store';
 import { boardTitle, normalizeBoardField, uniqueBoardTitle, useBoards } from '@/store/boards';
 import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
-import { exportBoards, useStartImport } from './BoardTransfer';
+import { useStartExport, useStartImport } from './BoardTransfer';
+import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -17,6 +18,7 @@ function index() {
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
+  const startExport = useStartExport();
   const startImport = useStartImport();
   const openSettings = useOpenSettings();
   const [lang] = useAtom(langAtom);
@@ -48,7 +50,7 @@ function index() {
     setMenuAnchor(null);
     setDefaultDialog({
       title: t("board.new"),
-      open: true, content: <NewBoardDialog />
+      open: true, fullWidth: true, maxWidth: "sm", content: <NewBoardDialog />
     });
   };
 
@@ -106,7 +108,7 @@ function index() {
               <ListItemText>{t("board.new")}</ListItemText>
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => (setMenuAnchor(null), exportBoards(boards))}>
+            <MenuItem onClick={() => (setMenuAnchor(null), startExport())}>
               <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
               <ListItemText>{t("transfer.export")}</ListItemText>
             </MenuItem>
@@ -233,14 +235,11 @@ const NewBoardDialog = ({ closeDialog }) => {
           {t("board.sameSheet", { name: boardTitle(sameSheet) })}
         </Typography>
       )}
-      <Box className="flex items-center justify-end gap-2" sx={{ mt: 1 }}>
-        <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-          {t("common.cancel")}
-        </Button>
-        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none' }}>
+      <DialogFooter>
+        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none', ml: 'auto' }}>
           {t("board.create")}
         </Button>
-      </Box>
+      </DialogFooter>
     </DialogContent>
   )
 }

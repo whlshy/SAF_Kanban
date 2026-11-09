@@ -11,6 +11,26 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.12.0 — 2026-11-09
+
+### Added
+
+- Choose which boards to export: **Export settings** first lists every board (all checked), with **Select all** and a checkbox per board, and downloads the file when you click **Export**.
+
+### Changed
+
+- Settings are saved when you click **Confirm** (or press Enter in a field). The ✕ and Esc discard your changes, and clicking outside the dialog no longer closes it, so typed values aren't lost by accident.
+- The read-only description view is wider, up to 900px.
+- Every dialog's buttons sit in a fixed row at the bottom: delete or a count on the left, the main button (OK, Confirm, Create, Import, Export) on the right. They stay visible when the content scrolls (for example with many boards), and on phones they sit at the bottom of the screen.
+- The task dialog looks like the other dialogs: a ✕ in its title row, **Delete** as a red text button and **OK** as a blue button.
+- Dialogs no longer have a **Cancel** button; close them with the ✕ at the top right or Esc. Delete confirmations still have **Cancel**.
+
+### Fixed
+
+- Opening a dialog (such as a description, deleted tasks or Settings) made the board behind it disappear until the dialog closed. The board now stays. While a dialog is open the Sheet still isn't read; the board refreshes when it closes.
+- A long dialog title didn't wrap: it ran out of the dialog and pushed the close button out with it. Titles now wrap and the close button stays at the top right.
+- A dialog's width and other options carried over from the dialog opened before it: after opening a description, Settings opened as wide as the description view.
+
 ## 1.11.0 — 2026-11-05
 
 ### Added

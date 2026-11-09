@@ -58,6 +58,7 @@ export default {
   "board.notice.noColumns.description": "Check that the Sheet ID is correct, the Sheet is shared with \"Anyone with the link\" as a viewer, and it has a sheet named columns with column names in column A.",
 
   "settings.title": "Settings",
+  "settings.saved": "Settings saved",
   "field.title": "Title",
   "field.sheetId": "Sheet ID",
   "field.sheetId.hint": "You can paste the Google Sheet's URL",
@@ -69,6 +70,14 @@ export default {
 
   "transfer.export": "Export settings",
   "transfer.import": "Import settings",
+  "transfer.exportIntro": "Check the boards to export. The file includes their Apps Script Deployment IDs, so anyone who has it can write to your Sheets. Don't share it publicly.",
+  "transfer.selectAll": "Select all",
+  "transfer.exportOne": "Export {name}",
+  "transfer.willExport_one": "1 board will be exported",
+  "transfer.willExport": "{count} boards will be exported",
+  "transfer.exportButton": "Export",
+  "transfer.exported_one": "Exported 1 board",
+  "transfer.exported": "Exported {count} boards",
   "transfer.intro_one": "The file has 1 board. It is compared with your current boards by name: rename it if the name is taken, or uncheck it to skip it.",
   "transfer.intro": "The file has {count} boards. They are compared with your current boards by name: rename any duplicates, and uncheck the ones you don't want to import.",
   "transfer.importOne": "Import {name}",
