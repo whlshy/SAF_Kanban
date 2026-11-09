@@ -11,6 +11,7 @@ import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
 import { useStartExport, useStartImport } from './BoardTransfer';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
+import Logo from './Logo';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -68,20 +69,21 @@ function index() {
         {/* On narrow screens the title shrinks to one line with an ellipsis and the
             buttons keep their size, so nothing wraps. */}
         <Toolbar sx={{ px: { xs: 1.5, sm: 3 } }}>
+          <Logo sx={{ mr: { xs: 0.5, sm: 1 } }} />
           {boards.length > 0 ? (
             <Button
               color="inherit"
               disableFocusRipple
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setMenuAnchor(e.currentTarget)}
-              sx={{ textTransform: 'none', ml: -1, px: 1, minWidth: 0, justifyContent: 'flex-start' }}
+              sx={{ textTransform: 'none', px: 1, minWidth: 0, justifyContent: 'flex-start' }}
             >
               <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
                 {displayTitle}
               </Typography>
             </Button>
           ) : (
-            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
+            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={{ ...titleSx, px: 1 }}>
               {displayTitle}
             </Typography>
           )}
