@@ -1,16 +1,18 @@
 import React from 'react'
 import { Box } from '@mui/material'
+import { PHONE_QUERY } from '@/lib/usePhone'
 
 // The site icon (design/icons/kanban-drag-frame-soft.svg) drawn inline for the
 // header. Lines take the header's text color and the card follows the site
 // theme (the `dark` class), not the browser's setting like favicon.svg.
+// Hidden on phones, where the header has no room to spare.
 export default function Logo({ sx }) {
   return (
     <Box
       component="svg"
       viewBox="0 0 64 64"
       aria-hidden="true"
-      sx={{ width: { xs: 24, sm: 28 }, height: { xs: 24, sm: 28 }, flexShrink: 0, ...sx }}
+      sx={{ width: 28, height: 28, flexShrink: 0, [`@media ${PHONE_QUERY}`]: { display: 'none' }, ...sx }}
     >
       <g opacity=".75">
         <rect x="2.25" y="2.25" width="59.5" height="59.5" rx="14" fill="none" stroke="currentColor" strokeWidth="2.5" opacity=".5" />

@@ -12,6 +12,7 @@ import HistoryDialog from './HistoryDialog';
 import { useStartExport, useStartImport } from './BoardTransfer';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import Logo from './Logo';
+import { PHONE_QUERY } from '@/lib/usePhone';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -69,21 +70,21 @@ function index() {
         {/* On narrow screens the title shrinks to one line with an ellipsis and the
             buttons keep their size, so nothing wraps. */}
         <Toolbar sx={{ px: { xs: 1.5, sm: 3 } }}>
-          <Logo sx={{ mr: { xs: 0.5, sm: 1 } }} />
+          <Logo sx={{ mr: 1 }} />
           {boards.length > 0 ? (
             <Button
               color="inherit"
               disableFocusRipple
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setMenuAnchor(e.currentTarget)}
-              sx={{ textTransform: 'none', px: 1, minWidth: 0, justifyContent: 'flex-start' }}
+              sx={{ textTransform: 'none', px: 1, minWidth: 0, justifyContent: 'flex-start', ...titleAfterLogoSx }}
             >
               <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
                 {displayTitle}
               </Typography>
             </Button>
           ) : (
-            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={{ ...titleSx, px: 1 }}>
+            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={{ ...titleSx, px: 1, ...titleAfterLogoSx }}>
               {displayTitle}
             </Typography>
           )}
@@ -179,6 +180,8 @@ function index() {
 export default index;
 
 const titleSx = { minWidth: 0, fontSize: { xs: '1.1rem', sm: '1.25rem' } };
+// Without the logo (phones) the title starts at the toolbar's edge again.
+const titleAfterLogoSx = { [`@media ${PHONE_QUERY}`]: { ml: -1 } };
 const iconSx = { mr: { xs: 0.5, sm: 1 }, flexShrink: 0 };
 
 const LanguageDialog = ({ closeDialog }) => {
