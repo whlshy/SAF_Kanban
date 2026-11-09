@@ -11,6 +11,17 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.11.1 — 2026-11-09
+
+### Changed
+
+- The read-only description view is wider, up to 900px.
+
+### Fixed
+
+- Opening a dialog (such as a description, deleted tasks or Settings) made the board behind it disappear until the dialog closed. The board now stays. While a dialog is open the Sheet still isn't read; the board refreshes when it closes.
+- A long dialog title didn't wrap: it ran out of the dialog and pushed the close button out with it. Titles now wrap and the close button stays at the top right.
+
 ## 1.11.0 — 2026-11-05
 
 ### Added

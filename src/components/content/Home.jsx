@@ -47,9 +47,12 @@ function Home() {
   const { open } = useDialogStore();
   const t = useT();
 
-  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", boardId, sheetId, open], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
-  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", boardId, sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
-  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", boardId, sheetId, open], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
+  // While a dialog is open nothing is fetched (typing a Sheet ID in Settings
+  // shouldn't load every partial ID), and closing it refreshes the board.
+  // `open` stays out of the query keys so the board keeps showing behind it.
+  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", boardId, sheetId], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
+  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", boardId, sheetId], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
+  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", boardId, sheetId], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
 
   const issues = React.useMemo(
     () => changeIssue(getGoogleSheetIssueApi?.data?.values || []),
@@ -213,7 +216,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
     e.stopPropagation();
     setDefaultDialog({
       title: task.title,
-      open: true, fullWidth: true, maxWidth: "sm",
+      open: true, fullWidth: true, maxWidth: "md",
       content: <DescriptionView task={task} jiraLink={jiraLink} />,
     });
   };

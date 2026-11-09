@@ -54,13 +54,16 @@ const CustomDialog = (props) => {
         ...(!!isRwdWidth ? p : {})
       }}
     >
-      <Box className="flex aic jcsb" sx={{ p: 1 }}>
-        <DialogTitle sx={{ m: 0, p: 0, pl: 1 }}>
+      {/* A long title wraps instead of pushing the close button out of the
+          dialog (DialogTitle is flex: 0 0 auto by default, so it never shrank). */}
+      <Box className="flex" sx={{ p: 1, alignItems: 'flex-start', gap: 1 }}>
+        <DialogTitle sx={{ m: 0, p: 0, pl: 1, pt: 0.5, flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
           {title}
         </DialogTitle>
         <IconButton
           onClick={closeDialog}
           sx={{
+            flexShrink: 0,
             color: (theme) => theme.palette.grey[500],
           }}
         >
