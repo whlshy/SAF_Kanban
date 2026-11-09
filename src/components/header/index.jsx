@@ -11,6 +11,8 @@ import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
 import { useStartExport, useStartImport } from './BoardTransfer';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
+import Logo from './Logo';
+import { PHONE_QUERY } from '@/lib/usePhone';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -68,20 +70,21 @@ function index() {
         {/* On narrow screens the title shrinks to one line with an ellipsis and the
             buttons keep their size, so nothing wraps. */}
         <Toolbar sx={{ px: { xs: 1.5, sm: 3 } }}>
+          <Logo sx={{ mr: 1 }} />
           {boards.length > 0 ? (
             <Button
               color="inherit"
               disableFocusRipple
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setMenuAnchor(e.currentTarget)}
-              sx={{ textTransform: 'none', ml: -1, px: 1, minWidth: 0, justifyContent: 'flex-start' }}
+              sx={{ textTransform: 'none', px: 1, minWidth: 0, justifyContent: 'flex-start', ...titleAfterLogoSx }}
             >
               <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
                 {displayTitle}
               </Typography>
             </Button>
           ) : (
-            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={titleSx}>
+            <Typography variant="h6" component="div" noWrap title={displayTitle} sx={{ ...titleSx, px: 1, ...titleAfterLogoSx }}>
               {displayTitle}
             </Typography>
           )}
@@ -138,12 +141,15 @@ function index() {
               textTransform: 'none',
               borderRadius: 9999,
               minWidth: 0,
-              px: { xs: 1, sm: 1.5 },
-              py: 0.25,
+              px: 0.75,
+              py: '1px',
               mr: { xs: 0.5, sm: 1 },
               flexShrink: 0,
               whiteSpace: 'nowrap',
-              fontSize: '0.8125rem',
+              fontSize: '0.6875rem',
+              lineHeight: '16px',
+              // A small tag, but as easy to tap as the 30px icon buttons beside it.
+              '&::before': { content: '""', position: 'absolute', inset: '-5px -2px' },
               borderColor: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)',
               '&:hover': { borderColor: isDark ? 'white' : 'rgba(0, 0, 0, 0.6)' },
             }}
@@ -177,6 +183,8 @@ function index() {
 export default index;
 
 const titleSx = { minWidth: 0, fontSize: { xs: '1.1rem', sm: '1.25rem' } };
+// Without the logo (phones) the title starts at the toolbar's edge again.
+const titleAfterLogoSx = { [`@media ${PHONE_QUERY}`]: { ml: -1 } };
 const iconSx = { mr: { xs: 0.5, sm: 1 }, flexShrink: 0 };
 
 const LanguageDialog = ({ closeDialog }) => {

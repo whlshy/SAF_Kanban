@@ -1,4 +1,4 @@
-# SAF Kanban
+# <picture><source media="(prefers-color-scheme: dark)" srcset="design/icons/kanban-drag-frame-soft-dark.svg"><img src="design/icons/kanban-drag-frame-soft-light.svg" alt="" width="36" height="36" align="absmiddle"></picture> SAF Kanban
 
 [繁體中文](README.md) | English
 
