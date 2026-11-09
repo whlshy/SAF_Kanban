@@ -58,6 +58,7 @@ export default {
   "board.notice.noColumns.description": "Check that the Sheet ID is correct, the Sheet is shared with \"Anyone with the link\" as a viewer, and it has a sheet named columns with column names in column A.",
 
   "settings.title": "Settings",
+  "settings.saved": "Settings saved",
   "field.title": "Title",
   "field.sheetId": "Sheet ID",
   "field.sheetId.hint": "You can paste the Google Sheet's URL",

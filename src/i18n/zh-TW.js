@@ -56,6 +56,7 @@ export default {
   "board.notice.noColumns.description": "請確認 Sheet ID 是否正確、Sheet 已開放「知道連結的任何人」檢視，以及有名為 columns 的工作表，且 A 欄填有欄位名稱。",
 
   "settings.title": "設定",
+  "settings.saved": "已儲存設定",
   "field.title": "看板名稱",
   "field.sheetId": "Sheet ID",
   "field.sheetId.hint": "可以直接貼上 Google Sheet 的網址",

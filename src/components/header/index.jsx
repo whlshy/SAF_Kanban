@@ -49,7 +49,7 @@ function index() {
     setMenuAnchor(null);
     setDefaultDialog({
       title: t("board.new"),
-      open: true, content: <NewBoardDialog />
+      open: true, fullWidth: true, maxWidth: "sm", content: <NewBoardDialog />
     });
   };
 

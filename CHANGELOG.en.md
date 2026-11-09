@@ -19,12 +19,14 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Changed
 
+- Settings are saved when you click **Confirm** (or press Enter in a field). **Cancel**, the ✕ and Esc discard your changes, and clicking outside the dialog no longer closes it, so typed values aren't lost by accident.
 - The read-only description view is wider, up to 900px.
 
 ### Fixed
 
 - Opening a dialog (such as a description, deleted tasks or Settings) made the board behind it disappear until the dialog closed. The board now stays. While a dialog is open the Sheet still isn't read; the board refreshes when it closes.
 - A long dialog title didn't wrap: it ran out of the dialog and pushed the close button out with it. Titles now wrap and the close button stays at the top right.
+- A dialog's width and other options carried over from the dialog opened before it: after opening a description, Settings opened as wide as the description view.
 
 ## 1.11.0 — 2026-11-05
 

@@ -29,7 +29,7 @@ export default Index
 
 const CustomDialog = (props) => {
   const { content_width,
-    open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, compact, contentProps = {} } = props
+    open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, compact, persistent, contentProps = {} } = props
   // On phones dialogs fill the screen, except small pickers opened with compact.
   const fill = usePhone() && !compact
 
@@ -43,7 +43,8 @@ const CustomDialog = (props) => {
 
   return (
     <BootstrapDialog
-      onClose={closeDialog}
+      // persistent: a click outside doesn't close it (forms with a confirm button).
+      onClose={(event, reason) => (persistent && reason === 'backdropClick' ? undefined : closeDialog())}
       open={open}
       disableScrollLock={!!disableScrollLock}
       // Content components bring their own DialogContent; on a full-screen phone
