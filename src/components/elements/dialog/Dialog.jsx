@@ -1,4 +1,5 @@
-import React, { cloneElement, useState, Fragment } from 'react'
+import React, { cloneElement, createContext, useContext, useState, Fragment } from 'react'
+import { createPortal } from 'react-dom'
 import { Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Box } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import CloseIcon from '@mui/icons-material/Close'
@@ -9,10 +10,22 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialogContent-root': {
     padding: theme.spacing(2),
   },
+  // Lines up with the content inside it (content components bring their own
+  // DialogContent, so their text sits 32px in).
   '& .MuiDialogActions-root': {
-    padding: theme.spacing(1),
+    padding: theme.spacing(1.5, 4),
   },
 }));
+
+// The footer is a slot under the scrolling content. Content components put
+// their buttons in <DialogFooter>, which renders them there through a portal,
+// so the buttons share the content's state but stay at the bottom.
+const FooterSlot = createContext(null)
+
+export function DialogFooter({ children }) {
+  const slot = useContext(FooterSlot)
+  return slot ? createPortal(children, slot) : null
+}
 
 function Index(props) {
   const { isRwdWidth } = props
@@ -32,6 +45,7 @@ const CustomDialog = (props) => {
     open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, compact, persistent, contentProps = {} } = props
   // On phones dialogs fill the screen, except small pickers opened with compact.
   const fill = usePhone() && !compact
+  const [footerSlot, setFooterSlot] = useState(null)
 
   const p = isRwdWidth ? {
     sx: {
@@ -49,7 +63,10 @@ const CustomDialog = (props) => {
       disableScrollLock={!!disableScrollLock}
       // Content components bring their own DialogContent; on a full-screen phone
       // dialog drop its side padding so the two paddings don't add up.
-      sx={fill ? { '& .MuiDialogContent-root .MuiDialogContent-root': { px: 0 } } : undefined}
+      sx={fill ? {
+        '& .MuiDialogContent-root .MuiDialogContent-root': { px: 0 },
+        '& .MuiDialogActions-root': { px: 2 },
+      } : undefined}
       {...(!!isRwdWidth ? {} : p)}
       PaperProps={{
         ...(!!isRwdWidth ? p : {})
@@ -74,9 +91,18 @@ const CustomDialog = (props) => {
       {
         !!body ? cloneElement(body, { closeDialog }) :
           <>
-            <DialogContent dividers sx={{ ...contentProps }}>
-              {!!content && cloneElement(content, { closeDialog })}
-            </DialogContent>
+            <FooterSlot.Provider value={footerSlot}>
+              <DialogContent dividers sx={{ ...contentProps }}>
+                {!!content && cloneElement(content, { closeDialog })}
+              </DialogContent>
+            </FooterSlot.Provider>
+            {/* Footer slot: hidden until a DialogFooter fills it. Left items
+                take margin-right: auto; the rest line up on the right. */}
+            <DialogActions
+              ref={setFooterSlot}
+              disableSpacing
+              sx={{ flexWrap: 'wrap', gap: 1, '&:empty': { display: 'none' } }}
+            />
             {!!actions &&
               <DialogActions>
                 {cloneElement(actions, { closeDialog })}

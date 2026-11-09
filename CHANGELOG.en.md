@@ -21,6 +21,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 - Settings are saved when you click **Confirm** (or press Enter in a field). **Cancel**, the ✕ and Esc discard your changes, and clicking outside the dialog no longer closes it, so typed values aren't lost by accident.
 - The read-only description view is wider, up to 900px.
+- The buttons of Settings, New board, Import and Export sit in a fixed row at the bottom of the dialog, like the task dialog: delete or the count on the left, Cancel and the main button on the right. They stay visible when the content scrolls (for example with many boards), and on phones they sit at the bottom of the screen.
 
 ### Fixed
 

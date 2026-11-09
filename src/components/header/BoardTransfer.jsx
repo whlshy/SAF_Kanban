@@ -5,6 +5,7 @@ import { message } from 'antd'
 import { useDialogStore } from '@/store';
 import { BOARD_FIELDS, boardTitle, useBoards } from '@/store/boards';
 import { t, useT } from '@/i18n';
+import { DialogFooter } from '@/components/elements/dialog/Dialog';
 
 // Export file format. Bump the version if the shape changes.
 const FILE_APP = "saf-kanban"
@@ -106,24 +107,22 @@ const ExportDialog = ({ closeDialog }) => {
         />
       ))}
 
-      <Box className="flex flex-wrap items-center justify-between gap-2" sx={{ mt: 2 }}>
+      <DialogFooter>
         <Typography variant="body2" color="text.secondary">
           {t("transfer.willExport", { count: chosen.length })}
         </Typography>
-        <Box className="flex gap-2" sx={{ ml: 'auto' }}>
-          <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleExport}
-            disabled={!chosen.length}
-            sx={{ textTransform: 'none' }}
-          >
-            {t("transfer.exportButton")}
-          </Button>
-        </Box>
-      </Box>
+        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
+          {t("common.cancel")}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleExport}
+          disabled={!chosen.length}
+          sx={{ textTransform: 'none' }}
+        >
+          {t("transfer.exportButton")}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   )
 }
@@ -267,24 +266,22 @@ const ImportDialog = ({ incoming, closeDialog }) => {
         ))}
       </Box>
 
-      <Box className="flex items-center justify-between gap-2" sx={{ mt: 2 }}>
+      <DialogFooter>
         <Typography variant="body2" color={conflictCount ? "error" : "text.secondary"}>
           {conflictCount ? t("transfer.conflictsLeft", { count: conflictCount }) : t("transfer.willImport", { count: selectedCount })}
         </Typography>
-        <Box className="flex gap-2">
-          <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleImport}
-            disabled={!selectedCount || conflictCount > 0}
-            sx={{ textTransform: 'none' }}
-          >
-            {t("transfer.importButton")}
-          </Button>
-        </Box>
-      </Box>
+        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
+          {t("common.cancel")}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleImport}
+          disabled={!selectedCount || conflictCount > 0}
+          sx={{ textTransform: 'none' }}
+        >
+          {t("transfer.importButton")}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   )
 }

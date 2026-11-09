@@ -1,10 +1,11 @@
 import React from 'react'
-import { Box, Button, DialogContent, TextField } from '@mui/material'
+import { Button, DialogContent, TextField } from '@mui/material'
 import { message } from 'antd'
 
 import { useAlertStore, useDialogStore } from '@/store';
 import { boardPlaceholderTitle, boardTitle, normalizeBoardField, useBoards } from '@/store/boards';
 import { t, useT } from '@/i18n';
+import { DialogFooter } from '@/components/elements/dialog/Dialog';
 
 export const SETTING_FIELDS = [
   { field: "title", labelKey: "field.title" },
@@ -18,6 +19,7 @@ const SettingDialog = ({ closeDialog }) => {
   const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
   const { setAlert } = useAlertStore();
   const t = useT();
+  const formId = React.useId();
   // Edits stay in the dialog until Confirm; Cancel, ✕ and Esc discard them.
   const [fields, setFields] = React.useState(() =>
     Object.fromEntries(SETTING_FIELDS.map(({ field }) => [field, currentBoard?.[field] || ""])));
@@ -43,7 +45,7 @@ const SettingDialog = ({ closeDialog }) => {
 
   return (
     <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      <form onSubmit={handleConfirm}>
+      <form id={formId} onSubmit={handleConfirm}>
         {SETTING_FIELDS.map(({ field, labelKey, hintKey, autoFocus }) => (
           <TextField
             key={field}
@@ -61,22 +63,21 @@ const SettingDialog = ({ closeDialog }) => {
             autoFocus={autoFocus}
           />
         ))}
-        <Box className="flex flex-wrap items-center gap-2" sx={{ mt: 1 }}>
-          {currentBoard && (
-            <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
-              {t("board.delete")}
-            </Button>
-          )}
-          <Box className="flex gap-2" sx={{ ml: 'auto' }}>
-            <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" variant="contained" sx={{ textTransform: 'none' }}>
-              {t("common.confirm")}
-            </Button>
-          </Box>
-        </Box>
       </form>
+      <DialogFooter>
+        {currentBoard && (
+          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
+            {t("board.delete")}
+          </Button>
+        )}
+        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
+          {t("common.cancel")}
+        </Button>
+        {/* Outside the form in the page (footer), so it names the form to submit. */}
+        <Button type="submit" form={formId} variant="contained" sx={{ textTransform: 'none' }}>
+          {t("common.confirm")}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   )
 }

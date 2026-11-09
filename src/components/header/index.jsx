@@ -10,6 +10,7 @@ import { boardTitle, normalizeBoardField, uniqueBoardTitle, useBoards } from '@/
 import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
 import { useStartExport, useStartImport } from './BoardTransfer';
+import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -234,14 +235,14 @@ const NewBoardDialog = ({ closeDialog }) => {
           {t("board.sameSheet", { name: boardTitle(sameSheet) })}
         </Typography>
       )}
-      <Box className="flex items-center justify-end gap-2" sx={{ mt: 1 }}>
-        <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
+      <DialogFooter>
+        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
           {t("common.cancel")}
         </Button>
         <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none' }}>
           {t("board.create")}
         </Button>
-      </Box>
+      </DialogFooter>
     </DialogContent>
   )
 }
