@@ -11,7 +11,11 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
-## 1.11.1 — 2026-11-09
+## 1.12.0 — 2026-11-09
+
+### Added
+
+- Choose which boards to export: **Export settings** first lists every board (all checked), with **Select all** and a checkbox per board, and downloads the file when you click **Export**.
 
 ### Changed
 

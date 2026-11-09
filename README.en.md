@@ -200,7 +200,7 @@ Each board is connected to its own Google Sheet and Apps Script. To add a board,
 
 Settings live only in the current browser. To move to another computer or browser, or to keep a backup, export them to a file and import it:
 
-1. Click the board name at the top left and choose **Export settings**. This downloads a JSON file with every board's settings.
+1. Click the board name at the top left and choose **Export settings**. Check the boards to export (all are checked to start with) and click **Export**. This downloads a JSON file with their settings.
 2. In the other browser, click the board name and choose **Import settings**, then pick the file. With no boards yet, click **Import** in the middle of the page.
 3. Before importing, the boards are compared with your current ones by name: rename any duplicates, uncheck those you don't want, then click **Import**.
 

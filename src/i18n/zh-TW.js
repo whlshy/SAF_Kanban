@@ -67,6 +67,12 @@ export default {
 
   "transfer.export": "匯出設定",
   "transfer.import": "匯入設定",
+  "transfer.exportIntro": "勾選要匯出的看板。檔案裡會有 Apps Script 部署 ID，拿到檔案的人就能寫入你的 Sheet，請不要公開分享。",
+  "transfer.selectAll": "全選",
+  "transfer.exportOne": "匯出 {name}",
+  "transfer.willExport": "將匯出 {count} 個看板",
+  "transfer.exportButton": "匯出",
+  "transfer.exported": "已匯出 {count} 個看板",
   "transfer.intro": "檔案裡有 {count} 個看板。用名稱和目前的看板比對，名稱重複的請改名，不想匯入的取消勾選。",
   "transfer.importOne": "匯入 {name}",
   "transfer.nameRequired": "請輸入名稱",

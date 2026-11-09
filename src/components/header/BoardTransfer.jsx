@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Button, Checkbox, Chip, DialogContent, TextField, Typography } from '@mui/material'
+import { Box, Button, Checkbox, Chip, DialogContent, FormControlLabel, TextField, Typography } from '@mui/material'
 import { message } from 'antd'
 
 import { useDialogStore } from '@/store';
@@ -10,7 +10,7 @@ import { t, useT } from '@/i18n';
 const FILE_APP = "saf-kanban"
 const FILE_VERSION = 1
 
-export const exportBoards = (boards) => {
+const exportBoards = (boards) => {
   const data = {
     app: FILE_APP,
     version: FILE_VERSION,
@@ -29,6 +29,103 @@ export const exportBoards = (boards) => {
   a.download = `saf-kanban-settings-${date}.json`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+// Returns a function that opens the export dialog, where boards can be unchecked.
+export function useStartExport() {
+  const { setDialog } = useDialogStore()
+
+  return React.useCallback(() => setDialog({
+    title: t("transfer.export"),
+    open: true,
+    fullWidth: true,
+    maxWidth: "sm",
+    content: <ExportDialog />,
+  }), [setDialog])
+}
+
+const ExportDialog = ({ closeDialog }) => {
+  const { boards } = useBoards()
+  const t = useT()
+  // Every board starts checked, so exporting everything stays one click.
+  const [selected, setSelected] = React.useState(() => new Set(boards.map((b) => b.id)))
+
+  const chosen = boards.filter((b) => selected.has(b.id))
+  const allChecked = chosen.length === boards.length
+  const toggle = (id, on) => setSelected((s) => {
+    const next = new Set(s)
+    if (on) next.add(id)
+    else next.delete(id)
+    return next
+  })
+
+  const handleExport = () => {
+    exportBoards(chosen)
+    message.success(t("transfer.exported", { count: chosen.length }))
+    closeDialog?.()
+  }
+
+  return (
+    <DialogContent>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {t("transfer.exportIntro")}
+      </Typography>
+
+      <FormControlLabel
+        label={t("transfer.selectAll")}
+        control={
+          <Checkbox
+            checked={allChecked}
+            indeterminate={!!chosen.length && !allChecked}
+            onChange={(e) => setSelected(new Set(e.target.checked ? boards.map((b) => b.id) : []))}
+          />
+        }
+        sx={{ mx: 0, py: 0.5, width: '100%', borderBottom: 1, borderColor: 'divider' }}
+      />
+      {boards.map((board) => (
+        <FormControlLabel
+          key={board.id}
+          data-testid="export-row"
+          disableTypography
+          control={
+            <Checkbox
+              checked={selected.has(board.id)}
+              onChange={(e) => toggle(board.id, e.target.checked)}
+              inputProps={{ 'aria-label': t("transfer.exportOne", { name: boardTitle(board) }) }}
+            />
+          }
+          label={
+            <Box sx={{ flex: 1, minWidth: 0, py: 0.5 }}>
+              <Typography sx={{ overflowWrap: 'anywhere' }}>{boardTitle(board)}</Typography>
+              <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                {t("transfer.sheetId", { id: board.sheetId || t("transfer.notSet") })}
+              </Typography>
+            </Box>
+          }
+          sx={{ mx: 0, py: 0.5, width: '100%', borderBottom: 1, borderColor: 'divider', opacity: selected.has(board.id) ? 1 : 0.5 }}
+        />
+      ))}
+
+      <Box className="flex flex-wrap items-center justify-between gap-2" sx={{ mt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          {t("transfer.willExport", { count: chosen.length })}
+        </Typography>
+        <Box className="flex gap-2" sx={{ ml: 'auto' }}>
+          <Button onClick={closeDialog} sx={{ textTransform: 'none' }}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleExport}
+            disabled={!chosen.length}
+            sx={{ textTransform: 'none' }}
+          >
+            {t("transfer.exportButton")}
+          </Button>
+        </Box>
+      </Box>
+    </DialogContent>
+  )
 }
 
 const parseImportFile = (text) => {

@@ -9,7 +9,7 @@ import { useDialogStore } from '@/store';
 import { boardTitle, normalizeBoardField, uniqueBoardTitle, useBoards } from '@/store/boards';
 import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
-import { exportBoards, useStartImport } from './BoardTransfer';
+import { useStartExport, useStartImport } from './BoardTransfer';
 import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
 
 function index() {
@@ -17,6 +17,7 @@ function index() {
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
   const [menuAnchor, setMenuAnchor] = React.useState(null);
+  const startExport = useStartExport();
   const startImport = useStartImport();
   const openSettings = useOpenSettings();
   const [lang] = useAtom(langAtom);
@@ -106,7 +107,7 @@ function index() {
               <ListItemText>{t("board.new")}</ListItemText>
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => (setMenuAnchor(null), exportBoards(boards))}>
+            <MenuItem onClick={() => (setMenuAnchor(null), startExport())}>
               <ListItemIcon><ExportIcon fontSize="small" /></ListItemIcon>
               <ListItemText>{t("transfer.export")}</ListItemText>
             </MenuItem>
