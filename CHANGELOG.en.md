@@ -11,6 +11,16 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.13.0 — 2026-11-09
+
+### Added
+
+- A site icon: a card being dragged from one column to another. In browser tabs it has a transparent background and its colors follow the browser's light/dark setting; on the iPhone home screen it has a dark background. The design sources are in `design/icons/`.
+
+### Removed
+
+- `blackwke.png`, an unused image left over from the project template.
+
 ## 1.12.0 — 2026-11-09
 
 ### Added

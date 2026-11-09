@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .line { stroke: #57606a } .fill { fill: #57606a } .card { fill: #1976d2 }
+    @media (prefers-color-scheme: dark) {
+      .line { stroke: #c9d1d9 } .fill { fill: #c9d1d9 } .card { fill: #58a6ff }
+    }
+  </style>
+  <g class="line" fill="none" stroke-width="4">
+    <rect x="4" y="6" width="22" height="52" rx="5"/>
+    <rect x="38" y="6" width="22" height="52" rx="5"/>
+  </g>
+  <g class="fill">
+    <rect x="9" y="11" width="12" height="8" rx="2"/>
+    <rect x="43" y="11" width="12" height="8" rx="2"/>
+  </g>
+  <g transform="rotate(-12 32 38)">
+    <rect x="19" y="32" width="30" height="18" rx="4" fill="#000" opacity=".28"/>
+    <rect class="card" x="17" y="29" width="30" height="18" rx="4"/>
+    <rect x="21.5" y="34" width="16" height="3.2" rx="1.6" fill="#fff"/>
+    <rect x="21.5" y="40" width="10" height="3.2" rx="1.6" fill="#fff" opacity=".8"/>
+  </g>
+</svg>
