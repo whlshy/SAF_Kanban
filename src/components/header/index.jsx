@@ -236,10 +236,7 @@ const NewBoardDialog = ({ closeDialog }) => {
         </Typography>
       )}
       <DialogFooter>
-        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
-          {t("common.cancel")}
-        </Button>
-        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none' }}>
+        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none', ml: 'auto' }}>
           {t("board.create")}
         </Button>
       </DialogFooter>

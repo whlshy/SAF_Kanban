@@ -161,7 +161,7 @@ https://script.google.com/macros/s/DEPLOYMENT_ID/exec
 
 ## 5. 連接 SAF Kanban
 
-開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，點選右上角齒輪，填入下列欄位後按「確認」儲存（按「取消」會放棄修改）：
+開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，點選右上角齒輪，填入下列欄位後按「確認」儲存（按右上角 ✕ 會放棄修改）：
 
 | 設定 | 填入內容 |
 | --- | --- |

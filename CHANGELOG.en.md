@@ -19,9 +19,11 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 ### Changed
 
-- Settings are saved when you click **Confirm** (or press Enter in a field). **Cancel**, the ✕ and Esc discard your changes, and clicking outside the dialog no longer closes it, so typed values aren't lost by accident.
+- Settings are saved when you click **Confirm** (or press Enter in a field). The ✕ and Esc discard your changes, and clicking outside the dialog no longer closes it, so typed values aren't lost by accident.
 - The read-only description view is wider, up to 900px.
-- The buttons of Settings, New board, Import and Export sit in a fixed row at the bottom of the dialog, like the task dialog: delete or the count on the left, Cancel and the main button on the right. They stay visible when the content scrolls (for example with many boards), and on phones they sit at the bottom of the screen.
+- Every dialog's buttons sit in a fixed row at the bottom: delete or a count on the left, the main button (OK, Confirm, Create, Import, Export) on the right. They stay visible when the content scrolls (for example with many boards), and on phones they sit at the bottom of the screen.
+- The task dialog looks like the other dialogs: a ✕ in its title row, **Delete** as a red text button and **OK** as a blue button.
+- Dialogs no longer have a **Cancel** button; close them with the ✕ at the top right or Esc. Delete confirmations still have **Cancel**.
 
 ### Fixed
 

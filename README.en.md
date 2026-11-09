@@ -161,7 +161,7 @@ Deploy → Manage deployments → Edit → Version: New version → Deploy
 
 ## 5. Connect SAF Kanban
 
-Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/), click the gear icon at the top right, fill in the fields below and click **Confirm** to save them (**Cancel** discards your changes):
+Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/), click the gear icon at the top right, fill in the fields below and click **Confirm** to save them (the ✕ at the top right discards your changes):
 
 | Setting | Value |
 | --- | --- |

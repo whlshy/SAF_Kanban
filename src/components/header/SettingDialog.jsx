@@ -66,15 +66,12 @@ const SettingDialog = ({ closeDialog }) => {
       </form>
       <DialogFooter>
         {currentBoard && (
-          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1 }}>
+          <Button color="error" onClick={handleDelete} sx={{ textTransform: 'none', ml: -1, minWidth: 0 }}>
             {t("board.delete")}
           </Button>
         )}
-        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
-          {t("common.cancel")}
-        </Button>
         {/* Outside the form in the page (footer), so it names the form to submit. */}
-        <Button type="submit" form={formId} variant="contained" sx={{ textTransform: 'none' }}>
+        <Button type="submit" form={formId} variant="contained" sx={{ textTransform: 'none', ml: 'auto' }}>
           {t("common.confirm")}
         </Button>
       </DialogFooter>

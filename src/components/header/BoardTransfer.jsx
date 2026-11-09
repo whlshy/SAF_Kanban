@@ -111,14 +111,11 @@ const ExportDialog = ({ closeDialog }) => {
         <Typography variant="body2" color="text.secondary">
           {t("transfer.willExport", { count: chosen.length })}
         </Typography>
-        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
-          {t("common.cancel")}
-        </Button>
         <Button
           variant="contained"
           onClick={handleExport}
           disabled={!chosen.length}
-          sx={{ textTransform: 'none' }}
+          sx={{ textTransform: 'none', ml: 'auto' }}
         >
           {t("transfer.exportButton")}
         </Button>
@@ -270,14 +267,11 @@ const ImportDialog = ({ incoming, closeDialog }) => {
         <Typography variant="body2" color={conflictCount ? "error" : "text.secondary"}>
           {conflictCount ? t("transfer.conflictsLeft", { count: conflictCount }) : t("transfer.willImport", { count: selectedCount })}
         </Typography>
-        <Button onClick={closeDialog} sx={{ textTransform: 'none', ml: 'auto' }}>
-          {t("common.cancel")}
-        </Button>
         <Button
           variant="contained"
           onClick={handleImport}
           disabled={!selectedCount || conflictCount > 0}
-          sx={{ textTransform: 'none' }}
+          sx={{ textTransform: 'none', ml: 'auto' }}
         >
           {t("transfer.importButton")}
         </Button>

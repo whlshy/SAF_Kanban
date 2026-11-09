@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button as MuiButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { DialogContent, TextField, Button as MuiButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import { useStartImport } from '@/components/header/BoardTransfer';
 import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/sheet';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
-import usePhone from '@/lib/usePhone';
+import AppDialog, { DialogFooter } from '@/components/elements/dialog/Dialog';
 
 const changeIssue = (rows) => {
   return rows.map(row => ({
@@ -330,7 +330,6 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
 function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
-  const phone = usePhone();
   const t = useT();
 
   const { currentBoard } = useBoards();
@@ -500,28 +499,26 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
           }}
         </KanbanOverlay>
       </Kanban>}
+      {/* Same dialog as the rest of the app: ✕ in the title row, buttons in the
+          footer; a click outside doesn't close it, Esc does. */}
       {!!dialogProps.open &&
-        <Dialog
+        <AppDialog
           open={dialogProps.open}
-          onClose={(event, reason) => {
-            if (reason !== 'backdropClick') {
-              // 只有不是點擊外部的關閉，才去關閉對話框
-              // 可以使用 esc
-              setDialog({ open: false });
-            }
-          }}
-          fullWidth={true}
-          fullScreen={phone}
+          title={dialogProps.task?.id ? t("task.edit") : t("task.create")}
+          closeDialog={() => setDialog({ open: false })}
+          persistent
+          fullWidth
           maxWidth="lg"
-        >
-          <EditTask
-            task={dialogProps.task}
-            users={users}
-            onClose={() => setDialog({ open: false })}
-            onOk={handleEditTask}
-            onDel={handleDelete}
-          />
-        </Dialog>
+          content={
+            <EditTask
+              task={dialogProps.task}
+              users={users}
+              onClose={() => setDialog({ open: false })}
+              onOk={handleEditTask}
+              onDel={handleDelete}
+            />
+          }
+        />
       }
     </>
   );
@@ -545,7 +542,6 @@ const EditTask = ({
 
   return (
     <>
-      <DialogTitle>{task?.id ? t("task.edit") : t("task.create")}</DialogTitle>
       <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
         <TextField
           label={t("task.title")}
@@ -610,37 +606,32 @@ const EditTask = ({
           </Select>
         </FormControl>
       </DialogContent>
-      <DialogActions>
-        <div className='flex-1 flex items-center justify-between'>
-          <div>
-            {task?.id &&
-              <MuiButton
-                onClick={() =>
-                  setAlert({
-                    title: t("task.delete"),
-                    content: t("task.deleteConfirm"),
-                    handleAgree: (callback) => (callback?.(), setLoading(true), onDel(task?.id, handleCallback))
-                  })
-                }
-                variant="contained"
-                color="error"
-                sx={{ p: "8px 16px", fontWeight: "500", lineHeight: "1.25rem", fontSize: "0.875rem", textTransform: 'none' }}
-                disabled={loading}
-              >
-                {t("task.delete")}
-              </MuiButton>
+      <DialogFooter>
+        {task?.id &&
+          <MuiButton
+            color="error"
+            onClick={() =>
+              setAlert({
+                title: t("task.delete"),
+                content: t("task.deleteConfirm"),
+                handleAgree: (callback) => (callback?.(), setLoading(true), onDel(task?.id, handleCallback))
+              })
             }
-          </div>
-          <div>
-            <Button onClick={onClose} variant="outlined" disabled={loading}>
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={() => (setLoading(true), onOk(data, handleCallback))} disabled={loading}>
-              {t("task.ok")}
-            </Button>
-          </div>
-        </div>
-      </DialogActions>
+            disabled={loading}
+            sx={{ textTransform: 'none', ml: -1, minWidth: 0 }}
+          >
+            {t("task.delete")}
+          </MuiButton>
+        }
+        <MuiButton
+          variant="contained"
+          onClick={() => (setLoading(true), onOk(data, handleCallback))}
+          disabled={loading}
+          sx={{ textTransform: 'none', ml: 'auto' }}
+        >
+          {t("task.ok")}
+        </MuiButton>
+      </DialogFooter>
     </>
   )
 }
