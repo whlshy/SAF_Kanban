@@ -17,6 +17,11 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 - A site icon: a card being dragged from one column to another. In browser tabs it has a transparent background and its colors follow the browser's light/dark setting; on the iPhone home screen it has a dark background. The design sources are in `design/icons/`.
 - The same icon sits left of the board name in the header, following the site's light/dark theme. It's hidden at phone width (640px or less) to leave room for the name and buttons.
+- The README title shows the icon too, switching colors with GitHub's light/dark theme.
+
+### Changed
+
+- The language button in the header is smaller, with 11px text; its tap area stays as tall as the icon buttons beside it, so it's still easy to tap on phones.
 
 ### Removed
 

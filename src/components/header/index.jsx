@@ -141,12 +141,15 @@ function index() {
               textTransform: 'none',
               borderRadius: 9999,
               minWidth: 0,
-              px: { xs: 1, sm: 1.5 },
-              py: 0.25,
+              px: 0.75,
+              py: '1px',
               mr: { xs: 0.5, sm: 1 },
               flexShrink: 0,
               whiteSpace: 'nowrap',
-              fontSize: '0.8125rem',
+              fontSize: '0.6875rem',
+              lineHeight: '16px',
+              // A small tag, but as easy to tap as the 30px icon buttons beside it.
+              '&::before': { content: '""', position: 'absolute', inset: '-5px -2px' },
               borderColor: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)',
               '&:hover': { borderColor: isDark ? 'white' : 'rgba(0, 0, 0, 0.6)' },
             }}

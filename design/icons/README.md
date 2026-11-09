@@ -5,6 +5,7 @@ The site icon is a card being dragged between two columns. Colors follow the bro
 | File | Use |
 | --- | --- |
 | `kanban-drag-frame-soft.svg` | **In use** as `public/favicon.svg`: rounded-square outline at half opacity |
+| `kanban-drag-frame-soft-light.svg`, `kanban-drag-frame-soft-dark.svg` | The same icon in fixed light-page and dark-page colors, for the README title (GitHub picks one with its own theme setting) |
 | `kanban-drag-frame.svg` | Alternative: outline in the same color as the columns |
 | `kanban-drag.svg` | Alternative: no outline, drawing fills the canvas |
 | `favicon-fallback.svg` | Source of `public/favicon-32.png` for browsers without SVG icons; one mid-gray palette that reads on light and dark tabs |
