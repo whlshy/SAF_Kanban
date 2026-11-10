@@ -206,6 +206,15 @@ Settings live only in the current browser. To move to another computer or browse
 
 The exported file contains the Apps Script Deployment IDs, so anyone who has it can write to your Sheets. Keep it private and don't share it publicly.
 
+#### Protect the file with a password
+
+When exporting, check **Protect with a password** and set a password (at least 8 characters, entered twice). The file's contents are then encrypted, and its name ends in `-encrypted.json`. Importing such a file asks for the same password first, then continues with the comparison step above.
+
+- Encryption and decryption happen in your browser; the password is never uploaded or stored. It uses the browser's built-in Web Crypto: PBKDF2-SHA256 (600,000 iterations) turns the password into a key, and AES-GCM encrypts the file.
+- If you forget the password, the file can't be imported, and there's no way to recover it.
+- Encryption keeps the contents from being read directly, but a simple password can still be guessed, so pick one that's hard to guess.
+- Encryption needs the site to be opened over HTTPS (such as GitHub Pages) or on `localhost`.
+
 ### Update the Apps Script
 
 When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working but don't get the new features. The [changelog](CHANGELOG.en.md#apps-script-versions) lists what each script version adds. The current script:

@@ -206,6 +206,15 @@ Issue Link 範例：
 
 匯出的檔案包含 Apps Script 部署 ID，拿到檔案的人就能寫入你的 Sheet，請妥善保管，不要公開分享。
 
+#### 用密碼加密
+
+匯出時勾選「用密碼加密」並設定密碼（至少 8 個字元，輸入兩次），檔案內容就會加密成亂碼，檔名結尾是 `-encrypted.json`。匯入這種檔案時，會先要求輸入同一組密碼，再進入上面的比對步驟。
+
+- 加密和解密都在瀏覽器裡完成，密碼不會上傳，也不會被儲存。使用瀏覽器內建的 Web Crypto：PBKDF2-SHA256（60 萬次）把密碼轉成金鑰，再用 AES-GCM 加密。
+- 忘記密碼就無法匯入這個檔案，沒有任何方法能救回。
+- 加密能防止別人直接看到內容，但密碼太簡單仍可能被猜到，請用不容易猜的密碼。
+- 加密需要用 HTTPS（例如 GitHub Pages）或 `localhost` 開啟網站。
+
 ### 更新 Apps Script
 
 [`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。各版 Script 的差異請見[版本紀錄](CHANGELOG.md#apps-script-版本)。目前新版 Script 提供：

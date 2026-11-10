@@ -11,6 +11,12 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.14.0 — 2026-11-10
+
+### Added
+
+- Exported settings can be protected with a password: check **Protect with a password** and set one (at least 8 characters, entered twice), and the file's contents are encrypted. Importing an encrypted file asks for the same password first. Encryption and decryption happen in the browser, and the password is never uploaded or stored; if it's forgotten, the file can't be imported. Files aren't encrypted by default, and unencrypted files are the same as before.
+
 ## 1.13.0 — 2026-11-09
 
 ### Added
