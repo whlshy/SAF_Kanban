@@ -6,13 +6,16 @@ import { useDialogStore } from '@/store';
 import { BOARD_FIELDS, boardTitle, useBoards } from '@/store/boards';
 import { t, useT } from '@/i18n';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
+import { cryptoAvailable, decryptText, encryptText, MIN_PASSWORD_LENGTH, UnsupportedFileError, WrongPasswordError } from '@/lib/crypto';
 
 // Export file format. Bump the version if the shape changes.
 const FILE_APP = "saf-kanban"
 const FILE_VERSION = 1
 
-const exportBoards = (boards) => {
-  const data = {
+// With a password, the settings JSON is encrypted and the file keeps only what
+// import needs to recognize it: { app, version, encryption, data }.
+const exportBoards = async (boards, password) => {
+  const settings = {
     app: FILE_APP,
     version: FILE_VERSION,
     exportedAt: new Date().toISOString(),
@@ -22,12 +25,15 @@ const exportBoards = (boards) => {
       title: boardTitle(b),
     })),
   }
+  const file = password
+    ? { app: FILE_APP, version: FILE_VERSION, ...(await encryptText(JSON.stringify(settings), password)) }
+    : settings
 
   const date = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }))
+  const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }))
   const a = document.createElement("a")
   a.href = url
-  a.download = `saf-kanban-settings-${date}.json`
+  a.download = `saf-kanban-settings-${date}${password ? "-encrypted" : ""}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -60,10 +66,26 @@ const ExportDialog = ({ closeDialog }) => {
     return next
   })
 
-  const handleExport = () => {
-    exportBoards(chosen)
-    message.success(t("transfer.exported", { count: chosen.length }))
-    closeDialog?.()
+  // Optional password; off by default, so a plain export stays one click.
+  const canEncrypt = cryptoAvailable()
+  const [encrypt, setEncrypt] = React.useState(false)
+  const [password, setPassword] = React.useState("")
+  const [confirm, setConfirm] = React.useState("")
+  const [busy, setBusy] = React.useState(false)
+  const tooShort = password.length < MIN_PASSWORD_LENGTH
+  const mismatch = confirm !== password
+  const ready = chosen.length && (!encrypt || (!tooShort && !mismatch)) && !busy
+
+  const handleExport = async () => {
+    setBusy(true)
+    try {
+      await exportBoards(chosen, encrypt ? password : undefined)
+      message.success(t("transfer.exported", { count: chosen.length }))
+      closeDialog?.()
+    } catch {
+      message.error(t("transfer.error.encrypt"))
+      setBusy(false)
+    }
   }
 
   return (
@@ -107,35 +129,88 @@ const ExportDialog = ({ closeDialog }) => {
         />
       ))}
 
+      <Box sx={{ mt: 2 }}>
+        <FormControlLabel
+          label={t("transfer.encrypt")}
+          control={<Checkbox checked={encrypt} disabled={!canEncrypt || busy} onChange={(e) => setEncrypt(e.target.checked)} />}
+          sx={{ mx: 0 }}
+        />
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ ml: 4.25 }}>
+          {canEncrypt ? t("transfer.encryptHint") : t("transfer.cryptoUnavailable")}
+        </Typography>
+        {encrypt && (
+          <Box sx={{ ml: 4.25, mt: 1 }}>
+            <TextField
+              type="password"
+              variant="standard"
+              label={t("transfer.password")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={!!password && tooShort}
+              helperText={t("transfer.passwordTooShort", { min: MIN_PASSWORD_LENGTH })}
+              autoComplete="new-password"
+              disabled={busy}
+              autoFocus
+              fullWidth
+            />
+            <TextField
+              type="password"
+              variant="standard"
+              label={t("transfer.passwordConfirm")}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              error={!!confirm && mismatch}
+              helperText={confirm && mismatch ? t("transfer.passwordMismatch") : " "}
+              autoComplete="new-password"
+              disabled={busy}
+              fullWidth
+              sx={{ mt: 1 }}
+            />
+            <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+              {t("transfer.passwordWarning")}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
       <DialogFooter>
         <Typography variant="body2" color="text.secondary">
-          {t("transfer.willExport", { count: chosen.length })}
+          {t(encrypt ? "transfer.willExportEncrypted" : "transfer.willExport", { count: chosen.length })}
         </Typography>
         <Button
           variant="contained"
           onClick={handleExport}
-          disabled={!chosen.length}
+          disabled={!ready}
           sx={{ textTransform: 'none', ml: 'auto' }}
         >
-          {t("transfer.exportButton")}
+          {busy ? t("transfer.encrypting") : t("transfer.exportButton")}
         </Button>
       </DialogFooter>
     </DialogContent>
   )
 }
 
-const parseImportFile = (text) => {
+// Returns { boards } for a plain file, or { locked } for a password-protected
+// one, whose decrypted contents go through here again.
+const readImportFile = (text) => {
   let data
   try {
     data = JSON.parse(text)
   } catch {
     throw new Error(t("transfer.error.json"))
   }
-  if (data?.app !== FILE_APP || !Array.isArray(data.boards)) {
+  if (data?.app !== FILE_APP) {
     throw new Error(t("transfer.error.format"))
   }
   if (data.version > FILE_VERSION) {
     throw new Error(t("transfer.error.version"))
+  }
+  if (data.encryption) {
+    if (typeof data.data !== "string") throw new Error(t("transfer.error.format"))
+    return { locked: data }
+  }
+  if (!Array.isArray(data.boards)) {
+    throw new Error(t("transfer.error.format"))
   }
   const boards = data.boards
     .filter((b) => b && typeof b === "object")
@@ -143,7 +218,7 @@ const parseImportFile = (text) => {
   if (!boards.length) {
     throw new Error(t("transfer.error.empty"))
   }
-  return boards
+  return { boards }
 }
 
 const pickFile = () => new Promise((resolve) => {
@@ -160,21 +235,93 @@ export function useStartImport() {
 
   return React.useCallback(async () => {
     const file = await pickFile()
-    let incoming
+    let result
     try {
-      incoming = parseImportFile(await file.text())
+      result = readImportFile(await file.text())
     } catch (err) {
       message.error(err.message)
       return
     }
-    setDialog({
+    const showBoards = (incoming) => setDialog({
       title: t("transfer.import"),
       open: true,
       fullWidth: true,
       maxWidth: "md",
       content: <ImportDialog incoming={incoming} />,
     })
+    if (!result.locked) return showBoards(result.boards)
+    // A password-protected file asks for its password first, then continues as usual.
+    setDialog({
+      title: t("transfer.import"),
+      open: true,
+      fullWidth: true,
+      maxWidth: "sm",
+      persistent: true,
+      content: <UnlockDialog locked={result.locked} onUnlocked={showBoards} />,
+    })
   }, [setDialog])
+}
+
+const UnlockDialog = ({ locked, onUnlocked }) => {
+  const t = useT()
+  const formId = React.useId()
+  const [password, setPassword] = React.useState("")
+  const [error, setError] = React.useState("")
+  const [busy, setBusy] = React.useState(false)
+  const canDecrypt = cryptoAvailable()
+
+  const handleUnlock = async (e) => {
+    e.preventDefault()
+    if (!password || busy || !canDecrypt) return
+    setBusy(true)
+    setError("")
+    try {
+      const result = readImportFile(await decryptText(locked, password))
+      if (result.locked) throw new UnsupportedFileError()
+      onUnlocked(result.boards)
+    } catch (err) {
+      setError(
+        err instanceof WrongPasswordError ? t("transfer.wrongPassword")
+          : err instanceof UnsupportedFileError ? t("transfer.error.format")
+            : err.message
+      )
+      setBusy(false)
+    }
+  }
+
+  return (
+    <DialogContent>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {canDecrypt ? t("transfer.unlockIntro") : t("transfer.cryptoUnavailable")}
+      </Typography>
+      <form id={formId} onSubmit={handleUnlock}>
+        <TextField
+          type="password"
+          variant="standard"
+          label={t("transfer.password")}
+          value={password}
+          onChange={(e) => (setPassword(e.target.value), setError(""))}
+          error={!!error}
+          helperText={error || " "}
+          autoComplete="current-password"
+          disabled={busy || !canDecrypt}
+          autoFocus
+          fullWidth
+        />
+      </form>
+      <DialogFooter>
+        <Button
+          type="submit"
+          form={formId}
+          variant="contained"
+          disabled={!password || busy || !canDecrypt}
+          sx={{ textTransform: 'none', ml: 'auto' }}
+        >
+          {busy ? t("transfer.decrypting") : t("transfer.unlock")}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  )
 }
 
 const ImportDialog = ({ incoming, closeDialog }) => {
