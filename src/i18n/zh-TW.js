@@ -21,6 +21,7 @@ export default {
   "history.recreate": "重新建立",
   "history.recreateHint": "用這個任務的內容新增一個任務，可以先修改再建立",
 
+  "footer.changelog": "版本紀錄",
   "common.cancel": "取消",
   "common.confirm": "確認",
   "common.success": "成功",

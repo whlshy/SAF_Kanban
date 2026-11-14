@@ -12,6 +12,8 @@ const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, configFileName
 const {
   title
 } = config;
+// Shown in the footer; bump it in package.json with each release.
+const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
 
 export default defineConfig(({
   mode
@@ -47,6 +49,7 @@ export default defineConfig(({
       },
     },
     define: {
+      __APP_VERSION__: JSON.stringify(version),
       'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV),
         TITLE: JSON.stringify(title), // 將 title 變數傳遞到前端
