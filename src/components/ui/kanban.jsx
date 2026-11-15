@@ -24,6 +24,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Slot } from '@radix-ui/react-slot';
 
+// While a card is dragged, auto-scroll only the column (up and down) and the
+// board (sideways), never the page: the page only scrolls down to the footer,
+// and dragging a card to the bottom of a column kept pulling the footer in.
+const autoScroll = { canScroll: (element) => element !== document.scrollingElement };
+
 const KanbanContext = React.createContext({
   columns: {},
   setColumns: () => { },
@@ -292,6 +297,7 @@ function Kanban(
     <KanbanContext.Provider value={contextValue}>
       <DndContext
         sensors={sensors}
+        autoScroll={autoScroll}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragCancel={handleDragCancel}

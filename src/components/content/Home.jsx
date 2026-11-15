@@ -310,9 +310,13 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
         </KanbanColumnHandle> */}
       </div>
 
+      {/* With a mouse the column keeps its scrolling to itself (the gaps
+          around it scroll the page). On touch screens the column covers most of
+          the screen, so once it is at its top or bottom (or too short to
+          scroll) a swipe on it moves the page. */}
       <KanbanColumnContent
         value={value}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-0.5 pr-1"
+        className="min-h-0 flex-1 overflow-y-auto [@media(pointer:fine)]:overscroll-y-contain p-0.5 pr-1"
       >
         {tasks.map((task) => (
           <TaskCard
