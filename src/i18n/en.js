@@ -23,6 +23,7 @@ export default {
   "history.recreate": "Recreate",
   "history.recreateHint": "Create a new task from this one; you can edit it before saving",
 
+  "footer.changelog": "Changelog",
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
   "common.success": "Success",
