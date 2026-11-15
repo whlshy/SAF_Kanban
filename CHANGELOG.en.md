@@ -11,7 +11,7 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
-## 1.15.0 — 2026-11-14
+## 1.15.0 — 2026-11-15
 
 ### Added
 
