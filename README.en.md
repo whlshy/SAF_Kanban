@@ -327,10 +327,10 @@ https://github.com/OWNER/REPO/issues/
 npm install
 npm start        # dev server at http://localhost:1001
 npm test         # unit tests (Node's built-in test runner)
-npm run build    # build into docs/
+npm run build    # build into dist/
 ```
 
-On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. This needs the repository's Settings → Pages → Source set to "GitHub Actions". Until then, Pages keeps publishing the committed `docs/` folder.
+On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. The build isn't committed; the repository's Settings → Pages → Source has to be "GitHub Actions".
 
 ## Data and privacy
 

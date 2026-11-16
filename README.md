@@ -327,10 +327,10 @@ https://github.com/OWNER/REPO/issues/
 npm install
 npm start        # 開發伺服器，http://localhost:1001
 npm test         # 單元測試（Node 內建的測試工具）
-npm run build    # 建置到 docs/
+npm run build    # 建置到 dist/
 ```
 
-推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。這需要 repo 的 Settings → Pages → Source 設成「GitHub Actions」。還沒改之前，Pages 仍然發布版本庫裡的 `docs/` 資料夾。
+推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。建置結果不放進版本庫；repo 的 Settings → Pages → Source 要設成「GitHub Actions」。
 
 ## 資料與隱私
 

@@ -99,7 +99,7 @@ export default defineConfig(({
     },
     assetsInclude: ['**/*.svg', '**/*.png', '**/*.mp4'], // 包括圖像資產
     build: {
-      outDir: 'docs',
+      outDir: 'dist',
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {
@@ -119,8 +119,8 @@ function create404Plugin() {
   return {
     name: 'create-404-plugin',
     closeBundle() {
-      const indexPath = path.resolve(__dirname, 'docs/index.html')
-      const notFoundPath = path.resolve(__dirname, 'docs/404.html')
+      const indexPath = path.resolve(__dirname, 'dist/index.html')
+      const notFoundPath = path.resolve(__dirname, 'dist/404.html')
 
       if (fs.existsSync(indexPath)) {
         fs.copyFileSync(indexPath, notFoundPath)
