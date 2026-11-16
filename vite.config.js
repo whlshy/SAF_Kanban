@@ -2,6 +2,7 @@ import {
   defineConfig,
 } from 'vite';
 import react from "@vitejs/plugin-react-swc";
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
 
@@ -19,6 +20,7 @@ export default defineConfig(({
   mode
 }) => {
   const isProd = mode === 'production'
+  const base = isProd ? '/SAF_Kanban/' : '/'
 
   return {
     server: {
@@ -29,10 +31,50 @@ export default defineConfig(({
       },
       historyApiFallback: true, // 對於 React Router，開啟這個選項以處理瀏覽器直接訪問子路由
     },
-    base: isProd ? '/SAF_Kanban/' : '/', // 公共路徑
+    base, // 公共路徑
     plugins: [
       react(), // 使用 React 插件
-      create404Plugin()
+      create404Plugin(),
+      // Makes the site installable and usable offline. The service worker is
+      // registered from src/pwa.jsx, which also offers new versions.
+      VitePWA({
+        registerType: 'prompt',
+        injectRegister: false,
+        includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
+        manifest: {
+          id: base,
+          name: 'SAF Kanban',
+          short_name: 'SAF Kanban',
+          description: 'A kanban board that keeps its data in your own Google Sheet.',
+          display: 'standalone',
+          // The dark header and page; a light theme recolors the bar once loaded.
+          theme_color: '#1f1f1f',
+          background_color: '#0D1117',
+          icons: [
+            { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+          globIgnores: ['404.html'],
+          cleanupOutdatedCaches: true,
+          runtimeCaching: [
+            {
+              // Board data: always ask Google first; without a connection,
+              // answer with what was loaded last time.
+              urlPattern: /^https:\/\/sheets\.googleapis\.com\//,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'sheets-data',
+                expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [200] },
+              },
+            },
+          ],
+        },
+      }),
     ],
     resolve: {
       alias: {

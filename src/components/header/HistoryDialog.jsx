@@ -2,8 +2,9 @@ import React from 'react'
 import { Box, Button, CircularProgress, DialogContent, IconButton, InputAdornment, Link, TextField, Tooltip, Typography } from '@mui/material'
 import { Search as SearchIcon, Replay as ReplayIcon } from '@mui/icons-material'
 
-import { getGoogleSheetHistory } from '@/apis/sheet'
-import { dialogAtom, PriorityBadge, PRIORITIES } from '@/components/content/Home'
+import { useBoardSource } from '@/data/useBoardData'
+import { dialogAtom, PriorityBadge } from '@/components/content/Home'
+import { PRIORITIES } from '@/lib/filter'
 import { langAtom, useT } from '@/i18n'
 import { filterHistory, parseHistory } from '@/lib/history'
 import { useBoards } from '@/store/boards'
@@ -16,20 +17,6 @@ const UPDATE_SCRIPT_URL = {
   en: "https://github.com/whlshy/SAF_Kanban/blob/main/README.en.md#update-the-apps-script",
 }
 
-// Loads the history sheet when opened. A missing sheet (older Apps Script, or
-// nothing deleted yet) is an expected state, not an error toast.
-const loadHistory = async (sheetId) => {
-  const response = await getGoogleSheetHistory(sheetId).catch(() => null)
-  if (response?.ok && !response.body?.error) {
-    return { status: "ready", records: parseHistory(response.body?.values) }
-  }
-  const message = String(response?.body?.error?.message || "")
-  if (response?.status === 400 && /parse range/i.test(message)) {
-    return { status: "missing", records: [] }
-  }
-  return { status: "error", records: [] }
-}
-
 export default function HistoryDialog({ closeDialog }) {
   const { currentBoard } = useBoards()
   const lang = useAtomValue(langAtom)
@@ -40,13 +27,17 @@ export default function HistoryDialog({ closeDialog }) {
   const [limit, setLimit] = React.useState(PAGE_SIZE)
   const deferredQuery = React.useDeferredValue(query)
 
-  const sheetId = currentBoard?.sheetId
+  const source = useBoardSource(currentBoard)
   const jiraLink = currentBoard?.jiraLink || ""
 
+  // Loaded each time the dialog opens. A board without a history yet (older
+  // Apps Script, or nothing deleted) is an expected state, not an error toast.
   const load = React.useCallback(() => {
     setState({ status: "loading", records: [] })
-    loadHistory(sheetId).then(setState)
-  }, [sheetId])
+    Promise.resolve(source?.loadHistory())
+      .catch(() => null)
+      .then((result) => setState(result || { status: "error", records: [] }))
+  }, [source])
 
   React.useEffect(() => { load() }, [load])
   React.useEffect(() => { setLimit(PAGE_SIZE) }, [deferredQuery])
@@ -63,9 +54,9 @@ export default function HistoryDialog({ closeDialog }) {
       task: {
         id: null,
         title: record.title,
-        jiraId: record.issueId,
+        issueId: record.issueId,
         des: record.des,
-        task: "",
+        column: "",
         priority: PRIORITIES.includes(record.priority) ? record.priority : "high",
         assignee: record.assignee,
       },

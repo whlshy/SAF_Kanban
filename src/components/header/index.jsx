@@ -1,7 +1,10 @@
 import React from 'react'
-import { AppBar, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon } from '@mui/icons-material'
+import { AppBar, Badge, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
+import { EMPTY_FILTER, isFilterActive } from '@/lib/filter';
+import { filterAtom } from '@/store/filter';
+import { useInstallPrompt } from '@/pwa';
 import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
@@ -26,6 +29,9 @@ function index() {
   const [lang] = useAtom(langAtom);
   const t = useT();
   const { isDark, toggleTheme } = useTheme();
+  const [filter, setFilter] = useAtom(filterAtom);
+  const install = useInstallPrompt();
+  const filtering = isFilterActive(filter);
 
   const displayTitle = boardTitle(currentBoard);
 
@@ -119,6 +125,14 @@ function index() {
               <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
               <ListItemText>{t("transfer.import")}</ListItemText>
             </MenuItem>
+            {/* Only when the browser offers to install the site as an app. */}
+            {install && <Divider />}
+            {install && (
+              <MenuItem onClick={() => (setMenuAnchor(null), install())}>
+                <ListItemIcon><InstallIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>{t("pwa.install")}</ListItemText>
+              </MenuItem>
+            )}
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
           <IconButton
@@ -156,6 +170,23 @@ function index() {
           >
             {LANGUAGES.find((l) => l.code === lang)?.short}
           </Button>
+          {currentBoard && (
+            // Opens the search and filter bar; closing it also clears the filter,
+            // so tasks are never hidden without the bar showing why.
+            <IconButton
+              color={filter.open ? "primary" : "inherit"}
+              size="small"
+              onClick={() => setFilter((f) => (f.open ? { open: false, ...EMPTY_FILTER } : { ...f, open: true }))}
+              aria-label={filter.open ? t("filter.close") : t("filter.open")}
+              aria-pressed={filter.open}
+              title={filter.open ? t("filter.close") : t("filter.open")}
+              sx={{ ...iconSx, ...(isDark && filter.open ? { color: '#58a6ff' } : {}) }}
+            >
+              <Badge color="primary" variant="dot" invisible={!filtering} overlap="circular">
+                <SearchIcon fontSize="small" />
+              </Badge>
+            </IconButton>
+          )}
           {currentBoard && (
             <IconButton
               color="inherit"

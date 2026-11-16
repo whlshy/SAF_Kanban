@@ -16,6 +16,8 @@ export function useTheme() {
     document.getElementById('root')?.classList.toggle('dark', isDark)
     // Page background only (not the tailwind `dark` class), for areas outside #root.
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+    // The browser's own bar (and an installed app's title bar) matches the header.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#1f1f1f' : '#ffffff')
   }, [isDark])
 
   return { theme, isDark, toggleTheme: () => setTheme(isDark ? 'light' : 'dark') }

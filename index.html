@@ -11,6 +11,8 @@
   <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- Follows the header's color; the script below sets it for the saved theme. -->
+  <meta name="theme-color" content="#1f1f1f">
   <meta name="description" content="Author: WHL">
   <meta name="viewport"
     content="width=device-width, initial-scale=1, user-scalable=0, maximum-scale=1, minimum-scale=1">
@@ -43,6 +45,7 @@
       } catch (e) {}
       if (theme === 'dark') document.getElementById('root').classList.add('dark');
       document.documentElement.dataset.theme = theme;
+      if (theme === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff');
     })();
   </script>
   <script type="module" src="/src/main.jsx"></script>

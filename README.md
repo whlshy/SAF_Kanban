@@ -23,6 +23,8 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 每個欄位獨立捲動；手機直式時每個欄位佔滿寬度，左右滑動切換
 - 連結 Jira、GitHub 等 Issue
 - 刪除的 Task 會保留在 `history` 工作表，並可在網站上由新到舊查看、搜尋
+- 依關鍵字、負責人、優先順序搜尋與篩選看板上的 Task
+- 可以安裝成應用程式；沒有網路時也能打開，查看上次載入的內容
 - 所有資料儲存在你自己的 Google Sheet
 
 ## 快速建立（推薦）
@@ -215,6 +217,34 @@ Issue Link 範例：
 - 加密能防止別人直接看到內容，但密碼太簡單仍可能被猜到，請用不容易猜的密碼。
 - 加密需要用 HTTPS（例如 GitHub Pages）或 `localhost` 開啟網站。
 
+### 搜尋與篩選
+
+點右上角的放大鏡，欄位上方會出現搜尋列：
+
+- 搜尋框會比對標題、描述、Issue ID 和負責人。用空白隔開多個詞時，要全部符合才會顯示；不分大小寫。
+- 兩個下拉選單可以只看某位負責人（或「未指派」）、某個優先順序的 Task，也可以和搜尋一起用。
+- 篩選中，每個欄位的數字會變成「符合數 / 總數」，例如 `2 / 5`。
+- 篩選中一樣可以拖曳。Task 會放在你放開位置旁邊那張看得到的 Task 旁，被篩掉的 Task 順序不變。
+- 再點一次放大鏡會關閉搜尋列並清除篩選。切換看板、重新整理頁面後也會清除。
+
+### 安裝成應用程式
+
+安裝後 SAF Kanban 會有自己的圖示和視窗，不顯示瀏覽器的網址列。
+
+- Android 的 Chrome：點左上角看板名稱，選「安裝應用程式」；或用 Chrome 選單的「加到主畫面」→「安裝」。
+- 電腦的 Chrome、Edge：同樣從看板名稱的選單安裝，或點網址列右側的安裝圖示。
+- iPhone、iPad 的 Safari：點「分享」→「加入主畫面」。
+
+瀏覽器不支援安裝，或已經安裝時，選單裡不會有「安裝應用程式」。
+
+沒有網路時：
+
+- 一樣可以打開，畫面上方會提示目前離線，並顯示每個看板上次載入的內容。
+- 不能新增、修改、移動或刪除 Task；恢復連線後就可以。
+- 「已刪除的任務」要在有網路時開過，離線時才看得到上次的內容。
+
+網站更新時，畫面上方會出現「有新版本可以使用」，按「重新整理」就會換成新版。沒有按的話，把所有分頁（或應用程式）關掉再開，也會換成新版。
+
 ### 更新 Apps Script
 
 [`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。各版 Script 的差異請見[版本紀錄](CHANGELOG.md#apps-script-版本)。目前新版 Script 提供：
@@ -291,6 +321,17 @@ https://your-company.atlassian.net/browse/
 https://github.com/OWNER/REPO/issues/
 ```
 
+## 開發
+
+```bash
+npm install
+npm start        # 開發伺服器，http://localhost:1001
+npm test         # 單元測試（Node 內建的測試工具）
+npm run build    # 建置到 docs/
+```
+
+推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。這需要 repo 的 Settings → Pages → Source 設成「GitHub Actions」。還沒改之前，Pages 仍然發布版本庫裡的 `docs/` 資料夾。
+
 ## 資料與隱私
 
 - Task 資料會保存在你自己的 Google Sheet。
@@ -298,3 +339,4 @@ https://github.com/OWNER/REPO/issues/
 - Apps Script 會以建立者的 Google 帳號權限寫入指定 Sheet。
 - Apps Script Deployment ID 應視為敏感資訊，不要任意公開分享。
 - 使用新版 Apps Script 時，刪除的 Task 會保存在 `history` 工作表；舊版 Script 會直接刪除，不會保留。
+- 為了離線時能顯示看板，瀏覽器會保留每個看板上次載入的內容，只存在這台裝置上；清除網站資料就會刪除。
