@@ -1,10 +1,7 @@
 # Tests and builds the site on every push and pull request, and publishes it to
-# GitHub Pages from main.
-#
-# Publishing from here needs the repository's Pages source set to
-# "GitHub Actions" (Settings → Pages → Build and deployment → Source). Until
-# then Pages keeps publishing the committed docs/ folder as before, and the
-# deploy job below is skipped.
+# GitHub Pages from main. The build is not committed: Pages publishes what this
+# workflow uploads, so the repository's Pages source has to be "GitHub Actions"
+# (Settings → Pages → Build and deployment → Source).
 name: Build and deploy
 
 on:
@@ -23,11 +20,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: read
-    outputs:
-      publish: ${{ steps.pages.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,29 +31,14 @@ jobs:
       - run: npm run build
         env:
           NODE_ENV: production
-
-      - name: Check where Pages publishes from
-        id: pages
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          build_type=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type || echo unknown)
-          if [ "$build_type" = "workflow" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Not published from this workflow::Pages source is '$build_type', so the site is still published from the committed docs/ folder. Set Settings → Pages → Source to 'GitHub Actions' to publish from here."
-          fi
-
       - uses: actions/upload-pages-artifact@v3
-        if: steps.pages.outputs.publish == 'true'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
-          path: docs
+          path: dist
 
   deploy:
     needs: build
-    if: needs.build.outputs.publish == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
