@@ -52,7 +52,8 @@ export function useStartExport() {
 }
 
 const ExportDialog = ({ closeDialog }) => {
-  const { boards } = useBoards()
+  // Only Google Sheet boards are settings; a local board is a file of its own.
+  const boards = useBoards().boards.filter((b) => b.type !== "local")
   const t = useT()
   // Every board starts checked, so exporting everything stays one click.
   const [selected, setSelected] = React.useState(() => new Set(boards.map((b) => b.id)))

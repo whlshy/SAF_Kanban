@@ -330,6 +330,13 @@ npm test         # 單元測試（Node 內建的測試工具）
 npm run build    # 建置到 dist/
 ```
 
+桌面版（開發中）的本機伺服器在 [`desktop/`](desktop/README.md)，用 Rust 寫：
+
+```bash
+npm run local        # 建置桌面版畫面並啟動本機伺服器
+npm run test:server  # 伺服器的測試
+```
+
 推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。建置結果不放進版本庫；repo 的 Settings → Pages → Source 要設成「GitHub Actions」。
 
 ## 資料與隱私

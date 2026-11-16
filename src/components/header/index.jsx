@@ -1,5 +1,5 @@
 import React from 'react'
-import { AppBar, Badge, Box, Toolbar, Typography, Button, IconButton, DialogContent, TextField, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
+import { AppBar, Badge, Box, Toolbar, Typography, Button, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
 import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { EMPTY_FILTER, isFilterActive } from '@/lib/filter';
@@ -9,14 +9,14 @@ import { LANGUAGES, langAtom, useT } from '@/i18n';
 import { dialogAtom } from '../content/Home'
 
 import { useDialogStore } from '@/store';
-import { boardTitle, normalizeBoardField, uniqueBoardTitle, useBoards } from '@/store/boards';
+import { boardTitle, useBoards } from '@/store/boards';
 import { useTheme } from '@/store/theme';
 import HistoryDialog from './HistoryDialog';
 import { useStartExport, useStartImport } from './BoardTransfer';
-import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import Logo from './Logo';
 import { PHONE_QUERY } from '@/lib/usePhone';
-import { SETTING_FIELDS, useOpenSettings } from './SettingDialog';
+import { useOpenSettings } from './SettingDialog'
+import { useOpenNewBoard } from './NewBoardDialog';
 
 function index() {
   const { boards, currentBoard, switchBoard } = useBoards();
@@ -26,6 +26,7 @@ function index() {
   const startExport = useStartExport();
   const startImport = useStartImport();
   const openSettings = useOpenSettings();
+  const openNewBoard = useOpenNewBoard();
   const [lang] = useAtom(langAtom);
   const t = useT();
   const { isDark, toggleTheme } = useTheme();
@@ -56,10 +57,7 @@ function index() {
 
   const handleAddBoard = () => {
     setMenuAnchor(null);
-    setDefaultDialog({
-      title: t("board.new"),
-      open: true, fullWidth: true, maxWidth: "sm", content: <NewBoardDialog />
-    });
+    openNewBoard();
   };
 
   return (
@@ -234,51 +232,5 @@ const LanguageDialog = ({ closeDialog }) => {
         </ListItemButton>
       ))}
     </List>
-  )
-}
-
-const NewBoardDialog = ({ closeDialog }) => {
-  const { boards, addBoard } = useBoards();
-  const [fields, setFields] = React.useState({});
-  const t = useT();
-
-  const sameSheet = fields.sheetId?.trim() && boards.find((b) => b.sheetId?.trim() === fields.sheetId.trim());
-  // Tell the user up front when the name is taken and what it will become.
-  const shownTitle = fields.title?.trim() || t("board.untitled");
-  const finalTitle = uniqueBoardTitle(fields.title, boards, t("board.untitled")) || shownTitle;
-
-  const handleCreate = () => {
-    addBoard(fields);
-    closeDialog?.();
-  };
-
-  return (
-    <DialogContent sx={{ '& .MuiTextField-root': { mb: 2 } }}>
-      {SETTING_FIELDS.map(({ field, labelKey, hintKey }) => (
-        <TextField
-          key={field}
-          label={t(labelKey)}
-          variant="standard"
-          placeholder={field === "title" ? t("board.untitled") : undefined}
-          helperText={field === "title" && finalTitle !== shownTitle
-            ? t("board.nameTaken", { name: finalTitle })
-            : hintKey && t(hintKey)}
-          value={fields[field] || ""}
-          onChange={(e) => setFields((f) => ({ ...f, [field]: normalizeBoardField(field, e.target.value) }))}
-          fullWidth
-          autoFocus={field === "title"}
-        />
-      ))}
-      {sameSheet && (
-        <Typography variant="body2" color="warning.main">
-          {t("board.sameSheet", { name: boardTitle(sameSheet) })}
-        </Typography>
-      )}
-      <DialogFooter>
-        <Button variant="contained" onClick={handleCreate} sx={{ textTransform: 'none', ml: 'auto' }}>
-          {t("board.create")}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
   )
 }

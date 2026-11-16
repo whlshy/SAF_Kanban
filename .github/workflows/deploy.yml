@@ -1,4 +1,5 @@
-# Tests and builds the site on every push and pull request, and publishes it to
+# Tests and builds the site and the desktop server on every push and pull
+# request, and publishes the site to
 # GitHub Pages from main. The build is not committed: Pages publishes what this
 # workflow uploads, so the repository's Pages source has to be "GitHub Actions"
 # (Settings → Pages → Build and deployment → Source).
@@ -35,6 +36,17 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: dist
+
+  # The desktop app's local server (Rust). Windows is where it will ship, so
+  # it is tested there as well.
+  server:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --manifest-path desktop/Cargo.toml
 
   deploy:
     needs: build

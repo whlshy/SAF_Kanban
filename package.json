@@ -9,7 +9,10 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "test": "node --test \"src/**/*.test.js\""
+    "build:local": "vite build --mode desktop",
+    "local": "npm run build:local && cargo run --manifest-path desktop/Cargo.toml -- --ui-dir dist-local",
+    "test": "node --test \"src/**/*.test.js\"",
+    "test:server": "cargo test --manifest-path desktop/Cargo.toml"
   },
   "keywords": [],
   "author": "",

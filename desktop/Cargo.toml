@@ -1,0 +1,16 @@
+# The desktop app: a local server that stores boards on this computer and
+# offers them to the web UI and to other programs (server/), and later the
+# Tauri window around it.
+[workspace]
+resolver = "2"
+members = ["server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "ISC"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

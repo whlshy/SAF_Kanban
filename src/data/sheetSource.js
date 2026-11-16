@@ -58,6 +58,7 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     key: sheetId || "",
     // False until the board has the settings needed to read it.
     ready: !!sheetId,
+    needsNetwork: true,
 
     loadColumns: async () => rowsToColumns(await readRows(sheetId, "columns!A:B")),
     loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:G")),

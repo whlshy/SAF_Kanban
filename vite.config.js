@@ -20,7 +20,11 @@ export default defineConfig(({
   mode
 }) => {
   const isProd = mode === 'production'
+  // `vite build --mode desktop` builds the UI for the desktop app's local server
+  // (desktop/server): served from the root, with no service worker.
+  const isLocal = mode === 'desktop'
   const base = isProd ? '/SAF_Kanban/' : '/'
+  const outDir = isLocal ? 'dist-local' : 'dist'
 
   return {
     server: {
@@ -34,10 +38,11 @@ export default defineConfig(({
     base, // 公共路徑
     plugins: [
       react(), // 使用 React 插件
-      create404Plugin(),
+      !isLocal && create404Plugin(),
       // Makes the site installable and usable offline. The service worker is
       // registered from src/pwa.jsx, which also offers new versions.
       VitePWA({
+        disable: isLocal,
         registerType: 'prompt',
         injectRegister: false,
         includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
@@ -99,7 +104,7 @@ export default defineConfig(({
     },
     assetsInclude: ['**/*.svg', '**/*.png', '**/*.mp4'], // 包括圖像資產
     build: {
-      outDir: 'dist',
+      outDir,
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {

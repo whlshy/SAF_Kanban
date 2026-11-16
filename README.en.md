@@ -330,6 +330,13 @@ npm test         # unit tests (Node's built-in test runner)
 npm run build    # build into dist/
 ```
 
+The local server of the desktop app (in development) is in [`desktop/`](desktop/README.md), written in Rust:
+
+```bash
+npm run local        # build the desktop UI and start the local server
+npm run test:server  # the server's tests
+```
+
 On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. The build isn't committed; the repository's Settings → Pages → Source has to be "GitHub Actions".
 
 ## Data and privacy

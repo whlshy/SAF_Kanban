@@ -1,0 +1,588 @@
+//! Boards on disk: one JSON file per board in `<data dir>/boards/`.
+//!
+//! Every request reads the file again, so a file restored from a backup or
+//! synced in by another program is picked up without a restart. Writes go to
+//! a temporary file that then replaces the board file, so a crash can't leave
+//! half a board behind.
+
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::RwLock;
+
+use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
+use tokio::sync::broadcast;
+
+use crate::error::{ApiError, ApiResult};
+use crate::model::{Board, BoardInfo, DeletedTask, Task, FILE_VERSION};
+
+pub const DEFAULT_COLUMNS: [&str; 3] = ["Todo", "Doing", "Done"];
+pub const DEFAULT_PRIORITY: &str = "medium";
+
+/// Sent to listeners (the web UI) after every change.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Change {
+    /// `boards`: the list of boards changed. `board`: one board's content did.
+    pub kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub board_id: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct NewBoard {
+    pub title: String,
+    pub issue_link: String,
+    /// Defaults to Todo, Doing, Done.
+    pub columns: Option<Vec<String>>,
+    pub users: Vec<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BoardPatch {
+    pub title: Option<String>,
+    pub issue_link: Option<String>,
+    /// The new list of columns, in order.
+    pub columns: Option<Vec<String>>,
+    pub users: Option<Vec<String>>,
+    /// Old column name -> new name; the column's tasks follow it.
+    pub renames: HashMap<String, String>,
+}
+
+/// A task as a client sends it. Missing fields mean "empty" when creating or
+/// replacing a task, and "unchanged" when patching one.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct TaskInput {
+    pub title: Option<String>,
+    pub issue_id: Option<String>,
+    pub des: Option<String>,
+    pub column: Option<String>,
+    pub priority: Option<String>,
+    pub assignee: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct MoveInput {
+    pub column: String,
+    /// Put the task right before this one,
+    pub before_id: Option<String>,
+    /// or else right after this one. With neither, it keeps its place in the
+    /// board order.
+    pub after_id: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct TaskQuery {
+    pub column: Option<String>,
+    /// An empty value finds unassigned tasks.
+    pub assignee: Option<String>,
+    pub priority: Option<String>,
+    /// Words that must all appear in the title, description, issue ID or assignee.
+    pub q: Option<String>,
+}
+
+pub struct Store {
+    dir: PathBuf,
+    /// Serializes file access inside this process.
+    lock: RwLock<()>,
+    changes: broadcast::Sender<Change>,
+}
+
+/// UTC with milliseconds, always the same width, so the strings sort by time.
+fn now() -> String {
+    let time = OffsetDateTime::now_utc();
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        time.year(),
+        u8::from(time.month()),
+        time.day(),
+        time.hour(),
+        time.minute(),
+        time.second(),
+        time.millisecond()
+    )
+}
+
+fn new_id() -> String {
+    uuid::Uuid::new_v4().simple().to_string()[..8].to_string()
+}
+
+/// Ids end up in file names and URLs.
+pub fn valid_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Trims the names, drops empty ones and refuses duplicates.
+fn clean_names(names: Vec<String>, duplicate_code: &'static str) -> ApiResult<Vec<String>> {
+    let mut seen = HashSet::new();
+    let mut cleaned = Vec::new();
+    for name in names {
+        let name = name.trim().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        if !seen.insert(name.clone()) {
+            return Err(ApiError::invalid(
+                duplicate_code,
+                format!("`{name}` is listed more than once."),
+            ));
+        }
+        cleaned.push(name);
+    }
+    Ok(cleaned)
+}
+
+fn check_column(board: &Board, column: &str) -> ApiResult<()> {
+    if board.columns.iter().any(|name| name == column) {
+        Ok(())
+    } else {
+        Err(ApiError::unknown_column(column, &board.columns))
+    }
+}
+
+fn find_task(board: &Board, id: &str) -> ApiResult<usize> {
+    board
+        .tasks
+        .iter()
+        .position(|task| task.id == id)
+        .ok_or_else(|| ApiError::task_not_found(id))
+}
+
+impl Store {
+    pub fn open(dir: impl Into<PathBuf>) -> std::io::Result<Self> {
+        let dir = dir.into();
+        fs::create_dir_all(dir.join("boards"))?;
+        let (changes, _) = broadcast::channel(64);
+        Ok(Self {
+            dir,
+            lock: RwLock::new(()),
+            changes,
+        })
+    }
+
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<Change> {
+        self.changes.subscribe()
+    }
+
+    fn announce(&self, kind: &'static str, board_id: Option<&str>) {
+        // No listeners is fine.
+        let _ = self.changes.send(Change {
+            kind,
+            board_id: board_id.map(str::to_string),
+        });
+    }
+
+    fn path(&self, id: &str) -> PathBuf {
+        self.dir.join("boards").join(format!("{id}.json"))
+    }
+
+    fn read(&self, id: &str) -> ApiResult<Board> {
+        if !valid_id(id) {
+            return Err(ApiError::board_not_found(id));
+        }
+        let text = match fs::read_to_string(self.path(id)) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(ApiError::board_not_found(id))
+            }
+            Err(error) => return Err(ApiError::storage(error)),
+        };
+        let mut board: Board = serde_json::from_str(&text).map_err(ApiError::storage)?;
+        if board.version > FILE_VERSION {
+            return Err(ApiError::unsupported_file(id));
+        }
+        // The file name is the id, whatever the file says (e.g. a copied file).
+        board.id = id.to_string();
+        Ok(board)
+    }
+
+    fn write(&self, board: &Board) -> ApiResult<()> {
+        let path = self.path(&board.id);
+        let temporary = path.with_extension("json.tmp");
+        let text = serde_json::to_string_pretty(board).map_err(ApiError::storage)?;
+        fs::write(&temporary, text).map_err(ApiError::storage)?;
+        fs::rename(&temporary, &path).map_err(ApiError::storage)
+    }
+
+    /// Reads a board, changes it and saves it, as one step.
+    fn update<T>(&self, id: &str, change: impl FnOnce(&mut Board) -> ApiResult<T>) -> ApiResult<T> {
+        let result = {
+            let _guard = self
+                .lock
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut board = self.read(id)?;
+            let result = change(&mut board)?;
+            self.write(&board)?;
+            result
+        };
+        self.announce("board", Some(id));
+        Ok(result)
+    }
+
+    // ---- boards ----
+
+    /// All boards, oldest first. Files that can't be read are skipped.
+    pub fn list_boards(&self) -> ApiResult<Vec<BoardInfo>> {
+        let _guard = self
+            .lock
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut boards = Vec::new();
+        for entry in fs::read_dir(self.dir.join("boards")).map_err(ApiError::storage)? {
+            let path = entry.map_err(ApiError::storage)?.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                continue;
+            };
+            match self.read(id) {
+                Ok(board) => boards.push(board),
+                Err(error) => {
+                    eprintln!("Skipping board file {}: {}", path.display(), error.message)
+                }
+            }
+        }
+        boards.sort_by(|a, b| {
+            (&a.created_at, &a.title, &a.id).cmp(&(&b.created_at, &b.title, &b.id))
+        });
+        Ok(boards.iter().map(BoardInfo::from).collect())
+    }
+
+    pub fn get_board(&self, id: &str) -> ApiResult<Board> {
+        let _guard = self
+            .lock
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        self.read(id)
+    }
+
+    pub fn create_board(&self, input: NewBoard) -> ApiResult<BoardInfo> {
+        let columns = match input.columns {
+            Some(columns) => clean_names(columns, "DUPLICATE_COLUMN")?,
+            None => DEFAULT_COLUMNS
+                .iter()
+                .map(|name| name.to_string())
+                .collect(),
+        };
+        let board = {
+            let _guard = self
+                .lock
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut id = new_id();
+            while self.path(&id).exists() {
+                id = new_id();
+            }
+            let board = Board {
+                version: FILE_VERSION,
+                id,
+                title: input.title.trim().to_string(),
+                issue_link: input.issue_link.trim().to_string(),
+                columns,
+                users: clean_names(input.users, "DUPLICATE_USER")?,
+                created_at: now(),
+                ..Board::default()
+            };
+            self.write(&board)?;
+            board
+        };
+        self.announce("boards", Some(&board.id));
+        Ok(BoardInfo::from(&board))
+    }
+
+    pub fn update_board(&self, id: &str, patch: BoardPatch) -> ApiResult<BoardInfo> {
+        let info = self.update(id, |board| {
+            if let Some(title) = patch.title {
+                board.title = title.trim().to_string();
+            }
+            if let Some(issue_link) = patch.issue_link {
+                board.issue_link = issue_link.trim().to_string();
+            }
+
+            // Every name is looked up once, so two columns can swap names.
+            let mut renames = HashMap::new();
+            for (from, to) in &patch.renames {
+                let to = to.trim();
+                if to.is_empty() {
+                    return Err(ApiError::invalid(
+                        "EMPTY_COLUMN_NAME",
+                        format!("Column `{from}` can't be renamed to an empty name."),
+                    ));
+                }
+                renames.insert(from.clone(), to.to_string());
+            }
+            let renamed =
+                |name: &String| renames.get(name).cloned().unwrap_or_else(|| name.clone());
+            for task in &mut board.tasks {
+                task.column = renamed(&task.column);
+            }
+
+            let columns = match patch.columns {
+                Some(columns) => columns,
+                None => board.columns.iter().map(renamed).collect(),
+            };
+            let columns = clean_names(columns, "DUPLICATE_COLUMN")?;
+            for column in board.tasks.iter().map(|task| &task.column) {
+                if !columns.contains(column) {
+                    let count = board
+                        .tasks
+                        .iter()
+                        .filter(|task| &task.column == column)
+                        .count();
+                    return Err(ApiError::column_not_empty(column, count));
+                }
+            }
+            board.columns = columns;
+
+            if let Some(users) = patch.users {
+                board.users = clean_names(users, "DUPLICATE_USER")?;
+            }
+            Ok(BoardInfo::from(&*board))
+        })?;
+        self.announce("boards", Some(id));
+        Ok(info)
+    }
+
+    /// The file is moved to `<data dir>/trash/` instead of being deleted.
+    pub fn delete_board(&self, id: &str) -> ApiResult<()> {
+        {
+            let _guard = self
+                .lock
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            self.read(id)?;
+            let trash = self.dir.join("trash");
+            fs::create_dir_all(&trash).map_err(ApiError::storage)?;
+            let stamp = now().replace(':', "-");
+            fs::rename(self.path(id), trash.join(format!("{id}-{stamp}.json")))
+                .map_err(ApiError::storage)?;
+        }
+        self.announce("boards", Some(id));
+        Ok(())
+    }
+
+    // ---- tasks ----
+
+    pub fn list_tasks(&self, board_id: &str, query: &TaskQuery) -> ApiResult<Vec<Task>> {
+        let board = self.get_board(board_id)?;
+        if let Some(column) = &query.column {
+            check_column(&board, column)?;
+        }
+        let terms: Vec<String> = query
+            .q
+            .as_deref()
+            .unwrap_or("")
+            .to_lowercase()
+            .split_whitespace()
+            .map(str::to_string)
+            .collect();
+        Ok(board
+            .tasks
+            .into_iter()
+            .filter(|task| {
+                query
+                    .column
+                    .as_ref()
+                    .is_none_or(|column| &task.column == column)
+            })
+            .filter(|task| {
+                query
+                    .assignee
+                    .as_ref()
+                    .is_none_or(|assignee| &task.assignee == assignee)
+            })
+            .filter(|task| {
+                query
+                    .priority
+                    .as_ref()
+                    .is_none_or(|priority| &task.priority == priority)
+            })
+            .filter(|task| {
+                let haystack = [&task.title, &task.des, &task.issue_id, &task.assignee]
+                    .map(|field| field.to_lowercase())
+                    .join("\n");
+                terms.iter().all(|term| haystack.contains(term))
+            })
+            .collect())
+    }
+
+    pub fn get_task(&self, board_id: &str, task_id: &str) -> ApiResult<Task> {
+        let board = self.get_board(board_id)?;
+        let index = find_task(&board, task_id)?;
+        Ok(board.tasks[index].clone())
+    }
+
+    /// Adds a task at the end of the board order, in the first column unless
+    /// one is given.
+    pub fn create_task(&self, board_id: &str, input: TaskInput) -> ApiResult<Task> {
+        self.update(board_id, |board| {
+            let mut id = new_id();
+            while board.tasks.iter().any(|task| task.id == id) {
+                id = new_id();
+            }
+            add_task(board, id, input)
+        })
+    }
+
+    /// Replaces the task with this id, or creates it. Used by the web UI,
+    /// which picks the id of a new task itself.
+    pub fn put_task(&self, board_id: &str, task_id: &str, input: TaskInput) -> ApiResult<Task> {
+        if !valid_id(task_id) {
+            return Err(ApiError::invalid(
+                "INVALID_TASK_ID",
+                "A task id may only contain letters, digits, `-` and `_` (at most 64).",
+            ));
+        }
+        self.update(board_id, |board| {
+            match board.tasks.iter().position(|task| task.id == task_id) {
+                None => add_task(board, task_id.to_string(), input),
+                Some(index) => {
+                    let column = match input.column.filter(|column| !column.is_empty()) {
+                        Some(column) => {
+                            check_column(board, &column)?;
+                            column
+                        }
+                        None => board.tasks[index].column.clone(),
+                    };
+                    let task = &mut board.tasks[index];
+                    task.title = input.title.unwrap_or_default();
+                    task.issue_id = input.issue_id.unwrap_or_default();
+                    task.des = input.des.unwrap_or_default();
+                    task.priority = input.priority.unwrap_or_default();
+                    task.assignee = input.assignee.unwrap_or_default();
+                    task.column = column;
+                    task.updated_at = now();
+                    Ok(task.clone())
+                }
+            }
+        })
+    }
+
+    /// Changes only the fields that are given.
+    pub fn patch_task(&self, board_id: &str, task_id: &str, input: TaskInput) -> ApiResult<Task> {
+        self.update(board_id, |board| {
+            let index = find_task(board, task_id)?;
+            if let Some(column) = &input.column {
+                check_column(board, column)?;
+            }
+            let task = &mut board.tasks[index];
+            if let Some(title) = input.title {
+                task.title = title;
+            }
+            if let Some(issue_id) = input.issue_id {
+                task.issue_id = issue_id;
+            }
+            if let Some(des) = input.des {
+                task.des = des;
+            }
+            if let Some(column) = input.column {
+                task.column = column;
+            }
+            if let Some(priority) = input.priority {
+                task.priority = priority;
+            }
+            if let Some(assignee) = input.assignee {
+                task.assignee = assignee;
+            }
+            task.updated_at = now();
+            Ok(task.clone())
+        })
+    }
+
+    pub fn move_task(&self, board_id: &str, task_id: &str, input: MoveInput) -> ApiResult<Task> {
+        self.update(board_id, |board| {
+            let index = find_task(board, task_id)?;
+            check_column(board, &input.column)?;
+            // A neighbour that doesn't exist (or is the task itself) is ignored,
+            // like a neighbour that was deleted in the meantime.
+            let neighbour = |id: &Option<String>| {
+                id.as_deref()
+                    .filter(|id| *id != task_id && board.tasks.iter().any(|task| task.id == *id))
+                    .map(str::to_string)
+            };
+            let before = neighbour(&input.before_id);
+            let after = neighbour(&input.after_id);
+
+            let mut task = board.tasks.remove(index);
+            task.column = input.column.clone();
+            task.updated_at = now();
+            let position = |id: &str| board.tasks.iter().position(|task| task.id == id);
+            let target = match (before, after) {
+                (Some(before), _) => position(&before).unwrap_or(index),
+                (None, Some(after)) => position(&after).map(|at| at + 1).unwrap_or(index),
+                (None, None) => index,
+            };
+            board
+                .tasks
+                .insert(target.min(board.tasks.len()), task.clone());
+            Ok(task)
+        })
+    }
+
+    /// Removes the task from the board and keeps it in the board's history.
+    pub fn delete_task(&self, board_id: &str, task_id: &str) -> ApiResult<()> {
+        self.update(board_id, |board| {
+            let index = find_task(board, task_id)?;
+            let task = board.tasks.remove(index);
+            board.history.push(DeletedTask {
+                task,
+                deleted_at: now(),
+            });
+            Ok(())
+        })
+    }
+
+    /// Deleted tasks, newest first.
+    pub fn history(&self, board_id: &str) -> ApiResult<Vec<DeletedTask>> {
+        let mut history = self.get_board(board_id)?.history;
+        history.reverse();
+        Ok(history)
+    }
+}
+
+fn add_task(board: &mut Board, id: String, input: TaskInput) -> ApiResult<Task> {
+    let column = match input.column.filter(|column| !column.is_empty()) {
+        Some(column) => {
+            check_column(board, &column)?;
+            column
+        }
+        None => board
+            .columns
+            .first()
+            .cloned()
+            .ok_or_else(ApiError::no_columns)?,
+    };
+    let time = now();
+    let task = Task {
+        id,
+        title: input.title.unwrap_or_default(),
+        issue_id: input.issue_id.unwrap_or_default(),
+        des: input.des.unwrap_or_default(),
+        column,
+        priority: input
+            .priority
+            .filter(|priority| !priority.is_empty())
+            .unwrap_or_else(|| DEFAULT_PRIORITY.to_string()),
+        assignee: input.assignee.unwrap_or_default(),
+        created_at: time.clone(),
+        updated_at: time,
+    };
+    board.tasks.push(task.clone());
+    Ok(task)
+}
