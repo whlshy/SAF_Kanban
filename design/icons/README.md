@@ -9,6 +9,8 @@ The site icon is a card being dragged between two columns. Colors follow the bro
 | `kanban-drag-frame.svg` | Alternative: outline in the same color as the columns |
 | `kanban-drag.svg` | Alternative: no outline, drawing fills the canvas |
 | `favicon-fallback.svg` | Source of `public/favicon-32.png` for browsers without SVG icons; one mid-gray palette that reads on light and dark tabs |
+| `pwa-icon.svg` | Source of `public/pwa-192.png` and `public/pwa-512.png`, the icon of the installed app: the dark-background icon with rounded corners |
+| `pwa-maskable.svg` | Source of `public/pwa-maskable-512.png` for Android, which cuts the icon to its own shape (circle, squircle): square background, drawing kept inside the safe middle |
 | `apple-touch-icon.svg` | Source of `public/apple-touch-icon.png` (180 × 180) for the iOS home screen, which fills transparency with black, so it has its own dark background |
 
-To change the icon, edit the SVG here, copy it to `public/favicon.svg`, and re-render the PNGs at 32 × 32 and 180 × 180 (any SVG renderer, e.g. a browser screenshot).
+To change the icon, edit the SVG here, copy it to `public/favicon.svg`, and re-render the PNGs at 32 × 32, 180 × 180, 192 × 192 and 512 × 512 (any SVG renderer, e.g. a browser screenshot).

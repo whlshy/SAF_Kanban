@@ -1,3 +1,5 @@
+import { matchesTerms, searchTerms } from './search.js'
+
 // Helpers for the history sheet: one deleted task per row, columns A:G as in
 // the kanban sheet and H the deletion time.
 
@@ -53,15 +55,9 @@ export const parseHistory = (values = []) =>
       return b.row - a.row
     })
 
-// Case-insensitive, full-width and half-width treated alike.
-const normalize = (value) => text(value).normalize("NFKC").toLowerCase()
-
 // Every space-separated term must appear in one of the searchable fields.
 export const filterHistory = (records, query) => {
-  const terms = normalize(query).split(/\s+/).filter(Boolean)
+  const terms = searchTerms(query)
   if (!terms.length) return records
-  return records.filter((r) => {
-    const haystack = normalize([r.title, r.des, r.issueId, r.column, r.assignee].join("\n"))
-    return terms.every((term) => haystack.includes(term))
-  })
+  return records.filter((r) => matchesTerms([r.title, r.des, r.issueId, r.column, r.assignee], terms))
 }

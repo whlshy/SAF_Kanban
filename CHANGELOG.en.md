@@ -11,6 +11,22 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.16.0 — 2026-11-16
+
+### Added
+
+- Search and filter: click the magnifier at the top right to filter the board's tasks by keyword (title, description, issue ID, assignee), assignee and priority. While filtering, each column shows "matching / total" and dragging still works; click the magnifier again to clear the filter.
+- Install as an app: in Chrome on Android or a computer, choose "Install app" in the board-name menu at the top left; on an iPhone, use Safari's "Add to Home Screen". The installed app has its own icon and window.
+- Works offline: the site opens without a connection and shows what each board loaded last time. A notice at the top says you're offline, and tasks can't be added, edited, moved or deleted until you're back online.
+- When the site is updated, "A new version is available" appears at the top; click "Reload" to switch to it. Otherwise it updates once every tab has been closed and the site is opened again.
+- The browser's bar color (Chrome's address bar on phones, the installed app's window) follows the light or dark theme.
+
+### Changed
+
+- The code that reads and writes data is now a layer of its own, with Google Sheets as one data source, in preparation for other kinds of storage. Nothing changes in use, and the Apps Script doesn't need updating.
+- When reading the Google Sheet fails (for example, the connection drops), the board keeps what it was showing instead of going blank.
+- Added automated tests, and GitHub Actions now tests, builds and publishes the site on every push to `main` (the repository's Pages source has to be set to "GitHub Actions" first; see "Development" in the README).
+
 ## 1.15.1 — 2026-11-15
 
 ### Changed

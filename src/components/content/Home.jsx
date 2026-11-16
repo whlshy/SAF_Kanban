@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { DialogContent, TextField, Button as MuiButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { message } from 'antd';
@@ -17,84 +16,89 @@ import {
 import { atom, useAtom } from 'jotai';
 import { TEMPLATE_COPY_URL, useBoards } from '@/store/boards';
 import { t as translate, useT } from '@/i18n';
-import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon } from '@mui/icons-material';
+import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon, Refresh as RefreshIcon, CloudOffOutlined as OfflineIcon } from '@mui/icons-material';
 import { useOpenSettings } from '@/components/header/SettingDialog';
 import { useStartImport } from '@/components/header/BoardTransfer';
-import { getGoogleSheetIssue, getGoogleSheetTask, setGoogleSheetIssue, getGoogleSheetUsers } from '@/apis/sheet';
+import { useBoardData, useBoardWrite } from '@/data/useBoardData';
+import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter';
+import useOnline from '@/lib/useOnline';
+import { filterAtom } from '@/store/filter';
+import FilterBar from './FilterBar';
 import { useDialogStore, useAlertStore } from '@/store';
 import { Checkbox } from 'antd';
 import AppDialog, { DialogFooter } from '@/components/elements/dialog/Dialog';
-
-const changeIssue = (rows) => {
-  return rows.map(row => ({
-    id: row[0],
-    title: row[1],
-    jiraId: row[2],
-    des: row[3],
-    task: row[4],
-    priority: row[5],
-    assignee: row[6],
-  }));
-}
 
 const dialogAtom = atom({ open: false })
 export { dialogAtom }
 
 function Home() {
   const { currentBoard } = useBoards();
-  const boardId = currentBoard?.id;
-  const sheetId = currentBoard?.sheetId;
   const { open } = useDialogStore();
   const t = useT();
+  const online = useOnline();
+  const [filter, setFilter] = useAtom(filterAtom);
+  // Typing in the search box stays smooth on a board with many tasks.
+  const shownFilter = React.useDeferredValue(filter);
 
   // While a dialog is open nothing is fetched (typing a Sheet ID in Settings
   // shouldn't load every partial ID), and closing it refreshes the board.
-  // `open` stays out of the query keys so the board keeps showing behind it.
-  const getGoogleSheetIssueApi = useQuery({ queryKey: ["getGoogleSheetIssue", boardId, sheetId], queryFn: () => getGoogleSheetIssue(sheetId), enabled: !!sheetId && !open, refetchOnWindowFocus: true });
-  const getGoogleSheetTaskApi = useQuery({ queryKey: ["getGoogleSheetTask", boardId, sheetId], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetTask(sheetId) });
-  const getGoogleSheetUsersApi = useQuery({ queryKey: ["getGoogleSheetUsers", boardId, sheetId], enabled: !!sheetId && !open, queryFn: () => getGoogleSheetUsers(sheetId) });
+  const { source, columns, tasks, users, columnsLoaded, tasksLoading, reloadTasks } =
+    useBoardData(currentBoard, { paused: open });
 
-  const issues = React.useMemo(
-    () => changeIssue(getGoogleSheetIssueApi?.data?.values || []),
-    [getGoogleSheetIssueApi?.data?.values]
-  );
-  // Blank rows in the columns sheet would become a nameless column, so skip them.
-  const tasks = React.useMemo(
-    () => (getGoogleSheetTaskApi?.data?.values || []).filter((row) => row?.[0]),
-    [getGoogleSheetTaskApi?.data?.values]
-  );
-  // users rows are either [name] or the older [id, name]; keep the names.
-  const users = React.useMemo(
-    () => [...new Set(
-      (getGoogleSheetUsersApi?.data?.values || [])
-        .map((row) => (row?.[1] || row?.[0] || "").trim())
-        .filter(Boolean)
-    )],
-    [getGoogleSheetUsersApi?.data?.values]
-  );
+  // Each board starts unfiltered.
+  const boardId = currentBoard?.id;
+  useEffect(() => {
+    setFilter({ open: false, ...EMPTY_FILTER });
+  }, [boardId, setFilter]);
+
+  const notice = !source ? (
+    <BoardNotice
+      title={t("board.notice.unsupported.title")}
+      description={t("board.notice.unsupported.description")}
+      action={{ label: t("board.notice.unsupported.reload"), icon: <RefreshIcon />, onClick: () => window.location.reload() }}
+    />
+  ) : !source.ready ? (
+    <BoardNotice title={t("board.notice.noSheet.title")} description={t("board.notice.noSheet.description")} />
+  ) : columnsLoaded && !columns.length ? (
+    <BoardNotice title={t("board.notice.noColumns.title")} description={t("board.notice.noColumns.description")} />
+  ) : null;
 
   return (
     <div
       style={{ paddingTop: "80px" }}
-      className="h-screen min-h-0 overflow-hidden p-4">
-      {!currentBoard ? (
-        <EmptyBoards />
-      ) : (
-        <WHLKanban
-          notice={
-            !sheetId ? (
-              <BoardNotice title={t("board.notice.noSheet.title")} description={t("board.notice.noSheet.description")} />
-            ) : getGoogleSheetTaskApi.isFetched && !getGoogleSheetTaskApi.isFetching && !tasks.length ? (
-              <BoardNotice title={t("board.notice.noColumns.title")} description={t("board.notice.noColumns.description")} />
-            ) : null
-          }
+      className="flex h-screen min-h-0 flex-col overflow-hidden p-4">
+      {!!currentBoard && !online && (
+        <div role="status" data-slot="offline-notice" className="mb-3 flex shrink-0 items-center gap-2 rounded-md border bg-muted/60 px-3 py-2 text-xs text-muted-foreground dark:bg-card">
+          <OfflineIcon sx={{ fontSize: 16 }} />
+          <span>{t("offline.notice")}</span>
+        </div>
+      )}
+      {!!currentBoard && filter.open && !notice && (
+        <FilterBar
+          filter={filter}
+          onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
           tasks={tasks}
-          issues={issues}
           users={users}
-          reLoadIssue={getGoogleSheetIssueApi.refetch}
-          isLoading={getGoogleSheetIssueApi.isFetching}
+          shown={tasks.filter(taskMatcher(shownFilter)).length}
         />
       )}
+      <div className="min-h-0 flex-1">
+        {!currentBoard ? (
+          <EmptyBoards />
+        ) : (
+          <WHLKanban
+            notice={notice}
+            source={source}
+            columnNames={columns}
+            tasks={tasks}
+            users={users}
+            filter={shownFilter}
+            reloadTasks={reloadTasks}
+            disabled={tasksLoading}
+            locked={!online}
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -103,9 +107,11 @@ export default Home;
 
 // Shown instead of the board when it cannot be displayed (no Sheet ID, or no
 // columns could be read), so the page is not just blank.
-function BoardNotice({ title, description }) {
+function BoardNotice({ title, description, action }) {
   const openSettings = useOpenSettings();
   const t = useT();
+  // Most notices are fixed in Settings.
+  const { label, icon, onClick } = action || { label: t("board.empty.settings"), icon: <SettingsIcon />, onClick: openSettings };
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
@@ -113,8 +119,8 @@ function BoardNotice({ title, description }) {
         <h2 className="text-xl font-medium text-foreground">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <MuiButton variant="contained" startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
-        {t("board.empty.settings")}
+      <MuiButton variant="contained" startIcon={icon} onClick={onClick} sx={{ textTransform: 'none' }}>
+        {label}
       </MuiButton>
     </div>
   );
@@ -154,18 +160,18 @@ function EmptyBoards() {
   );
 }
 
-export const PRIORITIES = ["high", "medium", "low"];
+export { PRIORITIES };
 
 // Read-only view of a task: an article-style info line, then the full description.
 function DescriptionView({ task, jiraLink }) {
   const t = useT();
   const parts = [
-    task.task && <span key="column">{task.task}</span>,
+    task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
     <span key="assignee">{task.assignee || t("task.unassigned")}</span>,
-    task.jiraId && (jiraLink
-      ? <a key="issue" href={`${jiraLink}${task.jiraId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.jiraId}</a>
-      : <span key="issue">{task.jiraId}</span>),
+    task.issueId && (jiraLink
+      ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.issueId}</a>
+      : <span key="issue">{task.issueId}</span>),
   ].filter(Boolean);
 
   return (
@@ -205,7 +211,9 @@ export function PriorityBadge({ priority }) {
   );
 }
 
-function TaskCard({ task, asHandle, disabled, ...props }) {
+// `disabled` (a load or save is running) dims the card; `locked` (offline)
+// only stops it from being dragged.
+function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
@@ -260,9 +268,9 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
                   {task.assignee.charAt(0)}
                 </AvatarFallback>
               </Avatar> */}
-            <a target='_blank' href={`${jiraLink}${task.jiraId}`} onClick={(e) => e.stopPropagation()}>
+            <a target='_blank' href={`${jiraLink}${task.issueId}`} onClick={(e) => e.stopPropagation()}>
               <span className="line-clamp-1">
-                {task.jiraId}
+                {task.issueId}
               </span>
             </a>
           </div>
@@ -278,7 +286,7 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
   );
 
   return (
-    <KanbanItem value={task.id} disabled={disabled} {...props}>
+    <KanbanItem value={task.id} disabled={disabled || locked} className={locked && !disabled ? "opacity-100" : undefined} {...props}>
       {asHandle ? (
         <KanbanItemHandle>{cardContent}</KanbanItemHandle>
       ) : (
@@ -288,7 +296,8 @@ function TaskCard({ task, asHandle, disabled, ...props }) {
   );
 }
 
-function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
+// `total` is given while a filter hides some of the column's tasks.
+function TaskColumn({ value, tasks, total, isOverlay, disabled, locked, ...props }) {
   return (
     <KanbanColumn
       value={value}
@@ -300,7 +309,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
           <span className="font-semibold text-sm">
             {value}
           </span>
-          <Badge variant="secondary">{tasks.length}</Badge>
+          <Badge variant="secondary">{total === undefined ? tasks.length : `${tasks.length} / ${total}`}</Badge>
         </div>
 
         {/* <KanbanColumnHandle asChild>
@@ -324,6 +333,7 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
             task={task}
             asHandle={!isOverlay}
             disabled={disabled}
+            locked={locked}
           />
         ))}
       </KanbanColumnContent>
@@ -331,27 +341,36 @@ function TaskColumn({ value, tasks, isOverlay, disabled, ...props }) {
   );
 };
 
-function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
+function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, disabled, locked, notice }) {
+  // What the board shows: column name -> its tasks that pass the filter.
+  // Dragging and saving update it right away; reloading then confirms it.
   const [columns, setColumns] = React.useState({});
   const [dialogProps, setDialog] = useAtom(dialogAtom);
   const t = useT();
+  const write = useBoardWrite(source);
 
-  const { currentBoard } = useBoards();
-  const setGoogleSheetIssueApi = useMutation({
-    mutationFn: (params) => setGoogleSheetIssue({ ...params, scriptId: currentBoard?.scriptId, sheetId: currentBoard?.sheetId }),
-  })
+  const filtering = isFilterActive(filter);
+  const matches = React.useMemo(() => taskMatcher(filter), [filter.query, filter.assignee, filter.priority]);
 
   useEffect(() => {
-    if (Array.isArray(issues) && Array.isArray(tasks)) {
-      let newColumns = {};
-      tasks?.map((task) => {
-        let t = task[0];
-        newColumns[t] = issues?.filter(i => i.task == t);
-      });
+    const newColumns = {};
+    columnNames.forEach((name) => {
+      newColumns[name] = tasks.filter((task) => task.column == name && matches(task));
+    });
+    setColumns(newColumns);
+  }, [tasks, columnNames, matches]);
 
-      setColumns(newColumns);
-    }
-  }, [issues, tasks]);
+  const totals = React.useMemo(
+    () => Object.fromEntries(columnNames.map((name) => [name, tasks.filter((task) => task.column == name).length])),
+    [tasks, columnNames]
+  );
+
+  // A saved task that the filter hides would seem to vanish, so say why.
+  const onSaved = (task) => {
+    reloadTasks();
+    if (task && filtering && !matches(task)) message.info(translate("filter.savedHidden"), 5);
+    else message.success(translate("common.success"));
+  };
 
   const handleMoveTask = ({ event, activeContainer, activeIndex, overContainer, overIndex, previousColumns, columns: nextColumns }) => {
     if (activeContainer === overContainer && activeIndex === overIndex) return;
@@ -362,94 +381,78 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
 
     const movedTask = activeContainer === overContainer
       ? targetTasks[newIndex]
-      : { ...targetTasks[newIndex], task: overContainer };
+      : { ...targetTasks[newIndex], column: overContainer };
 
     targetTasks[newIndex] = movedTask;
     const committedColumns = activeContainer === overContainer
       ? nextColumns
       : { ...nextColumns, [overContainer]: targetTasks };
+    // The neighbours on screen. With a filter on, tasks it hides may sit
+    // between them; the task lands next to the neighbour either way.
     let beforeId = targetTasks[newIndex + 1]?.id;
     let afterId = targetTasks[newIndex - 1]?.id;
 
-    // `issues` is in sheet row order. If the row already sits right before
+    // `tasks` is in stored order. If the task already sits right before
     // beforeId (or right after afterId), Apps Script's moveRows rejects the
-    // no-op move, so only send the status change.
-    const sheetIndex = (id) => issues.findIndex(item => item.id === id);
-    const sourceIndex = sheetIndex(movedTask.id);
-    const beforeIndex = beforeId ? sheetIndex(beforeId) : -1;
+    // no-op move, so only send the column change.
+    const storedIndex = (id) => tasks.findIndex(item => item.id === id);
+    const sourceIndex = storedIndex(movedTask.id);
+    const beforeIndex = beforeId ? storedIndex(beforeId) : -1;
     const alreadyInPlace = sourceIndex >= 0 && (beforeIndex >= 0
       ? beforeIndex === sourceIndex + 1
-      : !!afterId && sheetIndex(afterId) === sourceIndex - 1);
+      : !!afterId && storedIndex(afterId) === sourceIndex - 1);
     if (alreadyInPlace) {
       beforeId = undefined;
       afterId = undefined;
     }
 
     setColumns(committedColumns);
-    setGoogleSheetIssueApi.mutate(
+    write.mutate(
+      { op: "moveTask", payload: { id: movedTask.id, column: overContainer, beforeId, afterId } },
       {
-        action: "move",
-        id: movedTask.id,
-        status: overContainer,
-        beforeId,
-        afterId,
-      },
-      {
-        onSuccess: () => (reLoadIssue(), message.success(translate("common.success"))),
+        onSuccess: () => onSaved(),
         onError: () => setColumns(previousColumns),
       }
     );
   }
 
   const handleEditTask = (newTask, callback) => {
+    let task = newTask;
+    let newColumns;
+
     if (newTask?.id) {
       // 編輯
-      let newColumns = JSON.parse(JSON.stringify(columns));
-      Object.keys(columns)?.map(key => {
-        newColumns[key] = newColumns[key].map(f => f?.id == newTask?.id ? { ...f, ...newTask } : f);
-      });
-
-      setGoogleSheetIssueApi.mutate(
-        { action: "upsert", task: newTask },
-        {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
-          onError: () => callback?.(false)
-        }
-      );
-
+      newColumns = Object.fromEntries(Object.entries(columns).map(([name, items]) =>
+        [name, items.map(f => f?.id == newTask.id ? { ...f, ...newTask } : f).filter(matches)]));
     } else {
       // 新增
-      let newColumns = JSON.parse(JSON.stringify(columns));
-      const newId = crypto.randomUUID().split('-')[0];
-      const firstColumn = tasks?.[0]?.[0];
-      if (!newColumns[firstColumn]) {
+      const firstColumn = columnNames[0];
+      if (!columns[firstColumn]) {
         message.error(translate("task.noColumns"));
         callback?.(false);
         return;
       }
-      const task = { ...newTask, id: newId, task: firstColumn };
-      newColumns[firstColumn] = newColumns[firstColumn].concat([task]);
-
-      setGoogleSheetIssueApi.mutate(
-        { action: "upsert", task },
-        {
-          onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
-          onError: () => callback?.(false)
-        }
-      );
+      task = { ...newTask, id: crypto.randomUUID().split('-')[0], column: firstColumn };
+      newColumns = { ...columns, [firstColumn]: columns[firstColumn].concat([task]).filter(matches) };
     }
+
+    write.mutate(
+      { op: "saveTask", payload: task },
+      {
+        onSuccess: () => (setColumns(newColumns), callback?.(true), onSaved(task)),
+        onError: () => callback?.(false)
+      }
+    );
   }
 
   const handleDelete = (taskId, callback) => {
-    let newColumns = JSON.parse(JSON.stringify(columns));
-    Object.keys(columns)?.map(key => {
-      newColumns[key] = newColumns[key].filter(f => f?.id != taskId);
-    })
+    const newColumns = Object.fromEntries(Object.entries(columns).map(([name, items]) =>
+      [name, items.filter(f => f?.id != taskId)]));
 
-    setGoogleSheetIssueApi.mutate(
-      { action: "delete", id: taskId },
+    write.mutate(
+      { op: "deleteTask", payload: taskId },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true), reLoadIssue(), message.success(translate("common.success"))),
+        onSuccess: () => (setColumns(newColumns), callback?.(true), onSaved()),
         onError: () => callback?.(false)
       }
     );
@@ -475,7 +478,9 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
               key={columnValue}
               value={columnValue}
               tasks={tasks}
-              disabled={isLoading || setGoogleSheetIssueApi.isPending}
+              total={filtering ? totals[columnValue] : undefined}
+              disabled={disabled || write.isPending}
+              locked={locked}
             />
           ))}
         </KanbanBoard>
@@ -529,7 +534,7 @@ function WHLKanban({ tasks, issues, users, reLoadIssue, isLoading, notice }) {
 }
 
 const EditTask = ({
-  task = { id: null, title: "", jiraId: "", des: "", task: "", priority: "high", assignee: "" },
+  task = { id: null, title: "", issueId: "", des: "", column: "", priority: "high", assignee: "" },
   users = [],
   onClose, onOk, onDel,
 }) => {
@@ -559,8 +564,8 @@ const EditTask = ({
         <TextField
           label={t("task.jiraId")}
           variant="standard"
-          defaultValue={data?.jiraId || ""}
-          onChange={(e) => setData(d => ({ ...d, jiraId: e.target.value }))}
+          defaultValue={data?.issueId || ""}
+          onChange={(e) => setData(d => ({ ...d, issueId: e.target.value }))}
           disabled={loading}
           fullWidth
         />

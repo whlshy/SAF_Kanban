@@ -23,6 +23,8 @@ See the [changelog](CHANGELOG.en.md) for what changed in each release.
 - Each column scrolls on its own; on portrait phones each column fills the screen and you swipe between them
 - Links to Jira, GitHub or other issue trackers
 - Deleted tasks are kept in a `history` sheet, and you can browse and search them on the site, newest first
+- Search and filter the board's tasks by keyword, assignee and priority
+- Can be installed as an app; it opens without a connection and shows what was loaded last time
 - All data stays in your own Google Sheet
 
 ## Quick setup (recommended)
@@ -215,6 +217,34 @@ When exporting, check **Protect with a password** and set a password (at least 8
 - Encryption keeps the contents from being read directly, but a simple password can still be guessed, so pick one that's hard to guess.
 - Encryption needs the site to be opened over HTTPS (such as GitHub Pages) or on `localhost`.
 
+### Search and filter
+
+Click the magnifier at the top right to show the search bar above the columns:
+
+- The search box looks in the title, description, issue ID and assignee. Separate several words with spaces to require all of them; case doesn't matter.
+- The two dropdowns limit the board to one assignee (or "Unassigned") or one priority, on their own or together with the search.
+- While a filter is on, each column's number becomes "matching / total", such as `2 / 5`.
+- You can still drag while filtering. The task lands next to the visible task beside where you drop it, and the tasks the filter hides keep their order.
+- Click the magnifier again to close the bar and clear the filter. Switching boards or reloading the page clears it too.
+
+### Install as an app
+
+Once installed, SAF Kanban has its own icon and window, without the browser's address bar.
+
+- Chrome on Android: click the board name at the top left and choose "Install app", or use "Add to Home screen" → "Install" in Chrome's menu.
+- Chrome or Edge on a computer: install from the same board-name menu, or with the install icon at the right of the address bar.
+- Safari on iPhone or iPad: tap "Share" → "Add to Home Screen".
+
+"Install app" isn't in the menu when the browser can't install the site or it is already installed.
+
+Without a connection:
+
+- The app still opens. A notice at the top says you're offline, and each board shows what was loaded last time.
+- Tasks can't be added, edited, moved or deleted until you're back online.
+- "Deleted tasks" shows its last content offline only if you opened it while online before.
+
+When the site is updated, "A new version is available" appears at the top; click "Reload" to switch to it. If you don't, closing every tab (or the app) and opening it again switches to it as well.
+
 ### Update the Apps Script
 
 When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working but don't get the new features. The [changelog](CHANGELOG.en.md#apps-script-versions) lists what each script version adds. The current script:
@@ -291,6 +321,17 @@ https://your-company.atlassian.net/browse/
 https://github.com/OWNER/REPO/issues/
 ```
 
+## Development
+
+```bash
+npm install
+npm start        # dev server at http://localhost:1001
+npm test         # unit tests (Node's built-in test runner)
+npm run build    # build into docs/
+```
+
+On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. This needs the repository's Settings → Pages → Source set to "GitHub Actions". Until then, Pages keeps publishing the committed `docs/` folder.
+
 ## Data and privacy
 
 - Your tasks are stored in your own Google Sheet.
@@ -298,3 +339,4 @@ https://github.com/OWNER/REPO/issues/
 - The Apps Script writes to the Sheet with the permissions of the Google account that created it.
 - Treat the Apps Script Deployment ID as sensitive and don't share it publicly.
 - With the current Apps Script, deleted tasks are kept in the `history` sheet; older scripts delete them without keeping a copy.
+- To show boards offline, the browser keeps what each board loaded last, on this device only; clearing the site's data removes it.
