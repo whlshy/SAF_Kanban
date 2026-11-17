@@ -2,9 +2,11 @@
 # the build machine and checks that the installed app works. The installer is
 # kept with the run, under "Artifacts".
 #
-# To publish a version: set it in desktop/Cargo.toml, then push a tag named
-# desktop-v<version> (for example desktop-v0.1.0). That run also creates a
-# release with the installer attached.
+# To publish a version: set it in desktop/Cargo.toml and merge it into main.
+# Then either run this workflow on main from the Actions tab with "Publish a
+# release" checked, or push a tag named desktop-v<version> (for example
+# desktop-v0.1.0). Either way the run creates the release, and the tag if
+# needed, with the installer attached.
 name: Desktop app
 
 on:
@@ -15,6 +17,11 @@ on:
       - desktop/**
       - .github/workflows/desktop.yml
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a release (tag desktop-v<version>); only on main
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,7 +34,7 @@ jobs:
   windows:
     runs-on: windows-latest
     permissions:
-      contents: write # to create the release, on a tag
+      contents: write # to create the release
     defaults:
       run:
         shell: pwsh
@@ -77,16 +84,20 @@ jobs:
           if-no-files-found: error
 
       - name: Publish the release
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || (inputs.publish && github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # On a tag, that tag; otherwise desktop-v<version>, made on this commit.
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "desktop-v$env:VERSION" }
           $notes = @"
           Windows 安裝檔：下載 ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` 後執行。安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。
 
           Windows installer: download ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
 
-          https://github.com/${{ github.repository }}/blob/$env:GITHUB_REF_NAME/desktop/README.md
+          https://github.com/${{ github.repository }}/blob/$tag/desktop/README.md
           "@
-          gh release create $env:GITHUB_REF_NAME "SAF-Kanban_${env:VERSION}_x64-setup.exe" --title "SAF Kanban Desktop $env:VERSION" --notes $notes
+          # From a file, so the quotes in the text reach GitHub as written.
+          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
+          gh release create $tag "SAF-Kanban_${env:VERSION}_x64-setup.exe" --target $env:GITHUB_SHA --title "SAF Kanban Desktop $env:VERSION" --notes-file release-notes.md
