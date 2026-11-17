@@ -11,6 +11,7 @@
     "build": "vite build",
     "build:local": "vite build --mode desktop",
     "local": "npm run build:local && cargo run --manifest-path desktop/Cargo.toml -- --ui-dir dist-local",
+    "build:app": "npm run build:local && tauri build",
     "test": "node --test \"src/**/*.test.js\"",
     "test:server": "cargo test --manifest-path desktop/Cargo.toml"
   },
@@ -40,6 +41,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.5",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "react-router-dom": "^6.17.0",

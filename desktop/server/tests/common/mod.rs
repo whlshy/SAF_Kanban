@@ -33,7 +33,7 @@ pub fn app_in(dir: PathBuf, ui_dir: Option<PathBuf>) -> Router {
         store: Store::open(&dir).unwrap(),
         token: std::sync::RwLock::new(TOKEN.into()),
         port: PORT,
-        ui_dir,
+        ui: ui_dir.map(saf_kanban_server::ui_in),
     };
     router(Arc::new(state))
 }

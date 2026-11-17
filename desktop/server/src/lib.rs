@@ -11,7 +11,7 @@ pub mod model;
 pub mod store;
 
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -19,13 +19,43 @@ use tokio::net::TcpListener;
 
 pub const DEFAULT_PORT: u16 = 41952;
 
+/// The built web UI: gives the contents of a file from its path, such as
+/// `index.html` or `assets/index.js`.
+pub type UiFiles = Arc<dyn Fn(&str) -> Option<Vec<u8>> + Send + Sync>;
+
+/// The web UI as files in a folder.
+pub fn ui_in(dir: PathBuf) -> UiFiles {
+    Arc::new(move |path| {
+        let path = Path::new(path);
+        // Nothing outside the folder: no `..`, no absolute paths.
+        let inside = path
+            .components()
+            .all(|part| matches!(part, Component::Normal(_)));
+        if !inside {
+            return None;
+        }
+        std::fs::read(dir.join(path)).ok()
+    })
+}
+
+/// `%APPDATA%\SAF Kanban` on Windows, `~/.local/share/saf-kanban` elsewhere.
+pub fn default_data_dir() -> PathBuf {
+    if let Some(app_data) = std::env::var_os("APPDATA") {
+        return PathBuf::from(app_data).join("SAF Kanban");
+    }
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
+    home.join(".local").join("share").join("saf-kanban")
+}
+
 pub struct Options {
     /// Where boards and the settings file are kept.
     pub data_dir: PathBuf,
     /// 0 picks any free port.
     pub port: u16,
-    /// Folder with the built web UI; `None` serves the API only.
-    pub ui_dir: Option<PathBuf>,
+    /// The web UI to serve; `None` serves the API only.
+    pub ui: Option<UiFiles>,
 }
 
 /// `<data dir>/config.json`.
@@ -116,7 +146,7 @@ impl Server {
             store,
             token: RwLock::new(token.clone()),
             port: address.port(),
-            ui_dir: options.ui_dir,
+            ui: options.ui,
         });
         Ok(Self {
             address,

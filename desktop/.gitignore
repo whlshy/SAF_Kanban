@@ -1,1 +1,3 @@
 target/
+# Written by the Tauri build.
+app/gen/

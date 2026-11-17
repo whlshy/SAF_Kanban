@@ -6,19 +6,38 @@
 
 - [x] 本機伺服器（[`server/`](server/)，Rust）：看板檔案、HTTP API、提供看板畫面
 - [x] MCP 介面，讓 AI agent 直接操作看板；畫面右上角的「AI / API 連線」
-- [ ] Windows 安裝檔（Tauri）
+- [x] Windows 安裝檔（[`app/`](app/)，Tauri）
 - [ ] 把 Google Sheet 看板複製成本機看板、備份
 
-## 執行
+## 安裝（Windows）
+
+到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載 `SAF-Kanban_<版本>_x64-setup.exe` 後執行。
+
+- 安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」：按「其他資訊」→「仍要執行」。
+- 只安裝給目前的使用者，不需要系統管理員權限。
+- 畫面用 Windows 內建的 WebView2 顯示（Windows 11 和更新過的 Windows 10 都有）。電腦上沒有的話，安裝時會自動下載，只有那一次需要網路。
+
+使用上和網頁版一樣，另外：
+
+- **關閉視窗不會結束程式**，它會留在右下角的通知區域，AI agent 和其他程式才能繼續使用看板。點圖示可以叫回視窗；在圖示上按右鍵選「結束」才會真的關掉。
+- 右鍵選單的「開機時自動啟動」打勾後，登入 Windows 時會在背景啟動，不會跳出視窗。
+- 再開一次程式只會叫回原本的視窗，不會開出第二個。
+- 看板裡連到其他網站的連結會用電腦預設的瀏覽器開啟。
+- 預設使用連接埠 41952。被其他程式佔用時會改用別的連接埠，「AI / API 連線」裡顯示的位址會跟著變；用位址連線的 AI 工具要改設定，用「啟動程式」方式的不用。
+
+Google Sheet 看板在桌面版裡也能用，但需要網路；另外讀取用的 API 金鑰必須允許 `http://127.0.0.1:41952/*` 這個來源（由專案維護者在 Google Cloud Console 設定）。
+
+## 從原始碼執行
 
 需要 Node.js 22 和 Rust。在專案根目錄：
 
 ```bash
 npm install
-npm run local
+npm run local      # 只有伺服器，用瀏覽器開啟
+npm run build:app  # 桌面版程式和安裝檔（在 Windows 上）
 ```
 
-啟動後會印出網址和 API 權杖：
+`npm run local` 啟動後會印出網址和 API 權杖：
 
 ```text
 SAF Kanban local server
@@ -29,6 +48,10 @@ SAF Kanban local server
 ```
 
 用瀏覽器開啟那個網址就是看板畫面。伺服器可以加參數：`--port`、`--data-dir`（資料夾）、`--ui-dir`（畫面檔案的資料夾；不給就只提供 API）。
+
+桌面版程式（`saf-kanban`）的畫面檔案已經包在程式裡，可以加的參數是 `--port`、`--data-dir` 和 `--hidden`（啟動時不顯示視窗）。
+
+安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時改 [`Cargo.toml`](Cargo.toml) 的版本，再推一個 `desktop-v<版本>` 的標籤，就會建立附上安裝檔的 Release。
 
 ## 資料
 
@@ -62,7 +85,7 @@ SAF Kanban local server
 | 方式 | 適用 | 設定 |
 | --- | --- | --- |
 | 網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 位址 `http://127.0.0.1:41952/mcp`，標頭 `Authorization: Bearer <權杖>` |
-| 啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 指令 `saf-kanban-server mcp`，不用填權杖 |
+| 啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 指令 `saf-kanban mcp`（安裝版；只有伺服器時是 `saf-kanban-server mcp`），不用填權杖 |
 
 Claude Code：
 
@@ -75,7 +98,7 @@ Claude Desktop 的設定檔：
 ```json
 {
   "mcpServers": {
-    "saf-kanban": { "command": "<saf-kanban-server 的完整路徑>", "args": ["mcp"] }
+    "saf-kanban": { "command": "<saf-kanban 的完整路徑>", "args": ["mcp"] }
   }
 }
 ```

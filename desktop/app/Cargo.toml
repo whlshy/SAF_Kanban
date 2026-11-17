@@ -1,0 +1,17 @@
+[package]
+name = "saf-kanban"
+description = "SAF Kanban for the desktop: boards kept on this computer, in a window of their own"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+open = "5"
+saf-kanban-server = { path = "../server" }
+sys-locale = "0.3"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"

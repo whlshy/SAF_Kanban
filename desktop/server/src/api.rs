@@ -26,7 +26,7 @@
 //! an EventSource.
 
 use std::convert::Infallible;
-use std::path::{Component, Path as FsPath, PathBuf};
+use std::path::Path as FsPath;
 use std::sync::{Arc, RwLock};
 
 use axum::body::{Body, Bytes};
@@ -53,8 +53,8 @@ pub struct AppState {
     pub token: RwLock<String>,
     /// The port the server listens on, to recognise requests meant for it.
     pub port: u16,
-    /// Folder with the built web UI, if it should be served.
-    pub ui_dir: Option<PathBuf>,
+    /// The built web UI, if it should be served.
+    pub ui: Option<crate::UiFiles>,
 }
 
 type Shared = Arc<AppState>;
@@ -363,7 +363,7 @@ fn content_type(path: &FsPath) -> &'static str {
 /// has its own routing). The page gets the API token written into it: only
 /// this computer can load it, and other sites can't read it.
 async fn serve_ui(State(state): State<Shared>, uri: Uri) -> Response {
-    let Some(ui_dir) = &state.ui_dir else {
+    let Some(ui) = &state.ui else {
         return (
             StatusCode::NOT_FOUND,
             "The web UI isn't included in this server. The API is under /api.",
@@ -371,31 +371,24 @@ async fn serve_ui(State(state): State<Shared>, uri: Uri) -> Response {
             .into_response();
     };
 
-    let relative = FsPath::new(uri.path().trim_start_matches('/'));
-    let is_plain = relative
-        .components()
-        .all(|part| matches!(part, Component::Normal(_)));
-    let file = ui_dir.join(relative);
-    if is_plain
-        && !uri.path().ends_with('/')
-        && file.is_file()
-        && file.file_name().is_some_and(|name| name != "index.html")
-    {
-        return match std::fs::read(&file) {
-            Ok(bytes) => (
+    let path = uri.path().trim_start_matches('/');
+    if !path.is_empty() && !path.ends_with('/') && path != "index.html" {
+        if let Some(bytes) = ui(path) {
+            return (
                 [(
                     header::CONTENT_TYPE,
-                    HeaderValue::from_static(content_type(&file)),
+                    HeaderValue::from_static(content_type(FsPath::new(path))),
                 )],
                 Body::from(bytes),
             )
-                .into_response(),
-            Err(_) => StatusCode::NOT_FOUND.into_response(),
-        };
+                .into_response();
+        }
     }
 
-    match std::fs::read_to_string(ui_dir.join("index.html")) {
-        Ok(page) => {
+    // Every other address is the app itself, which reads the address.
+    let page = ui("index.html").and_then(|bytes| String::from_utf8(bytes).ok());
+    match page {
+        Some(page) => {
             let settings = json!({ "token": current_token(&state), "serverVersion": env!("CARGO_PKG_VERSION") });
             let script = format!("<script>window.__SAF_KANBAN_LOCAL__={settings};</script></head>");
             (
@@ -410,6 +403,6 @@ async fn serve_ui(State(state): State<Shared>, uri: Uri) -> Response {
             )
                 .into_response()
         }
-        Err(_) => (StatusCode::NOT_FOUND, "The web UI files are missing.").into_response(),
+        None => (StatusCode::NOT_FOUND, "The web UI files are missing.").into_response(),
     }
 }

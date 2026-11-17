@@ -1,0 +1,88 @@
+# Builds the Windows installer of the desktop app (desktop/), installs it on
+# the build machine and checks that the installed app works. The installer is
+# kept with the run, under "Artifacts".
+#
+# To publish a version: set it in desktop/Cargo.toml, then push a tag named
+# desktop-v<version> (for example desktop-v0.1.0). That run also creates a
+# release with the installer attached.
+name: Desktop app
+
+on:
+  push:
+    branches: ['**']
+    tags: ['desktop-v*']
+    paths:
+      - desktop/**
+      - .github/workflows/desktop.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write # to create the release, on a tag
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: Read the version
+        id: version
+        run: |
+          $version = (cargo metadata --manifest-path desktop/Cargo.toml --no-deps --format-version 1 | ConvertFrom-Json).packages.Where({ $_.name -eq 'saf-kanban' }).version
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "desktop-v$version") {
+            throw "The tag is $env:GITHUB_REF_NAME, but desktop/Cargo.toml says version $version."
+          }
+
+      - run: npm ci
+      - name: Build the installer
+        run: npm run build:app
+
+      - name: Install it
+        run: |
+          $setup = Get-Item desktop/target/release/bundle/nsis/*-setup.exe
+          Copy-Item $setup "SAF-Kanban_${{ steps.version.outputs.version }}_x64-setup.exe"
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $installed = Join-Path $env:LOCALAPPDATA 'SAF Kanban\saf-kanban.exe'
+          if (-not (Test-Path $installed)) { throw "Not installed at $installed" }
+          "INSTALLED=$installed" >> $env:GITHUB_ENV
+
+      - name: Check the installed app
+        run: node desktop/app/smoke-test.mjs "$env:INSTALLED"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SAF-Kanban-${{ steps.version.outputs.version }}-windows
+          path: SAF-Kanban_*-setup.exe
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $notes = @"
+          Windows 安裝檔：下載 ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` 後執行。安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。
+
+          Windows installer: download ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
+
+          https://github.com/${{ github.repository }}/blob/$env:GITHUB_REF_NAME/desktop/README.md
+          "@
+          gh release create $env:GITHUB_REF_NAME "SAF-Kanban_${env:VERSION}_x64-setup.exe" --title "SAF Kanban Desktop $env:VERSION" --notes $notes

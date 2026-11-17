@@ -9,18 +9,7 @@
 
 use std::path::PathBuf;
 
-use saf_kanban_server::{Options, Server, DEFAULT_PORT};
-
-/// `%APPDATA%\SAF Kanban` on Windows, `~/.local/share/saf-kanban` elsewhere.
-fn default_data_dir() -> PathBuf {
-    if let Some(app_data) = std::env::var_os("APPDATA") {
-        return PathBuf::from(app_data).join("SAF Kanban");
-    }
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
-    home.join(".local").join("share").join("saf-kanban")
-}
+use saf_kanban_server::{default_data_dir, ui_in, Options, Server, DEFAULT_PORT};
 
 fn usage() -> ! {
     eprintln!("Usage: saf-kanban-server [--port PORT] [--data-dir DIR] [--ui-dir DIR]");
@@ -32,7 +21,7 @@ fn main() -> std::io::Result<()> {
     let mut options = Options {
         data_dir: default_data_dir(),
         port: DEFAULT_PORT,
-        ui_dir: None,
+        ui: None,
     };
     let mut bridge = false;
     let mut args = std::env::args().skip(1).peekable();
@@ -45,7 +34,7 @@ fn main() -> std::io::Result<()> {
         match arg.as_str() {
             "--data-dir" => options.data_dir = PathBuf::from(value()),
             "--port" if !bridge => options.port = value().parse().unwrap_or_else(|_| usage()),
-            "--ui-dir" if !bridge => options.ui_dir = Some(PathBuf::from(value())),
+            "--ui-dir" if !bridge => options.ui = Some(ui_in(PathBuf::from(value()))),
             _ => usage(),
         }
     }
