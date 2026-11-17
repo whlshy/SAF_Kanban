@@ -1,13 +1,16 @@
 //! SAF Kanban's local server: keeps boards as files on this computer and
 //! serves them, over HTTP on 127.0.0.1 only, to the web UI and to other
-//! programs such as AI agents. See `api` for the HTTP endpoints and `mcp` for
-//! the tools AI agents get.
+//! programs such as AI agents. See `api` for the HTTP endpoints, `mcp` for
+//! the tools AI agents get, and `cli` for the command line, which works on the
+//! files without the server.
 
 pub mod api;
 pub mod bridge;
+pub mod cli;
 pub mod error;
 pub mod mcp;
 pub mod model;
+pub mod skill;
 pub mod store;
 
 use std::net::{Ipv4Addr, SocketAddr};
@@ -106,8 +109,8 @@ pub fn replace_token(data_dir: &Path) -> std::io::Result<String> {
     Ok(token)
 }
 
-/// `<data dir>/server.json`: where the running server listens, for the stdio
-/// bridge (`bridge.rs`) to find it.
+/// `<data dir>/server.json`: where the running server listens, for other
+/// programs to find it.
 #[derive(Serialize, Deserialize)]
 struct Running {
     port: u16,
@@ -160,13 +163,25 @@ impl Server {
         format!("http://127.0.0.1:{}", self.address.port())
     }
 
-    /// Answers requests until `shutdown` completes.
+    /// Answers requests until `shutdown` completes. Meanwhile it looks for
+    /// changes other programs make to the board files, such as the command
+    /// line, and tells the open windows about them.
     pub async fn run(
         self,
         shutdown: impl std::future::Future<Output = ()> + Send + 'static,
     ) -> std::io::Result<()> {
-        axum::serve(self.listener, api::router(self.state))
+        let state = self.state.clone();
+        let watcher = tokio::spawn(async move {
+            let mut every = tokio::time::interval(std::time::Duration::from_millis(1000));
+            loop {
+                every.tick().await;
+                state.store.notice_outside_changes();
+            }
+        });
+        let result = axum::serve(self.listener, api::router(self.state))
             .with_graceful_shutdown(shutdown)
-            .await
+            .await;
+        watcher.abort();
+        result
     }
 }

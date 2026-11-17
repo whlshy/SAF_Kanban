@@ -11,7 +11,7 @@
     "build": "vite build",
     "build:local": "vite build --mode desktop",
     "local": "npm run build:local && cargo run --manifest-path desktop/Cargo.toml -- --ui-dir dist-local",
-    "build:app": "npm run build:local && tauri build",
+    "build:app": "npm run build:local && node desktop/app/prepare-cli.mjs && tauri build",
     "test": "node --test \"src/**/*.test.js\"",
     "test:server": "cargo test --manifest-path desktop/Cargo.toml"
   },

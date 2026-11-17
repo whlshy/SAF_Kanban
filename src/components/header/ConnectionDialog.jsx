@@ -12,7 +12,9 @@ const API_DOCS_URL = "https://github.com/whlshy/SAF_Kanban/blob/main/desktop/REA
 const MASK = "••••••••••••••••"
 
 // How to connect each kind of AI app. `token` is the real token or the mask.
+// The skill has a part of its own (SkillSetup).
 const SETUPS = [
+  { key: "skill" },
   {
     key: "claudeCode",
     text: ({ mcpUrl }, token) => `claude mcp add --transport http saf-kanban ${mcpUrl} --header "Authorization: Bearer ${token}"`,
@@ -24,7 +26,7 @@ const SETUPS = [
     }, null, 2),
   },
   {
-    // Started as a program; it finds the running app and the token by itself.
+    // Started as a program; it works on the board files itself, no token needed.
     key: "stdio",
     text: ({ executable, dataDir }) => JSON.stringify({
       mcpServers: { "saf-kanban": { command: executable, args: ["mcp", "--data-dir", dataDir] } },
@@ -42,6 +44,60 @@ function CopyButton({ text, label }) {
     <IconButton size="small" onClick={() => copy(text)} aria-label={label} title={label}>
       <CopyIcon sx={{ fontSize: 16 }} />
     </IconButton>
+  )
+}
+
+// A block of text to copy, such as a setting or a file.
+function CodeBox({ text, shown = text, copyLabel, maxHeight }) {
+  return (
+    <Box sx={{ position: 'relative', bgcolor: 'grey.100', borderRadius: 1, p: 1.5, pr: 5 }}>
+      <Box component="pre" data-slot="connection-setup" sx={{ m: 0, fontFamily: 'monospace', fontSize: 12.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight, overflowY: maxHeight ? 'auto' : undefined }}>
+        {shown}
+      </Box>
+      <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
+        <CopyButton text={text} label={copyLabel} />
+      </Box>
+    </Box>
+  )
+}
+
+const showError = (error) => message.error(error?.userMessage || translate("common.apiError"), 8)
+
+// The skill teaches an AI agent the command line, which works on the board
+// files directly: no token, and SAF Kanban doesn't have to be open.
+function SkillSetup() {
+  const t = useT()
+  const [skill, setSkill] = React.useState(null)
+  const [busy, setBusy] = React.useState(false)
+  const load = React.useCallback(() => localRequest("GET", "/skill").then(setSkill, showError), [])
+  React.useEffect(() => { load() }, [load])
+
+  const install = async () => {
+    setBusy(true)
+    try {
+      await localRequest("POST", "/skill")
+      message.success(t("connection.skill.installed"), 6)
+      await load()
+    } catch (error) {
+      showError(error)
+    }
+    setBusy(false)
+  }
+
+  if (!skill) return null
+  const status = skill.upToDate ? "ok" : skill.installed ? "old" : "none"
+  return (
+    <>
+      <Box className="flex flex-wrap items-center gap-2" sx={{ mb: 1 }}>
+        <Button variant="contained" size="small" onClick={install} disabled={busy || !skill.file} sx={{ textTransform: 'none' }}>
+          {t(`connection.skill.install.${status}`)}
+        </Button>
+        <Typography variant="caption" color="text.secondary" data-slot="skill-status" sx={{ overflowWrap: 'anywhere' }}>
+          {t(`connection.skill.status.${status}`, { file: skill.file || "" })}
+        </Typography>
+      </Box>
+      <CodeBox text={skill.content} copyLabel={t("connection.skill.copy")} maxHeight={220} />
+    </>
   )
 }
 
@@ -70,7 +126,7 @@ const ConnectionDialog = () => {
   const [tab, setTab] = React.useState(SETUPS[0].key)
 
   React.useEffect(() => {
-    localRequest("GET", "/connection").then(setDetails, (error) => message.error(error?.userMessage || t("common.apiError"), 8))
+    localRequest("GET", "/connection").then(setDetails, showError)
   }, [])
 
   const replaceToken = () => setAlert({
@@ -84,7 +140,7 @@ const ConnectionDialog = () => {
         setToken(answer.token)
         message.success(t("connection.newToken.done"))
       } catch (error) {
-        message.error(error?.userMessage || t("common.apiError"), 8)
+        showError(error)
       }
     },
   })
@@ -104,6 +160,7 @@ const ConnectionDialog = () => {
             </IconButton>
           </Row>
           <Row label={t("connection.dataDir")} value={details.dataDir} />
+          {details.cli && <Row label={t("connection.cli")} value={details.cli} />}
 
           <Typography variant="subtitle2" sx={{ mt: 3 }}>{t("connection.setup")}</Typography>
           <Tabs value={tab} onChange={(e, value) => setTab(value)} variant="scrollable" sx={{ minHeight: 36, '& .MuiTab-root': { textTransform: 'none', minHeight: 36, py: 0.5 } }}>
@@ -112,14 +169,9 @@ const ConnectionDialog = () => {
           <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1, mb: 0.5 }}>
             {t(`connection.setup.${tab}.hint`)}
           </Typography>
-          <Box sx={{ position: 'relative', bgcolor: 'grey.100', borderRadius: 1, p: 1.5, pr: 5 }}>
-            <Box component="pre" data-slot="connection-setup" sx={{ m: 0, fontFamily: 'monospace', fontSize: 12.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              {setup.text(details, showToken ? token : MASK)}
-            </Box>
-            <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
-              <CopyButton text={setup.text(details, token)} label={t("connection.copySetup")} />
-            </Box>
-          </Box>
+          {setup.key === "skill"
+            ? <SkillSetup />
+            : <CodeBox text={setup.text(details, token)} shown={setup.text(details, showToken ? token : MASK)} copyLabel={t("connection.copySetup")} />}
           <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 2 }}>
             {t("connection.note")}{" "}
             <Link href={API_DOCS_URL} target="_blank" rel="noopener noreferrer">{t("connection.docs")}</Link>

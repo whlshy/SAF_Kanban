@@ -4,11 +4,18 @@
 //! synced in by another program is picked up without a restart. Writes go to
 //! a temporary file that then replaces the board file, so a crash can't leave
 //! half a board behind.
+//!
+//! Several programs may use the same folder at once: the app, the command
+//! line (`saf-kanban-cli`) and AI apps' MCP servers (`saf-kanban mcp`). They
+//! take turns through a lock on `<data dir>/boards.lock`, so a change made by
+//! one is never lost to another's. The app looks for changes made by the
+//! others (see [`Store::notice_outside_changes`]) to show them right away.
 
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -95,9 +102,29 @@ pub struct TaskQuery {
 
 pub struct Store {
     dir: PathBuf,
-    /// Serializes file access inside this process.
+    /// Serializes file access inside this process; `boards.lock` does it
+    /// between processes.
     lock: RwLock<()>,
     changes: broadcast::Sender<Change>,
+    /// How each board file looked after this process last saw or wrote it;
+    /// `None` until [`Store::notice_outside_changes`] first runs.
+    seen: Mutex<Option<HashMap<String, Stamp>>>,
+}
+
+/// When a file was last changed, and its size.
+type Stamp = (Option<SystemTime>, u64);
+
+fn stamp(path: &Path) -> Option<Stamp> {
+    let metadata = fs::metadata(path).ok()?;
+    Some((metadata.modified().ok(), metadata.len()))
+}
+
+/// Held while board files are being read or written. Dropping it lets the
+/// next one in (closing the lock file releases its lock).
+struct Access<'a> {
+    _read: Option<RwLockReadGuard<'a, ()>>,
+    _write: Option<RwLockWriteGuard<'a, ()>>,
+    _file: Option<File>,
 }
 
 /// UTC with milliseconds, always the same width, so the strings sort by time.
@@ -173,7 +200,127 @@ impl Store {
             dir,
             lock: RwLock::new(()),
             changes,
+            seen: Mutex::new(None),
         })
+    }
+
+    /// Locks `boards.lock`: shared for reading, exclusive for writing.
+    fn lock_file(&self, exclusive: bool) -> ApiResult<Option<File>> {
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(self.dir.join("boards.lock"))
+            .map_err(ApiError::storage)?;
+        let locked = if exclusive {
+            file.lock()
+        } else {
+            file.lock_shared()
+        };
+        match locked {
+            Ok(()) => Ok(Some(file)),
+            // Some network drives can't lock files; go on without.
+            Err(error) if error.kind() == std::io::ErrorKind::Unsupported => Ok(None),
+            Err(error) => Err(ApiError::storage(error)),
+        }
+    }
+
+    fn reading(&self) -> ApiResult<Access<'_>> {
+        let read = self
+            .lock
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Ok(Access {
+            _read: Some(read),
+            _write: None,
+            _file: self.lock_file(false)?,
+        })
+    }
+
+    fn writing(&self) -> ApiResult<Access<'_>> {
+        let write = self
+            .lock
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Ok(Access {
+            _read: None,
+            _write: Some(write),
+            _file: self.lock_file(true)?,
+        })
+    }
+
+    /// The board files and how each looks now; `None` if the folder can't be read.
+    fn scan(&self) -> Option<HashMap<String, Stamp>> {
+        let mut found = HashMap::new();
+        for entry in fs::read_dir(self.dir.join("boards")).ok()? {
+            let path = entry.ok()?.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                continue;
+            };
+            if let Some(stamp) = stamp(&path) {
+                found.insert(id.to_string(), stamp);
+            }
+        }
+        Some(found)
+    }
+
+    /// Takes note of a board file this process just wrote or removed, so it
+    /// isn't taken for a change made by another program.
+    fn remember(&self, id: &str) {
+        let mut seen = self
+            .seen
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(seen) = seen.as_mut() {
+            match stamp(&self.path(id)) {
+                Some(stamp) => seen.insert(id.to_string(), stamp),
+                None => seen.remove(id),
+            };
+        }
+    }
+
+    /// Announces the board files that other programs added, changed or
+    /// removed since the last call, so open windows show the change. The first
+    /// call only takes note of how things are. The app calls this every
+    /// second or so.
+    pub fn notice_outside_changes(&self) {
+        let (changed, list_changed) = {
+            // This process's own writes hold the write lock until `remember`.
+            let _guard = self
+                .lock
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(now) = self.scan() else {
+                return;
+            };
+            let mut seen = self
+                .seen
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(before) = seen.as_ref() else {
+                *seen = Some(now);
+                return;
+            };
+            let changed: Vec<String> = now
+                .iter()
+                .filter(|(id, stamp)| before.get(*id) != Some(stamp))
+                .map(|(id, _)| id.clone())
+                .collect();
+            let removed = before.keys().any(|id| !now.contains_key(id));
+            *seen = Some(now);
+            (changed.clone(), removed || !changed.is_empty())
+        };
+        for id in &changed {
+            self.announce("board", Some(id));
+        }
+        // A title may have changed, or a board come or gone.
+        if list_changed {
+            self.announce("boards", None);
+        }
     }
 
     pub fn dir(&self) -> &Path {
@@ -221,16 +368,29 @@ impl Store {
         let temporary = path.with_extension("json.tmp");
         let text = serde_json::to_string_pretty(board).map_err(ApiError::storage)?;
         fs::write(&temporary, text).map_err(ApiError::storage)?;
-        fs::rename(&temporary, &path).map_err(ApiError::storage)
+        // On Windows another program (an antivirus scanner, a sync tool) may
+        // have the file open for a moment; try again before giving up.
+        let mut tries = 0;
+        loop {
+            match fs::rename(&temporary, &path) {
+                Ok(()) => break,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::PermissionDenied && tries < 20 =>
+                {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(25));
+                }
+                Err(error) => return Err(ApiError::storage(error)),
+            }
+        }
+        self.remember(&board.id);
+        Ok(())
     }
 
     /// Reads a board, changes it and saves it, as one step.
     fn update<T>(&self, id: &str, change: impl FnOnce(&mut Board) -> ApiResult<T>) -> ApiResult<T> {
         let result = {
-            let _guard = self
-                .lock
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let _guard = self.writing()?;
             let mut board = self.read(id)?;
             let result = change(&mut board)?;
             self.write(&board)?;
@@ -244,10 +404,7 @@ impl Store {
 
     /// All boards, oldest first. Files that can't be read are skipped.
     pub fn list_boards(&self) -> ApiResult<Vec<BoardInfo>> {
-        let _guard = self
-            .lock
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = self.reading()?;
         let mut boards = Vec::new();
         for entry in fs::read_dir(self.dir.join("boards")).map_err(ApiError::storage)? {
             let path = entry.map_err(ApiError::storage)?.path();
@@ -271,10 +428,7 @@ impl Store {
     }
 
     pub fn get_board(&self, id: &str) -> ApiResult<Board> {
-        let _guard = self
-            .lock
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = self.reading()?;
         self.read(id)
     }
 
@@ -334,10 +488,7 @@ impl Store {
             .collect();
 
         let board = {
-            let _guard = self
-                .lock
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let _guard = self.writing()?;
             let mut id = new_id();
             while self.path(&id).exists() {
                 id = new_id();
@@ -416,16 +567,14 @@ impl Store {
     /// The file is moved to `<data dir>/trash/` instead of being deleted.
     pub fn delete_board(&self, id: &str) -> ApiResult<()> {
         {
-            let _guard = self
-                .lock
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let _guard = self.writing()?;
             self.read(id)?;
             let trash = self.dir.join("trash");
             fs::create_dir_all(&trash).map_err(ApiError::storage)?;
             let stamp = now().replace(':', "-");
             fs::rename(self.path(id), trash.join(format!("{id}-{stamp}.json")))
                 .map_err(ApiError::storage)?;
+            self.remember(id);
         }
         self.announce("boards", Some(id));
         Ok(())

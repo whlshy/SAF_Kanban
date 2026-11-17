@@ -50,6 +50,10 @@ jobs:
             throw "The tag is $env:GITHUB_REF_NAME, but desktop/Cargo.toml says version $version."
           }
 
+      # The server, the command line and the file locking, on Windows.
+      - name: Test the server and the command line
+        run: cargo test --manifest-path desktop/Cargo.toml
+
       - run: npm ci
       - name: Build the installer
         run: npm run build:app

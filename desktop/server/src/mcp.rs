@@ -4,7 +4,7 @@
 //! that only offers tools needs (`initialize`, `ping`, `tools/list`,
 //! `tools/call`) and defines the tools. It doesn't care how messages arrive:
 //! the HTTP endpoint `/mcp` and the stdio bridge (`bridge.rs`) both call
-//! [`handle`].
+//! [`handle`]. The command line (`cli.rs`) runs the same tools with [`run`].
 
 use serde_json::{json, Map, Value};
 
@@ -330,12 +330,18 @@ pub fn call_tool(store: &Store, name: &str, arguments: &Value) -> Result<Value, 
     if !tools().iter().any(|tool| tool["name"] == name) {
         return Err(format!("Unknown tool: {name}"));
     }
-    let empty = Map::new();
-    let arguments = Arguments(arguments.as_object().unwrap_or(&empty));
-    Ok(match run_tool(store, name, &arguments) {
+    Ok(match run(store, name, arguments) {
         Ok(value) => tool_result(&value),
         Err(message) => tool_error(&message),
     })
+}
+
+/// Runs a tool and returns what it gives back, or why it failed. The command
+/// line (`cli`) does its work through this too.
+pub fn run(store: &Store, name: &str, arguments: &Value) -> Result<Value, String> {
+    let empty = Map::new();
+    let arguments = Arguments(arguments.as_object().unwrap_or(&empty));
+    run_tool(store, name, &arguments)
 }
 
 fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, String> {

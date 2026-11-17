@@ -8,6 +8,7 @@
 - [x] MCP 介面，讓 AI agent 直接操作看板；畫面右上角的「AI / API 連線」
 - [x] Windows 安裝檔（[`app/`](app/)，Tauri）
 - [x] 把 Google Sheet 看板複製成本機看板、匯出與匯入看板
+- [x] 命令列工具和 AI agent 的 skill；不開 SAF Kanban 也能讓 AI 操作看板
 
 ## 安裝（Windows）
 
@@ -62,6 +63,7 @@ SAF Kanban local server
 | `boards/<看板 ID>.json` | 一個看板一個檔案：欄位、負責人、任務、已刪除的任務 |
 | `trash/` | 刪除的看板檔案會移到這裡，不會直接消失 |
 | `config.json` | API 權杖 |
+| `boards.lock` | 讓同時使用資料夾的程式輪流寫入 |
 | `server.json` | 伺服器目前使用的連接埠，給 `mcp` 橋接模式找到它 |
 
 - 備份全部看板就是複製整個資料夾。
@@ -76,26 +78,66 @@ SAF Kanban local server
 - 每個 API 請求都要帶權杖：`Authorization: Bearer <權杖>`。
 - 請求的 Host 必須是 `127.0.0.1` 或 `localhost`，擋掉其他網站把自己的網域指到本機的手法（DNS rebinding）。
 - 瀏覽器從其他網站的頁面發出的請求（帶有別人的 Origin）一律拒絕。
+- 命令列和 `mcp` 模式直接讀寫資料夾裡的檔案，不經過網路，所以不需要權杖：能執行它們的程式，本來就能讀寫你的檔案。
 - 權杖等同看板的讀寫權限，不要貼到公開的地方。外洩時可以在「AI / API 連線」按「重新產生權杖」，舊的會立刻失效。
 
-## 讓 AI agent 使用（MCP）
+## 讓 AI agent 使用
 
-伺服器內建 [MCP](https://modelcontextprotocol.io) 介面，AI agent 接上後可以直接查看和操作看板。畫面右上角的機器人圖示（AI / API 連線）會顯示位址、權杖和可以直接複製的設定。
+畫面右上角的機器人圖示（AI / API 連線）會列出下面每種方式需要的路徑、位址和可以直接複製的設定。
 
-連線方式有兩種：
+| 方式 | 適用 | SAF Kanban 要開著嗎 | 權杖 |
+| --- | --- | --- | --- |
+| Skill + 命令列（建議） | Claude Code，以及其他支援 Agent Skills 的工具 | 不用 | 不用 |
+| MCP，啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 不用 | 不用 |
+| MCP，網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 要 | 要 |
+| HTTP API | 自己寫的程式、腳本 | 要 | 要 |
 
-| 方式 | 適用 | 設定 |
-| --- | --- | --- |
-| 網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 位址 `http://127.0.0.1:41952/mcp`，標頭 `Authorization: Bearer <權杖>` |
-| 啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 指令 `saf-kanban mcp`（安裝版；只有伺服器時是 `saf-kanban-server mcp`），不用填權杖 |
+不用開著的方式會直接讀寫資料夾裡的看板檔案。SAF Kanban 開著的時候也可以照常使用：同一時間只會有一個程式在寫檔案（`boards.lock`），不會互相蓋掉；畫面會在一秒內顯示其他程式做的修改。
 
-Claude Code：
+### Skill + 命令列
+
+安裝版在 `saf-kanban.exe` 旁邊附了命令列工具 `saf-kanban-cli.exe`（預設在 `%LOCALAPPDATA%\SAF Kanban\`）。Skill 是一份 `SKILL.md`，教 AI 怎麼用這個工具；裡面寫好了工具的完整路徑，所以不用改 PATH。
+
+安裝 skill（擇一）：
+
+- 「AI / API 連線」→「Claude Code（Skill）」→「安裝到 Claude Code」。
+- 執行 `saf-kanban-cli skill --install`。
+
+兩者都會寫到 `~/.claude/skills/saf-kanban/SKILL.md`（有設定 `CLAUDE_CONFIG_DIR` 時寫到那個資料夾）。程式換了位置之後要重新安裝一次，畫面上會提示。其他支援 Agent Skills 的工具，把 `saf-kanban-cli skill` 印出的內容存成該工具 skills 資料夾裡的 `saf-kanban/SKILL.md`。
+
+命令列也可以自己用：
+
+```text
+saf-kanban-cli boards                     列出看板
+saf-kanban-cli board <看板>               欄位和每個欄位裡的任務、負責人
+saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--search 關鍵字]
+saf-kanban-cli task <看板> <任務>         一個任務的完整內容
+saf-kanban-cli add <看板> <標題> [--column C] [--priority P] [--assignee A] [--issue ID] [--description 描述]
+saf-kanban-cli edit <看板> <任務> [--title T] [--description 描述] [--priority P] [--assignee A] [--issue ID]
+saf-kanban-cli move <看板> <任務> <欄位> [--before 任務 | --after 任務]
+saf-kanban-cli delete <看板> <任務>       刪除任務（會留在已刪除的任務裡）
+saf-kanban-cli deleted <看板>             已刪除的任務
+saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B]
+saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
+saf-kanban-cli skill [--install]          印出 skill，或安裝到 Claude Code
+```
+
+- `<看板>` 可以是看板 ID 或名稱；`<任務>` 是任務 ID（輸出裡方括號中的那段）。
+- 每個指令都可以加 `--json` 改成輸出 JSON，加 `--data-dir <資料夾>` 指定其他資料夾。
+- `--description -` 從標準輸入讀描述，可以有多行。
+- 失敗時錯誤訊息印在標準錯誤，結束碼是 1（打錯指令是 2）。
+
+### MCP
+
+[MCP](https://modelcontextprotocol.io) 介面讓 AI agent 把看板操作當成工具來呼叫。
+
+Claude Code（用網址連線，SAF Kanban 要開著）：
 
 ```bash
 claude mcp add --transport http saf-kanban http://127.0.0.1:41952/mcp --header "Authorization: Bearer <權杖>"
 ```
 
-Claude Desktop 的設定檔：
+Claude Desktop 的設定檔（啟動程式，SAF Kanban 不用開著）：
 
 ```json
 {
@@ -105,8 +147,7 @@ Claude Desktop 的設定檔：
 }
 ```
 
-- `mcp` 模式本身不讀寫看板檔案，而是把工具呼叫轉給正在執行的伺服器，所以 SAF Kanban 要保持開啟。沒開的時候 AI 還是連得上，只是呼叫工具會得到「SAF Kanban 沒有在執行」的說明。
-- 它自己從資料夾讀權杖和連接埠；資料夾不是預設位置時加上 `--data-dir <資料夾>`。
+- 安裝版的指令是 `saf-kanban mcp`；只有伺服器時是 `saf-kanban-server mcp`。資料夾不是預設位置時加上 `--data-dir <資料夾>`。
 
 AI 可以用的工具：
 
@@ -126,7 +167,7 @@ AI 可以用的工具：
 
 - 沒有刪除看板的工具，刪除看板只能在畫面上做。
 - 工具裡任務的描述叫 `description`（HTTP API 裡是 `des`）。
-- AI 做的變更會即時出現在看板畫面上。
+- AI 做的變更會即時出現在看板畫面上（用網址連線時立刻，其他方式在一秒內）。
 
 ## API
 

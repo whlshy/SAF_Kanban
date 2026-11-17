@@ -1,0 +1,113 @@
+//! The Agent Skill that teaches an AI agent to use the command line
+//! (`saf-kanban-cli`): a `SKILL.md` with the tool's real path in it. Claude
+//! Code reads personal skills from `~/.claude/skills/<name>/SKILL.md`.
+
+use std::path::{Path, PathBuf};
+
+pub const NAME: &str = "saf-kanban";
+
+/// The command-line tool that comes with this program: next to it, or this
+/// program itself.
+pub fn cli_path() -> PathBuf {
+    let name = format!("saf-kanban-cli{}", std::env::consts::EXE_SUFFIX);
+    match std::env::current_exe() {
+        Ok(exe) if exe.file_name().is_some_and(|file| file == name.as_str()) => exe,
+        Ok(exe) => exe.with_file_name(name),
+        Err(_) => PathBuf::from(name),
+    }
+}
+
+/// Where Claude Code looks for personal skills: `CLAUDE_CONFIG_DIR` if set,
+/// else `.claude` in the home folder.
+pub fn claude_skill_file() -> Option<PathBuf> {
+    let config = match std::env::var_os("CLAUDE_CONFIG_DIR").filter(|dir| !dir.is_empty()) {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let home = std::env::var_os("USERPROFILE")
+                .or_else(|| std::env::var_os("HOME"))
+                .filter(|dir| !dir.is_empty())?;
+            PathBuf::from(home).join(".claude")
+        }
+    };
+    Some(config.join("skills").join(NAME).join("SKILL.md"))
+}
+
+/// Writes the skill where Claude Code finds it and returns the file's path.
+pub fn install(content: &str) -> std::io::Result<PathBuf> {
+    let file = claude_skill_file().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Can't tell where the home folder is.",
+        )
+    })?;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&file, content)?;
+    Ok(file)
+}
+
+/// A path as it can be typed in Git Bash, PowerShell and cmd alike.
+fn typed(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
+/// The skill, for the tool at `cli` working on the boards in `data_dir`.
+pub fn skill_md(cli: &Path, data_dir: &Path) -> String {
+    let mut command = format!("\"{}\"", typed(cli));
+    if data_dir != crate::default_data_dir() {
+        command.push_str(&format!(" --data-dir \"{}\"", typed(data_dir)));
+    }
+    SKILL.replace("{command}", &command)
+}
+
+const SKILL: &str = r#"---
+name: saf-kanban
+description: Read and change the user's SAF Kanban boards (看板) kept on this computer - list boards, look at tasks, add, edit, move or delete tasks, and change a board's columns or assignees. Use when the user mentions SAF Kanban, their kanban board, or tasks and to-dos on a board.
+---
+
+# SAF Kanban
+
+SAF Kanban keeps kanban boards as files on this computer. Read and change them with its command-line tool. It works whether or not the SAF Kanban app is open; when the app is open, its window shows your changes within a second.
+
+The tool is this command (keep the quotes):
+
+```
+{command}
+```
+
+Below it is written as `saf-kanban-cli`; always type the full command above instead. In PowerShell, put `& ` in front of it.
+
+## Commands
+
+```
+saf-kanban-cli boards                     List the boards
+saf-kanban-cli board <board>              Columns with their tasks in order, and the assignees
+saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+                                          Find tasks (--assignee "" finds unassigned ones)
+saf-kanban-cli task <board> <task>        One task, with its whole description
+saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--description TEXT]
+                                          Add a task at the end of a column (default: the first)
+saf-kanban-cli edit <board> <task> [--title T] [--description TEXT] [--priority P] [--assignee A] [--issue ID]
+                                          Change some fields; an empty value ("") clears one
+saf-kanban-cli move <board> <task> <column> [--before TASK | --after TASK]
+                                          Move to a column, and optionally next to another task
+saf-kanban-cli delete <board> <task>      Delete a task (it is kept in the deleted tasks)
+saf-kanban-cli deleted <board>            Deleted tasks, newest first
+saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B]
+saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
+                                          --columns and --users are the complete new lists, in order
+```
+
+- `<board>` is a board's id or its exact name. `<task>` is a task id, shown in brackets like `[3f9a1c2e]`.
+- Add `--json` to any command to get JSON instead of text.
+- For a description with several lines, pass `--description -` and send the text on standard input.
+
+## How boards work
+
+- Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, and the names tasks can be assigned to. Use those exact names.
+- Each task is in one column. Priorities are `high`, `medium` and `low`.
+- `--rename OLD=NEW` renames a column and its tasks follow it. A column that still has tasks can't be removed; move or delete them first.
+- Ask the user before deleting tasks, removing columns or renaming boards. Deleted tasks can be seen with `deleted`, but not restored from here.
+- When a command fails it says why (an unknown column, a task id that doesn't exist, ...) and exits with a non-zero status; fix the command and try again.
+"#;

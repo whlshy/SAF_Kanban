@@ -20,6 +20,8 @@
 //! | GET    /api/events                           | Server-sent events, one per change     |
 //! | GET    /api/connection                       | Addresses and paths for connecting     |
 //! | POST   /api/token                            | Replace the API token                  |
+//! | GET    /api/skill                            | The AI agent skill (`SKILL.md`)        |
+//! | POST   /api/skill                            | Install the skill for Claude Code      |
 //! | POST   /mcp                                  | Model Context Protocol (see `mcp`)     |
 //!
 //! Every request to `/api` and `/mcp` needs `Authorization: Bearer <token>`;
@@ -81,6 +83,7 @@ pub fn router(state: Shared) -> Router {
         .route("/boards/{board}/history", get(history))
         .route("/events", get(events))
         .route("/connection", get(connection))
+        .route("/skill", get(skill).post(install_skill))
         .route("/token", post(new_token))
         .fallback(|| async {
             ApiError::invalid("UNKNOWN_ENDPOINT", "No such API endpoint.")
@@ -196,7 +199,35 @@ async fn connection(State(state): State<Shared>) -> Json<Value> {
         "dataDir": state.store.dir(),
         // For apps that start an MCP server as a program: `<executable> mcp`.
         "executable": std::env::current_exe().ok(),
+        // The command line, which the skill teaches agents to use.
+        "cli": crate::skill::cli_path(),
     }))
+}
+
+fn skill_content(state: &AppState) -> String {
+    crate::skill::skill_md(&crate::skill::cli_path(), state.store.dir())
+}
+
+/// The skill, where Claude Code would find it, and whether that file is
+/// there and the same.
+async fn skill(State(state): State<Shared>) -> Json<Value> {
+    let content = skill_content(&state);
+    let file = crate::skill::claude_skill_file();
+    let installed = file
+        .as_ref()
+        .and_then(|file| std::fs::read_to_string(file).ok());
+    Json(json!({
+        "content": content,
+        "file": file,
+        "installed": installed.is_some(),
+        "upToDate": installed.as_deref() == Some(content.as_str()),
+    }))
+}
+
+/// Writes the skill where Claude Code finds it.
+async fn install_skill(State(state): State<Shared>) -> ApiResult<Json<Value>> {
+    let file = crate::skill::install(&skill_content(&state)).map_err(ApiError::storage)?;
+    Ok(Json(json!({ "file": file })))
 }
 
 /// Replaces the API token. Every program using the old one has to be given
