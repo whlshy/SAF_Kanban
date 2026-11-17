@@ -1,6 +1,10 @@
 //! The Agent Skill that teaches an AI agent to use the command line
-//! (`saf-kanban-cli`): a `SKILL.md` with the tool's real path in it. Claude
-//! Code reads personal skills from `~/.claude/skills/<name>/SKILL.md`.
+//! (`saf-kanban-cli`): a `SKILL.md` with the tool's real path in it.
+//!
+//! Agent Skills is an open format, and most agents read personal skills from
+//! `~/.agents/skills/<name>/SKILL.md` (Codex, Gemini CLI, GitHub Copilot,
+//! Cursor, ...). Claude Code reads them from `~/.claude/skills/` instead, so
+//! the skill is installed in both places.
 
 use std::path::{Path, PathBuf};
 
@@ -17,34 +21,62 @@ pub fn cli_path() -> PathBuf {
     }
 }
 
-/// Where Claude Code looks for personal skills: `CLAUDE_CONFIG_DIR` if set,
-/// else `.claude` in the home folder.
-pub fn claude_skill_file() -> Option<PathBuf> {
-    let config = match std::env::var_os("CLAUDE_CONFIG_DIR").filter(|dir| !dir.is_empty()) {
-        Some(dir) => PathBuf::from(dir),
-        None => {
-            let home = std::env::var_os("USERPROFILE")
-                .or_else(|| std::env::var_os("HOME"))
-                .filter(|dir| !dir.is_empty())?;
-            PathBuf::from(home).join(".claude")
-        }
-    };
-    Some(config.join("skills").join(NAME).join("SKILL.md"))
+fn home() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
 }
 
-/// Writes the skill where Claude Code finds it and returns the file's path.
-pub fn install(content: &str) -> std::io::Result<PathBuf> {
-    let file = claude_skill_file().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Can't tell where the home folder is.",
-        )
-    })?;
+/// Where the skill goes: `(which agents read it, the SKILL.md file)`.
+/// `agents` is the shared place; `claude` is Claude Code's, which honours
+/// `CLAUDE_CONFIG_DIR`.
+pub fn places() -> Vec<(&'static str, PathBuf)> {
+    let Some(home) = home() else {
+        return Vec::new();
+    };
+    let claude = std::env::var_os("CLAUDE_CONFIG_DIR")
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".claude"));
+    vec![
+        ("agents", skill_file(&home.join(".agents").join("skills"))),
+        ("claude", skill_file(&claude.join("skills"))),
+    ]
+}
+
+/// The skill's file in a folder of skills.
+pub fn skill_file(skills_dir: &Path) -> PathBuf {
+    skills_dir.join(NAME).join("SKILL.md")
+}
+
+fn write(file: &Path, content: &str) -> std::io::Result<()> {
     if let Some(dir) = file.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    std::fs::write(&file, content)?;
+    std::fs::write(file, content)
+}
+
+/// Writes the skill into a folder of skills and returns the file's path.
+pub fn install_into(skills_dir: &Path, content: &str) -> std::io::Result<PathBuf> {
+    let file = skill_file(skills_dir);
+    write(&file, content)?;
     Ok(file)
+}
+
+/// Writes the skill everywhere in [`places`] and returns the files.
+pub fn install(content: &str) -> std::io::Result<Vec<PathBuf>> {
+    let places = places();
+    if places.is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Can't tell where the home folder is.",
+        ));
+    }
+    for (_, file) in &places {
+        write(file, content)?;
+    }
+    Ok(places.into_iter().map(|(_, file)| file).collect())
 }
 
 /// A path as it can be typed in Git Bash, PowerShell and cmd alike.

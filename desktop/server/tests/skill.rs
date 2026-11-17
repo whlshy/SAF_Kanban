@@ -1,4 +1,5 @@
-//! The "AI / API" dialog's skill: shown, installed, and recognised as installed.
+//! The "AI / API" dialog's skill: shown, installed in each place agents look,
+//! and recognised as installed.
 
 mod common;
 
@@ -9,41 +10,84 @@ use serde_json::Value;
 #[tokio::test]
 async fn the_app_shows_and_installs_the_skill() {
     let app = app();
-    let claude = app.dir.join("claude-config");
-    // Only this test in this file, so nothing else sees the variable.
-    std::env::set_var("CLAUDE_CONFIG_DIR", &claude);
-    let file = claude.join("skills").join("saf-kanban").join("SKILL.md");
+    let home = app.dir.join("home");
+    // Only this test in this file, so nothing else sees these.
+    std::env::set_var("HOME", &home);
+    std::env::set_var("USERPROFILE", &home);
+    std::env::remove_var("CLAUDE_CONFIG_DIR");
+    let shared = home
+        .join(".agents")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
+    let claude = home
+        .join(".claude")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
 
     let connection = app.get("/api/connection").await;
     let cli = connection["cli"].as_str().unwrap();
     assert!(cli.contains("saf-kanban-cli"), "{cli}");
 
     let skill = app.get("/api/skill").await;
-    assert_eq!(skill["installed"], false);
-    assert_eq!(skill["file"], file.display().to_string());
     let content = skill["content"].as_str().unwrap();
     // The data folder isn't the usual one, so the skill names it.
     assert!(
         content.contains(&format!("\"{}\" --data-dir", cli.replace('\\', "/"))),
         "{content}"
     );
+    let states = |skill: &Value| -> Vec<(String, String, bool, bool)> {
+        skill["places"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|place| {
+                (
+                    place["agents"].as_str().unwrap().to_string(),
+                    place["file"].as_str().unwrap().to_string(),
+                    place["installed"].as_bool().unwrap(),
+                    place["upToDate"].as_bool().unwrap(),
+                )
+            })
+            .collect()
+    };
+    let place = |agents: &str, file: &std::path::Path, installed, current| {
+        (
+            agents.to_string(),
+            file.display().to_string(),
+            installed,
+            current,
+        )
+    };
+    assert_eq!(
+        states(&skill),
+        [
+            place("agents", &shared, false, false),
+            place("claude", &claude, false, false)
+        ]
+    );
 
     let (status, installed) = app.call(Method::POST, "/api/skill", Value::Null).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(installed["file"], file.display().to_string());
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), content);
-
-    let skill = app.get("/api/skill").await;
+    assert_eq!(installed["files"].as_array().unwrap().len(), 2);
+    assert_eq!(std::fs::read_to_string(&shared).unwrap(), content);
+    assert_eq!(std::fs::read_to_string(&claude).unwrap(), content);
     assert_eq!(
-        (skill["installed"].clone(), skill["upToDate"].clone()),
-        (Value::Bool(true), Value::Bool(true))
+        states(&app.get("/api/skill").await),
+        [
+            place("agents", &shared, true, true),
+            place("claude", &claude, true, true)
+        ]
     );
 
     // An older copy is reported as installed but not up to date.
-    std::fs::write(&file, "old").unwrap();
-    let skill = app.get("/api/skill").await;
+    std::fs::write(&claude, "old").unwrap();
     assert_eq!(
-        (skill["installed"].clone(), skill["upToDate"].clone()),
-        (Value::Bool(true), Value::Bool(false))
+        states(&app.get("/api/skill").await),
+        [
+            place("agents", &shared, true, true),
+            place("claude", &claude, true, false)
+        ]
     );
 }

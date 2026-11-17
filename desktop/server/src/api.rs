@@ -21,7 +21,7 @@
 //! | GET    /api/connection                       | Addresses and paths for connecting     |
 //! | POST   /api/token                            | Replace the API token                  |
 //! | GET    /api/skill                            | The AI agent skill (`SKILL.md`)        |
-//! | POST   /api/skill                            | Install the skill for Claude Code      |
+//! | POST   /api/skill                            | Install the skill for AI agents        |
 //! | POST   /mcp                                  | Model Context Protocol (see `mcp`)     |
 //!
 //! Every request to `/api` and `/mcp` needs `Authorization: Bearer <token>`;
@@ -208,26 +208,28 @@ fn skill_content(state: &AppState) -> String {
     crate::skill::skill_md(&crate::skill::cli_path(), state.store.dir())
 }
 
-/// The skill, where Claude Code would find it, and whether that file is
-/// there and the same.
+/// The skill, and for each place it goes whether it is there and current.
 async fn skill(State(state): State<Shared>) -> Json<Value> {
     let content = skill_content(&state);
-    let file = crate::skill::claude_skill_file();
-    let installed = file
-        .as_ref()
-        .and_then(|file| std::fs::read_to_string(file).ok());
-    Json(json!({
-        "content": content,
-        "file": file,
-        "installed": installed.is_some(),
-        "upToDate": installed.as_deref() == Some(content.as_str()),
-    }))
+    let places: Vec<Value> = crate::skill::places()
+        .into_iter()
+        .map(|(agents, file)| {
+            let installed = std::fs::read_to_string(&file).ok();
+            json!({
+                "agents": agents,
+                "file": file,
+                "installed": installed.is_some(),
+                "upToDate": installed.as_deref() == Some(content.as_str()),
+            })
+        })
+        .collect();
+    Json(json!({ "content": content, "places": places }))
 }
 
-/// Writes the skill where Claude Code finds it.
+/// Installs the skill everywhere it goes.
 async fn install_skill(State(state): State<Shared>) -> ApiResult<Json<Value>> {
-    let file = crate::skill::install(&skill_content(&state)).map_err(ApiError::storage)?;
-    Ok(Json(json!({ "file": file })))
+    let files = crate::skill::install(&skill_content(&state)).map_err(ApiError::storage)?;
+    Ok(Json(json!({ "files": files })))
 }
 
 /// Replaces the API token. Every program using the old one has to be given

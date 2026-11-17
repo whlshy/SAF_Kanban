@@ -54,8 +54,8 @@ function mcp(messages) {
 }
 
 // Runs the command line; resolves with { code, stdout, stderr }.
-const run = (args) => new Promise((resolve) => {
-  execFile(cli, [...args, '--data-dir', dataDir], { encoding: 'utf8', timeout: 30000 }, (error, stdout, stderr) => {
+const run = (args, env = {}) => new Promise((resolve) => {
+  execFile(cli, [...args, '--data-dir', dataDir], { encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
     resolve({ code: error ? (error.code ?? 1) : 0, stdout, stderr })
   })
 })
@@ -133,6 +133,12 @@ try {
 
   const skill = await run(['skill'])
   check('command line: prints the skill with its own path', skill.code === 0 && skill.stdout.includes(cli.replaceAll('\\', '/')), skill.stdout.slice(0, 600))
+  // A home folder of its own, so the build machine's isn't touched.
+  const home = join(dataDir, 'home')
+  const installed = await run(['skill', '--install'], { HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: '' })
+  const skillFiles = ['.agents', '.claude'].map((dir) => join(home, dir, 'skills', 'saf-kanban', 'SKILL.md'))
+  check('command line: installs the skill for AI agents and Claude Code', installed.code === 0
+    && skillFiles.every((file) => existsSync(file) && readFileSync(file, 'utf8').includes(cli.replaceAll('\\', '/'))), JSON.stringify(installed))
   const wrong = await run(['move', 'Smoke test', 'no-such-task', 'Todo'])
   check('command line: a mistake fails with a reason', wrong.code === 1 && wrong.stderr.includes('TASK_NOT_FOUND'), JSON.stringify(wrong))
 

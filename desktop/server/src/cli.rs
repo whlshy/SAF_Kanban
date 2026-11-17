@@ -33,7 +33,10 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
   deleted <board>                 Deleted tasks, newest first
   new-board <name> [--columns A,B,C] [--users A,B]
   edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
-  skill [--install]               Print the AI agent skill, or install it for Claude Code
+  skill [--install | --into DIR]  Print the AI agent skill, or install it: --install puts it
+                                  where most agents (~/.agents/skills) and Claude Code
+                                  (~/.claude/skills) find it; --into DIR into another
+                                  agent's skills folder
 
 <board> is a board's id or exact name; <task> is a task id.
 --description - reads the description from standard input.
@@ -431,16 +434,24 @@ fn show_board_info(verb: &str, board: &Value) -> String {
 /// Runs the command; returns what to print.
 fn run(args: &Args) -> Result<String, Failure> {
     if args.command == "skill" {
-        args.expect(&[], &[])?;
+        args.expect(&[], &["into"])?;
         let content = skill::skill_md(&skill::cli_path(), &args.data_dir);
+        let failed = |error: std::io::Error| format!("Couldn't install the skill: {error}");
+        if let Some(dir) = args.option("into") {
+            let file = skill::install_into(&PathBuf::from(dir), &content).map_err(failed)?;
+            return Ok(format!("Installed the skill: {}", file.display()));
+        }
         if !args.install {
             return Ok(content.trim_end().to_string());
         }
-        let file = skill::install(&content)
-            .map_err(|error| format!("Couldn't install the skill: {error}"))?;
+        let files = skill::install(&content).map_err(failed)?;
+        let files: Vec<String> = files
+            .iter()
+            .map(|file| format!("  {}", file.display()))
+            .collect();
         return Ok(format!(
-            "Installed the skill for Claude Code: {}",
-            file.display()
+            "Installed the skill for AI agents (Codex, Gemini CLI, GitHub Copilot, Cursor, Claude Code, ...):\n{}",
+            files.join("\n")
         ));
     }
 

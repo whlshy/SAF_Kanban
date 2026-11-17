@@ -64,7 +64,8 @@ function CodeBox({ text, shown = text, copyLabel, maxHeight }) {
 const showError = (error) => message.error(error?.userMessage || translate("common.apiError"), 8)
 
 // The skill teaches an AI agent the command line, which works on the board
-// files directly: no token, and SAF Kanban doesn't have to be open.
+// files directly: no token, and SAF Kanban doesn't have to be open. It goes
+// where most agents look (~/.agents/skills) and where Claude Code does.
 function SkillSetup() {
   const t = useT()
   const [skill, setSkill] = React.useState(null)
@@ -85,18 +86,30 @@ function SkillSetup() {
   }
 
   if (!skill) return null
-  const status = skill.upToDate ? "ok" : skill.installed ? "old" : "none"
+  const state = (place) => (place.upToDate ? "ok" : place.installed ? "old" : "none")
+  const states = skill.places.map(state)
+  const overall = states.length && states.every((each) => each === "ok") ? "ok" : states.includes("old") ? "old" : "none"
+  const color = { ok: "success.main", old: "warning.main", none: "text.secondary" }
   return (
     <>
-      <Box className="flex flex-wrap items-center gap-2" sx={{ mb: 1 }}>
-        <Button variant="contained" size="small" onClick={install} disabled={busy || !skill.file} sx={{ textTransform: 'none' }}>
-          {t(`connection.skill.install.${status}`)}
-        </Button>
-        <Typography variant="caption" color="text.secondary" data-slot="skill-status" sx={{ overflowWrap: 'anywhere' }}>
-          {t(`connection.skill.status.${status}`, { file: skill.file || "" })}
-        </Typography>
+      <Box component="ul" data-slot="skill-places" sx={{ listStyle: 'none', p: 0, m: 0, mb: 1 }}>
+        {skill.places.map((place) => (
+          <Box component="li" key={place.agents} className="flex flex-wrap items-baseline gap-x-2" sx={{ py: 0.25 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>{t(`connection.skill.place.${place.agents}`)}</Typography>
+            <Typography variant="caption" component="code" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{place.file}</Typography>
+            <Typography variant="caption" data-slot="skill-state" sx={{ color: color[state(place)], fontWeight: 500 }}>
+              {t(`connection.skill.state.${state(place)}`)}
+            </Typography>
+          </Box>
+        ))}
       </Box>
+      <Button variant="contained" size="small" onClick={install} disabled={busy || !skill.places.length} sx={{ textTransform: 'none', mb: 1.5 }}>
+        {t(`connection.skill.install.${overall}`)}
+      </Button>
       <CodeBox text={skill.content} copyLabel={t("connection.skill.copy")} maxHeight={220} />
+      <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+        {t("connection.skill.other")}
+      </Typography>
     </>
   )
 }

@@ -87,7 +87,7 @@ SAF Kanban local server
 
 | 方式 | 適用 | SAF Kanban 要開著嗎 | 權杖 |
 | --- | --- | --- | --- |
-| Skill + 命令列（建議） | Claude Code，以及其他支援 Agent Skills 的工具 | 不用 | 不用 |
+| Skill + 命令列（建議） | Claude Code、Codex、Gemini CLI、GitHub Copilot、Cursor 等支援 Agent Skills 的 AI；不支援的 AI 只要能執行指令，也能直接用命令列 | 不用 | 不用 |
 | MCP，啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 不用 | 不用 |
 | MCP，網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 要 | 要 |
 | HTTP API | 自己寫的程式、腳本 | 要 | 要 |
@@ -100,10 +100,19 @@ SAF Kanban local server
 
 安裝 skill（擇一）：
 
-- 「AI / API 連線」→「Claude Code（Skill）」→「安裝到 Claude Code」。
+- 「AI / API 連線」→「Skill（建議）」→「安裝 skill」。
 - 執行 `saf-kanban-cli skill --install`。
 
-兩者都會寫到 `~/.claude/skills/saf-kanban/SKILL.md`（有設定 `CLAUDE_CONFIG_DIR` 時寫到那個資料夾）。程式換了位置之後要重新安裝一次，畫面上會提示。其他支援 Agent Skills 的工具，把 `saf-kanban-cli skill` 印出的內容存成該工具 skills 資料夾裡的 `saf-kanban/SKILL.md`。
+兩種做法都會寫到兩個地方：
+
+| 位置 | 會讀它的 AI |
+| --- | --- |
+| `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Gemini CLI、GitHub Copilot、Cursor 等（Agent Skills 的共用位置） |
+| `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code（有設定 `CLAUDE_CONFIG_DIR` 時改寫到那個資料夾） |
+
+- 其他 AI 工具：執行 `saf-kanban-cli skill --into <它的 skills 資料夾>`，或把 `saf-kanban-cli skill` 印出的內容存成那個資料夾裡的 `saf-kanban/SKILL.md`。
+- 不支援 skill 的 AI，只要能執行指令，請它先執行 `saf-kanban-cli --help` 就能使用。
+- 程式換了位置之後要重新安裝一次，「AI / API 連線」裡會顯示「需要更新」。
 
 命令列也可以自己用：
 
@@ -119,7 +128,7 @@ saf-kanban-cli delete <看板> <任務>       刪除任務（會留在已刪除�
 saf-kanban-cli deleted <看板>             已刪除的任務
 saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B]
 saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
-saf-kanban-cli skill [--install]          印出 skill，或安裝到 Claude Code
+saf-kanban-cli skill [--install | --into 資料夾]   印出 skill，或安裝
 ```
 
 - `<看板>` 可以是看板 ID 或名稱；`<任務>` 是任務 ID（輸出裡方括號中的那段）。

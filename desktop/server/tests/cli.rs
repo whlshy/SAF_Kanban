@@ -280,10 +280,10 @@ fn programs_writing_at_the_same_time_lose_nothing() {
 }
 
 #[test]
-fn the_skill_points_at_this_command_line_and_installs_for_claude_code() {
+fn the_skill_points_at_this_command_line_and_installs_for_ai_agents() {
     let folder = Folder::new();
     let dir = &folder.0;
-    let claude = dir.join("claude-config");
+    let home = dir.join("home");
 
     let skill = ok(dir, &["skill"]);
     assert!(
@@ -296,14 +296,58 @@ fn the_skill_points_at_this_command_line_and_installs_for_claude_code() {
         "{skill}"
     );
 
-    let output = Command::new(CLI)
-        .args(["skill", "--install", "--data-dir"])
-        .arg(dir)
-        .env("CLAUDE_CONFIG_DIR", &claude)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{}", err(&output));
-    let file = claude.join("skills").join("saf-kanban").join("SKILL.md");
-    assert!(out(&output).contains(&file.display().to_string()));
-    assert_eq!(std::fs::read_to_string(&file).unwrap().trim_end(), skill);
+    let install = |args: &[&str], claude_config: Option<&Path>| {
+        let mut command = Command::new(CLI);
+        command
+            .args(args)
+            .arg("--data-dir")
+            .arg(dir)
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env_remove("CLAUDE_CONFIG_DIR");
+        if let Some(config) = claude_config {
+            command.env("CLAUDE_CONFIG_DIR", config);
+        }
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{}", err(&output));
+        out(&output)
+    };
+    let read = |file: &Path| {
+        std::fs::read_to_string(file)
+            .unwrap()
+            .trim_end()
+            .to_string()
+    };
+
+    // Where most agents look, and where Claude Code does.
+    let printed = install(&["skill", "--install"], None);
+    let shared = home
+        .join(".agents")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
+    let claude = home
+        .join(".claude")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
+    for file in [&shared, &claude] {
+        assert!(printed.contains(&file.display().to_string()), "{printed}");
+        assert_eq!(read(file), skill);
+    }
+
+    // Claude Code's own folder may have been moved.
+    let moved = dir.join("claude-config");
+    install(&["skill", "--install"], Some(&moved));
+    assert_eq!(
+        read(&moved.join("skills").join("saf-kanban").join("SKILL.md")),
+        skill
+    );
+
+    // Any other agent's skills folder.
+    let other = dir.join("other-agent").join("skills");
+    let printed = install(&["skill", "--into", other.to_str().unwrap()], None);
+    let file = other.join("saf-kanban").join("SKILL.md");
+    assert!(printed.contains(&file.display().to_string()), "{printed}");
+    assert_eq!(read(&file), skill);
 }
