@@ -124,7 +124,7 @@ function index() {
             </MenuItem>
             <MenuItem onClick={() => (setMenuAnchor(null), startImport())}>
               <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
-              <ListItemText>{t("transfer.import")}</ListItemText>
+              <ListItemText>{t(localAvailable() ? "transfer.import.desktop" : "transfer.import")}</ListItemText>
             </MenuItem>
             {/* Only when the browser offers to install the site as an app. */}
             {install && <Divider />}

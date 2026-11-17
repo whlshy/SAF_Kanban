@@ -7,7 +7,7 @@
 - [x] 本機伺服器（[`server/`](server/)，Rust）：看板檔案、HTTP API、提供看板畫面
 - [x] MCP 介面，讓 AI agent 直接操作看板；畫面右上角的「AI / API 連線」
 - [x] Windows 安裝檔（[`app/`](app/)，Tauri）
-- [ ] 把 Google Sheet 看板複製成本機看板、備份
+- [x] 把 Google Sheet 看板複製成本機看板、匯出與匯入看板
 
 ## 安裝（Windows）
 
@@ -64,7 +64,9 @@ SAF Kanban local server
 | `config.json` | API 權杖 |
 | `server.json` | 伺服器目前使用的連接埠，給 `mcp` 橋接模式找到它 |
 
-- 備份就是複製整個資料夾。
+- 備份全部看板就是複製整個資料夾。
+- 單一看板可以在「設定」按「匯出看板」存成一個檔案（設定、任務和已刪除的任務），之後在看板選單選「匯入設定或看板」還原成一個新的看板；也可以拿到另一台電腦匯入。檔案沒有加密，裡面不含 API 權杖。
+- Google Sheet 看板的「設定」裡有「複製成本機看板」：把 Sheet 目前的欄位、任務和負責人複製成一個本機看板。Sheet 只會被讀取，不會被更動；已刪除的任務紀錄不會複製。
 - 伺服器每次都重新讀檔，所以還原備份、或其他程式改了檔案，不用重新啟動。
 - 寫入時先寫到暫存檔再取代原檔，中途當機不會留下寫到一半的看板。
 
@@ -134,10 +136,11 @@ AI 可以用的工具：
 | --- | --- |
 | `GET /info` | 伺服器名稱與版本 |
 | `GET /boards` | 列出看板 |
-| `POST /boards` | 建立看板 |
+| `POST /boards` | 建立看板；可以附上 `tasks`、`history`，也就是直接送 `export` 的內容來複製看板 |
 | `GET /boards/{看板}` | 看板的名稱、欄位、負責人 |
 | `PATCH /boards/{看板}` | 改名稱、欄位、負責人 |
 | `DELETE /boards/{看板}` | 刪除看板（檔案移到 `trash/`） |
+| `GET /boards/{看板}/export` | 整個看板：設定、任務和已刪除的任務 |
 | `GET /boards/{看板}/tasks` | 列出任務，可以篩選 |
 | `POST /boards/{看板}/tasks` | 新增任務 |
 | `GET /boards/{看板}/tasks/{任務}` | 一個任務 |

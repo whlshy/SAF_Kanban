@@ -38,6 +38,12 @@ pub struct NewBoard {
     /// Defaults to Todo, Doing, Done.
     pub columns: Option<Vec<String>>,
     pub users: Vec<String>,
+    /// Tasks to start with, in board order: for a board copied from somewhere
+    /// else or brought back from an exported file. A column they name that
+    /// isn't in `columns` is added after the others.
+    pub tasks: Vec<Task>,
+    /// Deleted tasks to start with, oldest first.
+    pub history: Vec<DeletedTask>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -273,13 +279,60 @@ impl Store {
     }
 
     pub fn create_board(&self, input: NewBoard) -> ApiResult<BoardInfo> {
-        let columns = match input.columns {
+        let mut columns = match input.columns {
             Some(columns) => clean_names(columns, "DUPLICATE_COLUMN")?,
-            None => DEFAULT_COLUMNS
+            None if input.tasks.is_empty() => DEFAULT_COLUMNS
                 .iter()
                 .map(|name| name.to_string())
                 .collect(),
+            // The tasks say which columns there are.
+            None => Vec::new(),
         };
+        let time = now();
+
+        let mut ids = HashSet::new();
+        let mut tasks = Vec::new();
+        for mut task in input.tasks {
+            task.column = task.column.trim().to_string();
+            if task.column.is_empty() {
+                task.column = match columns.first() {
+                    Some(first) => first.clone(),
+                    None => DEFAULT_COLUMNS[0].to_string(),
+                };
+            }
+            if !columns.contains(&task.column) {
+                columns.push(task.column.clone());
+            }
+            // Keeps its id where it can, so it can be told apart from a copy.
+            if !valid_id(&task.id) || ids.contains(&task.id) {
+                task.id = new_id();
+                while ids.contains(&task.id) {
+                    task.id = new_id();
+                }
+            }
+            ids.insert(task.id.clone());
+            if task.priority.is_empty() {
+                task.priority = DEFAULT_PRIORITY.to_string();
+            }
+            if task.created_at.is_empty() {
+                task.created_at = time.clone();
+            }
+            if task.updated_at.is_empty() {
+                task.updated_at = task.created_at.clone();
+            }
+            tasks.push(task);
+        }
+        let history = input
+            .history
+            .into_iter()
+            .map(|mut deleted| {
+                if deleted.deleted_at.is_empty() {
+                    deleted.deleted_at = time.clone();
+                }
+                deleted
+            })
+            .collect();
+
         let board = {
             let _guard = self
                 .lock
@@ -296,8 +349,9 @@ impl Store {
                 issue_link: input.issue_link.trim().to_string(),
                 columns,
                 users: clean_names(input.users, "DUPLICATE_USER")?,
-                created_at: now(),
-                ..Board::default()
+                created_at: time,
+                tasks,
+                history,
             };
             self.write(&board)?;
             board

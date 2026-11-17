@@ -1,5 +1,6 @@
 import React from 'react'
-import { Button, DialogContent, TextField } from '@mui/material'
+import { Box, Button, DialogContent, TextField, Typography } from '@mui/material'
+import { FileDownloadOutlined as ExportIcon, ContentCopy as CopyIcon } from '@mui/icons-material'
 import { message } from 'antd'
 
 import { useAlertStore, useDialogStore } from '@/store';
@@ -7,6 +8,9 @@ import { boardPlaceholderTitle, boardTitle, normalizeBoardField, useBoards } fro
 import { t, useT } from '@/i18n';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import ListEditor, { rowNames, rowRenames, toRows } from '@/components/elements/ListEditor';
+import { createBoardSource } from '@/data';
+import { localAvailable } from '@/data/localApi';
+import { exportLocalBoard } from './BoardTransfer';
 
 export const SETTING_FIELDS = [
   { field: "title", labelKey: "field.title" },
@@ -21,7 +25,7 @@ export const SETTING_FIELDS = [
 const LOCAL_FIELDS = ["title", "jiraLink"]
 
 const SettingDialog = ({ closeDialog }) => {
-  const { currentBoard, updateCurrentBoard, deleteBoard } = useBoards();
+  const { currentBoard, updateCurrentBoard, deleteBoard, addBoard } = useBoards();
   const { setAlert } = useAlertStore();
   const t = useT();
   const formId = React.useId();
@@ -49,6 +53,46 @@ const SettingDialog = ({ closeDialog }) => {
       }
     },
   });
+
+  // Desktop app: a Google Sheet board can be copied into a board kept on this
+  // computer. The Sheet is only read, and the two go their own ways afterwards.
+  const canCopy = localAvailable() && !isLocal && !!currentBoard?.sheetId;
+
+  const handleExport = async () => {
+    setSaving(true);
+    try {
+      await exportLocalBoard(currentBoard);
+    } catch (error) {
+      showError(error);
+    }
+    setSaving(false);
+  };
+
+  const handleCopy = async () => {
+    setSaving(true);
+    let content;
+    try {
+      const source = createBoardSource(currentBoard);
+      const [columns, tasks, users] = await Promise.all([source.loadColumns(), source.loadTasks(), source.loadUsers()]);
+      content = {
+        columns: [...new Set(columns.map((name) => String(name).trim()).filter(Boolean))],
+        users,
+        // Blank rows of the Sheet aren't tasks.
+        tasks: tasks.filter((task) => task.id || task.title),
+      };
+    } catch {
+      message.error(t("copyLocal.unreadable"), 8);
+      return setSaving(false);
+    }
+    try {
+      const board = await addBoard({ type: "local", title: boardTitle(currentBoard), jiraLink: currentBoard.jiraLink, ...content });
+      message.success(t("copyLocal.done", { name: boardTitle(board), count: content.tasks.length }));
+      closeDialog?.();
+    } catch (error) {
+      showError(error);
+      setSaving(false);
+    }
+  };
 
   const handleConfirm = async (e) => {
     e.preventDefault();
@@ -120,6 +164,23 @@ const SettingDialog = ({ closeDialog }) => {
           </>
         )}
       </form>
+      {(isLocal || canCopy) && (
+        <Box data-slot="board-copy" sx={{ mt: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={isLocal ? <ExportIcon /> : <CopyIcon />}
+            onClick={isLocal ? handleExport : handleCopy}
+            disabled={saving}
+            sx={{ textTransform: 'none' }}
+          >
+            {t(isLocal ? "exportLocal.button" : "copyLocal.button")}
+          </Button>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+            {t(isLocal ? "exportLocal.hint" : "copyLocal.hint")}
+          </Typography>
+        </Box>
+      )}
       <DialogFooter>
         {currentBoard && (
           <Button color="error" onClick={handleDelete} disabled={saving} sx={{ textTransform: 'none', ml: -1, minWidth: 0 }}>

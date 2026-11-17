@@ -4,10 +4,11 @@
 //! | -------------------------------------------- | -------------------------------------- |
 //! | GET    /api/info                             | Server name and version                |
 //! | GET    /api/boards                           | List boards                            |
-//! | POST   /api/boards                           | Create a board                         |
+//! | POST   /api/boards                           | Create a board, optionally with tasks  |
 //! | GET    /api/boards/{board}                   | One board (columns, users)             |
 //! | PATCH  /api/boards/{board}                   | Rename; change columns, users          |
 //! | DELETE /api/boards/{board}                   | Move the board file to the trash       |
+//! | GET    /api/boards/{board}/export            | The whole board, to keep or copy       |
 //! | GET    /api/boards/{board}/tasks             | Tasks, optionally filtered             |
 //! | POST   /api/boards/{board}/tasks             | Create a task                          |
 //! | GET    /api/boards/{board}/tasks/{task}      | One task                               |
@@ -30,7 +31,7 @@ use std::path::Path as FsPath;
 use std::sync::{Arc, RwLock};
 
 use axum::body::{Body, Bytes};
-use axum::extract::{Path, Query, Request, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, Request, State};
 use axum::http::{header, HeaderValue, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -67,6 +68,7 @@ pub fn router(state: Shared) -> Router {
             "/boards/{board}",
             get(get_board).patch(update_board).delete(delete_board),
         )
+        .route("/boards/{board}/export", get(export_board))
         .route("/boards/{board}/tasks", get(list_tasks).post(create_task))
         .route(
             "/boards/{board}/tasks/{task}",
@@ -84,6 +86,8 @@ pub fn router(state: Shared) -> Router {
             ApiError::invalid("UNKNOWN_ENDPOINT", "No such API endpoint.")
                 .into_response_with(StatusCode::NOT_FOUND)
         })
+        // A board sent whole, with its tasks, can be large.
+        .layer(DefaultBodyLimit::max(64 * 1024 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), require_token));
 
     // Everything goes through POST; this server never opens a stream of its
@@ -241,6 +245,15 @@ async fn get_board(
 ) -> ApiResult<Json<BoardInfo>> {
     let board: Board = state.store.get_board(&board)?;
     Ok(Json(BoardInfo::from(&board)))
+}
+
+/// The whole board as it is kept: settings, tasks and deleted tasks. Sending
+/// it to `POST /api/boards` makes a new board with the same content.
+async fn export_board(
+    State(state): State<Shared>,
+    Path(board): Path<String>,
+) -> ApiResult<Json<Board>> {
+    state.store.get_board(&board).map(Json)
 }
 
 async fn update_board(

@@ -7,10 +7,37 @@ import { BOARD_FIELDS, boardTitle, useBoards } from '@/store/boards';
 import { t, useT } from '@/i18n';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import { cryptoAvailable, decryptText, encryptText, MIN_PASSWORD_LENGTH, UnsupportedFileError, WrongPasswordError } from '@/lib/crypto';
+import { localAvailable, localRequest } from '@/data/localApi';
 
 // Export file format. Bump the version if the shape changes.
 const FILE_APP = "saf-kanban"
 const FILE_VERSION = 1
+// A file with `kind: "board"` holds one local board whole (settings, tasks,
+// deleted tasks) instead of the settings of Google Sheet boards.
+const BOARD_KIND = "board"
+
+const today = () => new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
+
+const saveFile = (content, name) => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: "application/json" }))
+  const a = document.createElement("a")
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// Saves a local board as a file. Importing the file makes a new board with
+// the same content. Rejects with a DataError if the board can't be read.
+export const exportLocalBoard = async (board) => {
+  const content = await localRequest("GET", `/boards/${encodeURIComponent(board.id)}/export`)
+  // Characters Windows doesn't allow in file names.
+  const name = boardTitle(board).replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim().slice(0, 60) || "board"
+  saveFile(
+    { app: FILE_APP, kind: BOARD_KIND, version: FILE_VERSION, exportedAt: new Date().toISOString(), board: content },
+    `saf-kanban-board-${name}-${today()}.json`,
+  )
+}
 
 // With a password, the settings JSON is encrypted and the file keeps only what
 // import needs to recognize it: { app, version, encryption, data }.
@@ -29,13 +56,7 @@ const exportBoards = async (boards, password) => {
     ? { app: FILE_APP, version: FILE_VERSION, ...(await encryptText(JSON.stringify(settings), password)) }
     : settings
 
-  const date = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-  const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }))
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `saf-kanban-settings-${date}${password ? "-encrypted" : ""}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  saveFile(file, `saf-kanban-settings-${today()}${password ? "-encrypted" : ""}.json`)
 }
 
 // Returns a function that opens the export dialog, where boards can be unchecked.
@@ -191,8 +212,9 @@ const ExportDialog = ({ closeDialog }) => {
   )
 }
 
-// Returns { boards } for a plain file, or { locked } for a password-protected
-// one, whose decrypted contents go through here again.
+// Returns { boards } for a plain settings file, { locked } for a
+// password-protected one, whose decrypted contents go through here again, or
+// { localBoard } for a file holding one local board.
 const readImportFile = (text) => {
   let data
   try {
@@ -209,6 +231,11 @@ const readImportFile = (text) => {
   if (data.encryption) {
     if (typeof data.data !== "string") throw new Error(t("transfer.error.format"))
     return { locked: data }
+  }
+  if (data.kind === BOARD_KIND) {
+    const board = data.board
+    if (!board || typeof board !== "object" || !Array.isArray(board.tasks)) throw new Error(t("transfer.error.format"))
+    return { localBoard: board }
   }
   if (!Array.isArray(data.boards)) {
     throw new Error(t("transfer.error.format"))
@@ -233,6 +260,7 @@ const pickFile = () => new Promise((resolve) => {
 // Returns a function that asks for a file and opens the import dialog.
 export function useStartImport() {
   const { setDialog } = useDialogStore()
+  const { addBoard } = useBoards()
 
   return React.useCallback(async () => {
     const file = await pickFile()
@@ -241,6 +269,19 @@ export function useStartImport() {
       result = readImportFile(await file.text())
     } catch (err) {
       message.error(err.message)
+      return
+    }
+    // A local board's file becomes a new local board right away; a name
+    // already in use gets a number, like any new board.
+    if (result.localBoard) {
+      if (!localAvailable()) return message.error(t("transfer.error.desktopOnly"), 8)
+      const { title, issueLink, columns, users, tasks, history } = result.localBoard
+      try {
+        const board = await addBoard({ type: "local", title, jiraLink: issueLink, columns, users, tasks, history })
+        message.success(t("transfer.boardImported", { name: boardTitle(board) }))
+      } catch (error) {
+        message.error(error?.userMessage || t("common.apiError"), 8)
+      }
       return
     }
     const showBoards = (incoming) => setDialog({
@@ -260,7 +301,7 @@ export function useStartImport() {
       persistent: true,
       content: <UnlockDialog locked={result.locked} onUnlocked={showBoards} />,
     })
-  }, [setDialog])
+  }, [setDialog, addBoard])
 }
 
 const UnlockDialog = ({ locked, onUnlocked }) => {

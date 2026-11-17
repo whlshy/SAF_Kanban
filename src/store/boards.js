@@ -179,7 +179,8 @@ export function useBoards() {
   }, [setSearchParams])
 
   // A Google Sheet board is added right away. A local board (fields.type
-  // "local", optionally with `columns`) is created by the local server: the
+  // "local", optionally with `columns`, `users`, and the `tasks` and `history`
+  // of a board being copied or imported) is created by the local server: the
   // result is a promise, which rejects with a DataError if that fails.
   const addBoard = useCallback((fields) => {
     const title = (id) => uniqueBoardTitle(fields.title, boards, boardPlaceholderTitle({ id }))
@@ -189,6 +190,9 @@ export function useBoards() {
         title: title(),
         issueLink: fields.jiraLink || "",
         columns: fields.columns,
+        users: fields.users,
+        tasks: fields.tasks,
+        history: fields.history,
       }).then(async (info) => {
         await reloadLocalBoards()
         switchBoard(info.id)

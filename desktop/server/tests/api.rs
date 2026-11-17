@@ -296,6 +296,89 @@ async fn tasks_can_be_created_edited_and_deleted() {
 }
 
 #[tokio::test]
+async fn a_board_can_be_exported_and_made_again_from_the_export() {
+    let app = app();
+    let board = app.board().await;
+    app.call(
+        Method::PATCH,
+        &format!("/api/boards/{board}"),
+        json!({ "title": "Work", "users": ["Amy"] }),
+    )
+    .await;
+    let first = app
+        .task(
+            &board,
+            json!({ "title": "First", "column": "Doing", "assignee": "Amy" }),
+        )
+        .await;
+    let gone = app.task(&board, json!({ "title": "Gone" })).await;
+    app.task(&board, json!({ "title": "Second" })).await;
+    app.call(
+        Method::DELETE,
+        &format!("/api/boards/{board}/tasks/{}", gone["id"].as_str().unwrap()),
+        Value::Null,
+    )
+    .await;
+
+    let exported = app.get(&format!("/api/boards/{board}/export")).await;
+    assert_eq!(exported["title"], "Work");
+    assert_eq!(exported["tasks"].as_array().unwrap().len(), 2);
+    assert_eq!(exported["history"].as_array().unwrap().len(), 1);
+
+    let (status, copy) = app
+        .call(Method::POST, "/api/boards", exported.clone())
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_ne!(copy["id"], exported["id"]);
+    assert_eq!(copy["taskCount"], 2);
+    let copy = app
+        .get(&format!(
+            "/api/boards/{}/export",
+            copy["id"].as_str().unwrap()
+        ))
+        .await;
+    // Same content, tasks with their ids and times, in a board of its own.
+    assert_eq!(copy["tasks"], exported["tasks"]);
+    assert_eq!(copy["history"], exported["history"]);
+    assert_eq!(copy["columns"], exported["columns"]);
+    assert_eq!(copy["users"], exported["users"]);
+    assert_eq!(copy["tasks"][0]["id"], first["id"]);
+
+    // Tasks from somewhere else: columns come from the tasks, ids that can't
+    // be kept are replaced, and what is missing is filled in.
+    let (_, copied) = app
+        .call(
+            Method::POST,
+            "/api/boards",
+            json!({
+                "title": "From a sheet",
+                "columns": ["Todo"],
+                "tasks": [
+                    { "id": "a", "title": "One", "column": "Todo" },
+                    { "id": "a", "title": "Two", "column": " Review " },
+                    { "id": "not an id!", "title": "Three" },
+                ],
+            }),
+        )
+        .await;
+    assert_eq!(copied["columns"], json!(["Todo", "Review"]));
+    let tasks = app
+        .get(&format!(
+            "/api/boards/{}/tasks",
+            copied["id"].as_str().unwrap()
+        ))
+        .await;
+    let tasks = tasks.as_array().unwrap();
+    assert_eq!(tasks.len(), 3);
+    assert_eq!(tasks[0]["id"], "a");
+    assert_ne!(tasks[1]["id"], "a");
+    assert_eq!(tasks[1]["column"], "Review");
+    assert_eq!(tasks[2]["column"], "Todo");
+    assert_eq!(tasks[2]["priority"], "medium");
+    assert!(!tasks[2]["createdAt"].as_str().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn moving_puts_a_task_next_to_a_neighbour() {
     let app = app();
     let board = app.board().await;

@@ -414,6 +414,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 issue_link: String::new(),
                 columns: arguments.names("columns")?,
                 users: arguments.names("users")?.unwrap_or_default(),
+                ..NewBoard::default()
             };
             json!(store.create_board(input).map_err(failed)?)
         }
