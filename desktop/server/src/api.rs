@@ -17,15 +17,19 @@
 //! | DELETE /api/boards/{board}/tasks/{task}      | Delete (kept in the history)           |
 //! | GET    /api/boards/{board}/history           | Deleted tasks, newest first            |
 //! | GET    /api/events                           | Server-sent events, one per change     |
+//! | GET    /api/connection                       | Addresses and paths for connecting     |
+//! | POST   /api/token                            | Replace the API token                  |
+//! | POST   /mcp                                  | Model Context Protocol (see `mcp`)     |
 //!
-//! Every `/api` request needs `Authorization: Bearer <token>`; `/api/events`
-//! also takes `?token=`, because browsers can't set headers on an EventSource.
+//! Every request to `/api` and `/mcp` needs `Authorization: Bearer <token>`;
+//! `/api/events` also takes `?token=`, because browsers can't set headers on
+//! an EventSource.
 
 use std::convert::Infallible;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::{Path, Query, Request, State};
 use axum::http::{header, HeaderValue, StatusCode, Uri};
 use axum::middleware::{self, Next};
@@ -39,12 +43,14 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 
 use crate::error::{ApiError, ApiResult};
+use crate::mcp;
 use crate::model::{Board, BoardInfo, DeletedTask, Task};
 use crate::store::{BoardPatch, MoveInput, NewBoard, Store, TaskInput, TaskQuery};
 
 pub struct AppState {
     pub store: Store,
-    pub token: String,
+    /// Replaced when the user asks for a new token.
+    pub token: RwLock<String>,
     /// The port the server listens on, to recognise requests meant for it.
     pub port: u16,
     /// Folder with the built web UI, if it should be served.
@@ -72,14 +78,23 @@ pub fn router(state: Shared) -> Router {
         .route("/boards/{board}/tasks/{task}/move", post(move_task))
         .route("/boards/{board}/history", get(history))
         .route("/events", get(events))
+        .route("/connection", get(connection))
+        .route("/token", post(new_token))
         .fallback(|| async {
             ApiError::invalid("UNKNOWN_ENDPOINT", "No such API endpoint.")
                 .into_response_with(StatusCode::NOT_FOUND)
         })
         .layer(middleware::from_fn_with_state(state.clone(), require_token));
 
+    // Everything goes through POST; this server never opens a stream of its
+    // own, which the protocol lets it say with 405.
+    let mcp = Router::new()
+        .route("/mcp", post(mcp_message))
+        .layer(middleware::from_fn_with_state(state.clone(), require_token));
+
     Router::new()
         .nest("/api", api)
+        .merge(mcp)
         .fallback(serve_ui)
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -114,6 +129,17 @@ async fn require_local_host(State(state): State<Shared>, request: Request, next:
     if !allowed.iter().any(|name| name == host) {
         return ApiError::forbidden_host().into_response();
     }
+    // A browser names the page a request comes from; only this server's own
+    // pages may call it. Programs that aren't browsers send no Origin.
+    if let Some(origin) = request.headers().get(header::ORIGIN) {
+        let origin = origin.to_str().unwrap_or("");
+        if !allowed
+            .iter()
+            .any(|name| origin == format!("http://{name}"))
+        {
+            return ApiError::forbidden_host().into_response();
+        }
+    }
     next.run(request).await
 }
 
@@ -136,17 +162,67 @@ async fn require_token(State(state): State<Shared>, request: Request, next: Next
     } else {
         None
     };
-    if bearer.or(in_query).as_deref() != Some(state.token.as_str()) {
+    if bearer.or(in_query) != Some(current_token(&state)) {
         return ApiError::unauthorized().into_response();
     }
     next.run(request).await
 }
 
-// ---- boards ----
+fn current_token(state: &AppState) -> String {
+    state
+        .token
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
+
+// ---- server ----
 
 async fn info() -> Json<Value> {
     Json(json!({ "app": "saf-kanban", "version": env!("CARGO_PKG_VERSION"), "api": 1 }))
 }
+
+/// What a person needs to connect another program: shown in the UI's
+/// "AI / API" dialog.
+async fn connection(State(state): State<Shared>) -> Json<Value> {
+    let base = format!("http://127.0.0.1:{}", state.port);
+    Json(json!({
+        "apiUrl": format!("{base}/api"),
+        "mcpUrl": format!("{base}/mcp"),
+        "dataDir": state.store.dir(),
+        // For apps that start an MCP server as a program: `<executable> mcp`.
+        "executable": std::env::current_exe().ok(),
+    }))
+}
+
+/// Replaces the API token. Every program using the old one has to be given
+/// the new one, which is in the answer.
+async fn new_token(State(state): State<Shared>) -> ApiResult<Json<Value>> {
+    let token = crate::replace_token(state.store.dir()).map_err(ApiError::storage)?;
+    *state
+        .token
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = token.clone();
+    Ok(Json(json!({ "token": token })))
+}
+
+/// One MCP message (or batch) in; its answer out, or 202 when there is none.
+async fn mcp_message(State(state): State<Shared>, body: Bytes) -> Response {
+    let Ok(message) = serde_json::from_slice::<Value>(&body) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(mcp::error(&Value::Null, -32700, "Parse error")),
+        )
+            .into_response();
+    };
+    let call_tool = |name: &str, arguments: &Value| mcp::call_tool(&state.store, name, arguments);
+    match mcp::handle(&message, &call_tool) {
+        Some(answer) => Json(answer).into_response(),
+        None => StatusCode::ACCEPTED.into_response(),
+    }
+}
+
+// ---- boards ----
 
 async fn list_boards(State(state): State<Shared>) -> ApiResult<Json<Vec<BoardInfo>>> {
     state.store.list_boards().map(Json)
@@ -320,8 +396,7 @@ async fn serve_ui(State(state): State<Shared>, uri: Uri) -> Response {
 
     match std::fs::read_to_string(ui_dir.join("index.html")) {
         Ok(page) => {
-            let settings =
-                json!({ "token": state.token, "serverVersion": env!("CARGO_PKG_VERSION") });
+            let settings = json!({ "token": current_token(&state), "serverVersion": env!("CARGO_PKG_VERSION") });
             let script = format!("<script>window.__SAF_KANBAN_LOCAL__={settings};</script></head>");
             (
                 [

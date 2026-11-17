@@ -1,6 +1,6 @@
 import React from 'react'
 import { AppBar, Badge, Box, Toolbar, Typography, Button, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon, SmartToyOutlined as ConnectionIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { EMPTY_FILTER, isFilterActive } from '@/lib/filter';
 import { filterAtom } from '@/store/filter';
@@ -16,7 +16,9 @@ import { useStartExport, useStartImport } from './BoardTransfer';
 import Logo from './Logo';
 import { PHONE_QUERY } from '@/lib/usePhone';
 import { useOpenSettings } from './SettingDialog'
-import { useOpenNewBoard } from './NewBoardDialog';
+import { useOpenNewBoard } from './NewBoardDialog'
+import { useOpenConnection } from './ConnectionDialog'
+import { localAvailable } from '@/data/localApi';
 
 function index() {
   const { boards, currentBoard, switchBoard } = useBoards();
@@ -27,6 +29,7 @@ function index() {
   const startImport = useStartImport();
   const openSettings = useOpenSettings();
   const openNewBoard = useOpenNewBoard();
+  const openConnection = useOpenConnection();
   const [lang] = useAtom(langAtom);
   const t = useT();
   const { isDark, toggleTheme } = useTheme();
@@ -195,6 +198,12 @@ function index() {
               sx={iconSx}
             >
               <HistoryIcon fontSize="small" />
+            </IconButton>
+          )}
+          {/* Desktop app only: how AI agents and other programs connect. */}
+          {localAvailable() && (
+            <IconButton color="inherit" size="small" onClick={openConnection} aria-label={t("connection.title")} title={t("connection.title")} sx={iconSx}>
+              <ConnectionIcon fontSize="small" />
             </IconButton>
           )}
           <IconButton color="inherit" size="small" onClick={openSettings} aria-label={t("settings.title")} title={t("settings.title")} sx={iconSx}>

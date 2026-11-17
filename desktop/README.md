@@ -5,7 +5,7 @@
 目前進度：
 
 - [x] 本機伺服器（[`server/`](server/)，Rust）：看板檔案、HTTP API、提供看板畫面
-- [ ] MCP 介面與設定頁的「AI / API」區塊
+- [x] MCP 介面，讓 AI agent 直接操作看板；畫面右上角的「AI / API 連線」
 - [ ] Windows 安裝檔（Tauri）
 - [ ] 把 Google Sheet 看板複製成本機看板、備份
 
@@ -23,6 +23,7 @@ npm run local
 ```text
 SAF Kanban local server
   Address:   http://127.0.0.1:41952
+  MCP:       http://127.0.0.1:41952/mcp
   API token: <權杖>
   Data:      <資料夾>
 ```
@@ -38,6 +39,7 @@ SAF Kanban local server
 | `boards/<看板 ID>.json` | 一個看板一個檔案：欄位、負責人、任務、已刪除的任務 |
 | `trash/` | 刪除的看板檔案會移到這裡，不會直接消失 |
 | `config.json` | API 權杖 |
+| `server.json` | 伺服器目前使用的連接埠，給 `mcp` 橋接模式找到它 |
 
 - 備份就是複製整個資料夾。
 - 伺服器每次都重新讀檔，所以還原備份、或其他程式改了檔案，不用重新啟動。
@@ -48,7 +50,58 @@ SAF Kanban local server
 - 只接受這台電腦的連線（`127.0.0.1`）。
 - 每個 API 請求都要帶權杖：`Authorization: Bearer <權杖>`。
 - 請求的 Host 必須是 `127.0.0.1` 或 `localhost`，擋掉其他網站把自己的網域指到本機的手法（DNS rebinding）。
-- 權杖等同看板的讀寫權限，不要貼到公開的地方。
+- 瀏覽器從其他網站的頁面發出的請求（帶有別人的 Origin）一律拒絕。
+- 權杖等同看板的讀寫權限，不要貼到公開的地方。外洩時可以在「AI / API 連線」按「重新產生權杖」，舊的會立刻失效。
+
+## 讓 AI agent 使用（MCP）
+
+伺服器內建 [MCP](https://modelcontextprotocol.io) 介面，AI agent 接上後可以直接查看和操作看板。畫面右上角的機器人圖示（AI / API 連線）會顯示位址、權杖和可以直接複製的設定。
+
+連線方式有兩種：
+
+| 方式 | 適用 | 設定 |
+| --- | --- | --- |
+| 網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 位址 `http://127.0.0.1:41952/mcp`，標頭 `Authorization: Bearer <權杖>` |
+| 啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 指令 `saf-kanban-server mcp`，不用填權杖 |
+
+Claude Code：
+
+```bash
+claude mcp add --transport http saf-kanban http://127.0.0.1:41952/mcp --header "Authorization: Bearer <權杖>"
+```
+
+Claude Desktop 的設定檔：
+
+```json
+{
+  "mcpServers": {
+    "saf-kanban": { "command": "<saf-kanban-server 的完整路徑>", "args": ["mcp"] }
+  }
+}
+```
+
+- `mcp` 模式本身不讀寫看板檔案，而是把工具呼叫轉給正在執行的伺服器，所以 SAF Kanban 要保持開啟。沒開的時候 AI 還是連得上，只是呼叫工具會得到「SAF Kanban 沒有在執行」的說明。
+- 它自己從資料夾讀權杖和連接埠；資料夾不是預設位置時加上 `--data-dir <資料夾>`。
+
+AI 可以用的工具：
+
+| 工具 | 功能 |
+| --- | --- |
+| `list_boards` | 列出看板 |
+| `get_board` | 一個看板的欄位（依序）和每個欄位裡的任務 |
+| `list_tasks` | 列出任務，可依欄位、負責人、優先順序、關鍵字篩選 |
+| `get_task` | 一個任務的完整內容 |
+| `create_task` | 新增任務 |
+| `update_task` | 修改任務的標題、描述、優先順序、負責人、Issue ID |
+| `move_task` | 把任務移到某個欄位，可指定放在哪個任務前面或後面 |
+| `delete_task` | 刪除任務（會留在已刪除的任務裡） |
+| `list_deleted_tasks` | 已刪除的任務 |
+| `create_board` | 建立看板 |
+| `update_board` | 改看板名稱、欄位、負責人 |
+
+- 沒有刪除看板的工具，刪除看板只能在畫面上做。
+- 工具裡任務的描述叫 `description`（HTTP API 裡是 `des`）。
+- AI 做的變更會即時出現在看板畫面上。
 
 ## API
 
@@ -71,6 +124,8 @@ SAF Kanban local server
 | `DELETE /boards/{看板}/tasks/{任務}` | 刪除（會留在已刪除的任務裡） |
 | `GET /boards/{看板}/history` | 已刪除的任務，由新到舊 |
 | `GET /events` | 有變更時通知（Server-Sent Events） |
+| `GET /connection` | 連線資訊：API 與 MCP 位址、資料夾、執行檔路徑 |
+| `POST /token` | 重新產生權杖，回傳新的權杖 |
 
 ### 任務
 

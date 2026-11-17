@@ -1,15 +1,18 @@
 //! SAF Kanban's local server: keeps boards as files on this computer and
 //! serves them, over HTTP on 127.0.0.1 only, to the web UI and to other
-//! programs such as AI agents. See `api` for the endpoints.
+//! programs such as AI agents. See `api` for the HTTP endpoints and `mcp` for
+//! the tools AI agents get.
 
 pub mod api;
+pub mod bridge;
 pub mod error;
+pub mod mcp;
 pub mod model;
 pub mod store;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
@@ -33,23 +36,59 @@ struct Config {
     token: String,
 }
 
+fn new_token() -> String {
+    format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    )
+}
+
+fn save_token(data_dir: &Path, token: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all(data_dir)?;
+    let config = Config {
+        token: token.to_string(),
+    };
+    std::fs::write(
+        data_dir.join("config.json"),
+        serde_json::to_string_pretty(&config)?,
+    )
+}
+
 /// Reads the API token, creating one on first run.
 pub fn load_token(data_dir: &Path) -> std::io::Result<String> {
-    std::fs::create_dir_all(data_dir)?;
-    let path = data_dir.join("config.json");
-    let mut config: Config = std::fs::read_to_string(&path)
+    let saved: Config = std::fs::read_to_string(data_dir.join("config.json"))
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
         .unwrap_or_default();
-    if config.token.len() < 32 {
-        config.token = format!(
-            "{}{}",
-            uuid::Uuid::new_v4().simple(),
-            uuid::Uuid::new_v4().simple()
-        );
-        std::fs::write(&path, serde_json::to_string_pretty(&config)?)?;
+    if saved.token.len() >= 32 {
+        return Ok(saved.token);
     }
-    Ok(config.token)
+    let token = new_token();
+    save_token(data_dir, &token)?;
+    Ok(token)
+}
+
+/// Replaces the API token; the old one stops working.
+pub fn replace_token(data_dir: &Path) -> std::io::Result<String> {
+    let token = new_token();
+    save_token(data_dir, &token)?;
+    Ok(token)
+}
+
+/// `<data dir>/server.json`: where the running server listens, for the stdio
+/// bridge (`bridge.rs`) to find it.
+#[derive(Serialize, Deserialize)]
+struct Running {
+    port: u16,
+}
+
+/// The port of the server last started on this data folder.
+pub fn read_port(data_dir: &Path) -> u16 {
+    std::fs::read_to_string(data_dir.join("server.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Running>(&text).ok())
+        .map_or(DEFAULT_PORT, |running| running.port)
 }
 
 pub struct Server {
@@ -66,9 +105,16 @@ impl Server {
         let store = store::Store::open(&options.data_dir)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, options.port)).await?;
         let address = listener.local_addr()?;
+        let running = Running {
+            port: address.port(),
+        };
+        std::fs::write(
+            options.data_dir.join("server.json"),
+            serde_json::to_string(&running)?,
+        )?;
         let state = Arc::new(api::AppState {
             store,
-            token: token.clone(),
+            token: RwLock::new(token.clone()),
             port: address.port(),
             ui_dir: options.ui_dir,
         });

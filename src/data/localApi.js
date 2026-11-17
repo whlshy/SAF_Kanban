@@ -7,6 +7,8 @@ const settings = () => globalThis.__SAF_KANBAN_LOCAL__ || null
 
 export const localAvailable = () => !!settings()?.token
 
+export const localToken = () => settings()?.token || ""
+
 // Error codes with a translated message; anything else shows the server's own text.
 const KNOWN_CODES = [
   "BOARD_NOT_FOUND",
@@ -54,19 +56,31 @@ export async function localRequest(method, path, body) {
 let stream = null
 const listeners = new Set()
 
+const openStream = () => {
+  stream = new EventSource(`/api/events?token=${encodeURIComponent(localToken())}`)
+  stream.addEventListener("change", (event) => {
+    let change
+    try {
+      change = JSON.parse(event.data)
+    } catch {
+      return
+    }
+    listeners.forEach((each) => each(change))
+  })
+}
+
 export function onLocalChange(listener) {
-  if (!stream && localAvailable()) {
-    stream = new EventSource(`/api/events?token=${encodeURIComponent(settings().token)}`)
-    stream.addEventListener("change", (event) => {
-      let change
-      try {
-        change = JSON.parse(event.data)
-      } catch {
-        return
-      }
-      listeners.forEach((each) => each(change))
-    })
-  }
+  if (!stream && localAvailable()) openStream()
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+// After the token was replaced: requests use the new one from now on, and the
+// event stream (which signed in with the old one) is opened again.
+export function setLocalToken(token) {
+  globalThis.__SAF_KANBAN_LOCAL__ = { ...settings(), token }
+  if (stream) {
+    stream.close()
+    openStream()
+  }
 }
