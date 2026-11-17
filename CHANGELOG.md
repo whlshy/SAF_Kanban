@@ -11,6 +11,23 @@
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
 
+## 1.17.0 — 2026-11-17
+
+### 新增
+
+- Windows 桌面版 0.1.0：到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載安裝。看板存成自己電腦上的檔案，不需要 Google Sheet 和網路；也能照常連接 Google Sheet 看板。說明見[桌面版](desktop/README.md)。
+  - 存在電腦上的看板，欄位和負責人直接在「設定」裡編輯，拖曳調整順序。
+  - 可以把整個看板（含任務和已刪除的任務）匯出成檔案再匯入；Google Sheet 看板可以複製成存在電腦上的看板。
+  - 關閉視窗後會留在通知區域，可以設定開機時自動啟動。
+- 讓 AI agent 操作桌面版的看板：
+  - Skill 加命令列：Claude Code、Codex、Gemini CLI、GitHub Copilot、Cursor 等 AI 工具都能用，SAF Kanban 不用開著，也不需要權杖。在「AI / API 連線」按一下就能安裝 skill。
+  - MCP 和 HTTP API：給可以設定 MCP 或自己寫程式的工具。
+  - AI 做的修改會在一秒內出現在畫面上。
+
+### 變更
+
+- 網站使用上沒有差別。匯入桌面版匯出的看板檔時，會說明這種檔案只能在桌面版匯入。
+
 ## 1.16.0 — 2026-11-16
 
 ### 新增

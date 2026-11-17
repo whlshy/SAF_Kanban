@@ -10,6 +10,12 @@ SAF Kanban is a personal kanban board that stores its data in Google Sheets. The
 
 See the [changelog](CHANGELOG.en.md) for what changed in each release.
 
+## Desktop app (Windows)
+
+If you'd rather not use Google Sheets, or want AI agents to help manage your boards, install the desktop app: boards are files on your own computer and need no network, and Google Sheet boards still work. AI tools such as Claude Code, Codex and Gemini CLI can work on the boards through the bundled skill and command line, without SAF Kanban being open.
+
+Download `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it. The installer isn't signed: when Windows warns you, choose "More info", then "Run anyway". How to use it and connect AI tools is in the [desktop app's guide](desktop/README.md) (Traditional Chinese).
+
 ## Features
 
 - Create, edit and delete tasks
@@ -26,6 +32,7 @@ See the [changelog](CHANGELOG.en.md) for what changed in each release.
 - Search and filter the board's tasks by keyword, assignee and priority
 - Can be installed as an app; it opens without a connection and shows what was loaded last time
 - All data stays in your own Google Sheet
+- Desktop app for Windows: boards kept on your own computer, and AI agents can work on them (see [Desktop app](#desktop-app-windows))
 
 ## Quick setup (recommended)
 
@@ -330,11 +337,12 @@ npm test         # unit tests (Node's built-in test runner)
 npm run build    # build into dist/
 ```
 
-The local server of the desktop app (in development) is in [`desktop/`](desktop/README.md), written in Rust:
+The desktop app is in [`desktop/`](desktop/README.md), written in Rust (Tauri):
 
 ```bash
 npm run local        # build the desktop UI and start the local server
-npm run test:server  # the server's tests
+npm run test:server  # tests of the server and the command line
+npm run build:app    # the desktop app and its installer (the Windows installer is built by GitHub Actions)
 ```
 
 On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. The build isn't committed; the repository's Settings → Pages → Source has to be "GitHub Actions".
