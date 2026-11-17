@@ -52,7 +52,7 @@ SAF Kanban local server
 
 桌面版程式（`saf-kanban`）的畫面檔案已經包在程式裡，可以加的參數是 `--port`、`--data-dir` 和 `--hidden`（啟動時不顯示視窗）。
 
-安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時改 [`Cargo.toml`](Cargo.toml) 的版本，再推一個 `desktop-v<版本>` 的標籤，就會建立附上安裝檔的 Release。
+安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時，先改 [`Cargo.toml`](Cargo.toml) 的版本並合併到 `main`，再到 GitHub 的 Actions →「Desktop app」→「Run workflow」，選 `main` 並勾選「Publish a release」；也可以推一個 `desktop-v<版本>` 的標籤。兩種方式都會建立附上安裝檔的 Release（版本已經發布過的話會失敗，不會覆蓋）。
 
 ## 資料
 
