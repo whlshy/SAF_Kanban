@@ -1,0 +1,316 @@
+//! SAF Kanban for the desktop: the local server (`saf-kanban-server`) and a
+//! window showing its web UI, in one program.
+//!
+//!   saf-kanban [--hidden] [--data-dir DIR] [--port PORT]
+//!   saf-kanban mcp [--data-dir DIR]
+//!
+//! Closing the window keeps the program running in the notification area, so
+//! AI agents and other programs can go on using the boards; "Quit" in its menu
+//! there stops it. `mcp` is for AI apps that start an MCP server as a program
+//! (see `saf_kanban_server::bridge`): it opens no window.
+
+// No console window on Windows. Its standard input and output still work when
+// another program starts it with pipes, which is how `mcp` is used.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use saf_kanban_server::{bridge, default_data_dir, Options, Server, UiFiles, DEFAULT_PORT};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::webview::NewWindowResponse;
+use tauri::{App, AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_autostart::ManagerExt;
+
+const WINDOW: &str = "main";
+/// Given when the program is started at sign-in: no window until asked for.
+const HIDDEN: &str = "--hidden";
+
+struct Args {
+    mcp: bool,
+    hidden: bool,
+    data_dir: PathBuf,
+    /// `None`: the usual port, or any free one when that is taken.
+    port: Option<u16>,
+}
+
+fn args() -> Args {
+    let mut parsed = Args {
+        mcp: false,
+        hidden: false,
+        data_dir: default_data_dir(),
+        port: None,
+    };
+    let mut args = std::env::args().skip(1).peekable();
+    if args.peek().map(String::as_str) == Some("mcp") {
+        parsed.mcp = true;
+        args.next();
+    }
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            HIDDEN => parsed.hidden = true,
+            "--data-dir" => {
+                if let Some(dir) = args.next() {
+                    parsed.data_dir = PathBuf::from(dir);
+                }
+            }
+            "--port" => parsed.port = args.next().and_then(|port| port.parse().ok()),
+            // There is nowhere to complain to; anything else is ignored.
+            _ => {}
+        }
+    }
+    parsed
+}
+
+/// The few words shown outside the web UI, in the system's language.
+struct Text {
+    open: &'static str,
+    autostart: &'static str,
+    quit: &'static str,
+    failed: &'static str,
+}
+
+fn text() -> Text {
+    let chinese = sys_locale::get_locale().is_some_and(|locale| locale.starts_with("zh"));
+    if chinese {
+        Text {
+            open: "開啟 SAF Kanban",
+            autostart: "開機時自動啟動",
+            quit: "結束",
+            failed: "SAF Kanban 無法啟動",
+        }
+    } else {
+        Text {
+            open: "Open SAF Kanban",
+            autostart: "Start when I sign in",
+            quit: "Quit",
+            failed: "SAF Kanban couldn't start",
+        }
+    }
+}
+
+/// The web UI built into this program.
+fn built_in_ui(app: &AppHandle) -> UiFiles {
+    let resolver = app.asset_resolver();
+    // Asking the resolver for a file it doesn't have gets the start page
+    // instead, so the files that exist are listed first.
+    let files: HashSet<String> = resolver
+        .iter()
+        .map(|(path, _)| path.trim_start_matches('/').to_string())
+        .collect();
+    let app = app.clone();
+    Arc::new(move |path| {
+        if !files.contains(path) {
+            return None;
+        }
+        app.asset_resolver()
+            .get_for_scheme(format!("/{path}"), false)
+            .map(|asset| asset.bytes)
+    })
+}
+
+async fn start_server(args: &Args, ui: UiFiles) -> std::io::Result<Server> {
+    let options = |port| Options {
+        data_dir: args.data_dir.clone(),
+        port,
+        ui: Some(ui.clone()),
+    };
+    if let Some(port) = args.port {
+        return Server::bind(options(port)).await;
+    }
+    match Server::bind(options(DEFAULT_PORT)).await {
+        // Another program has the usual port. Programs that start `mcp` still
+        // find the server; ones given its address need the new one.
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+            Server::bind(options(0)).await
+        }
+        result => result,
+    }
+}
+
+fn show_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(WINDOW) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Whether an address is this program's own web UI.
+fn is_ui(url: &Url, port: u16) -> bool {
+    url.scheme() == "http"
+        && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
+        && url.port_or_known_default() == Some(port)
+}
+
+/// Links to other sites open in the person's browser. Board contents can be
+/// written by other programs, so only web and mail addresses are passed on.
+fn open_outside(url: &Url) {
+    if matches!(url.scheme(), "http" | "https" | "mailto") {
+        let _ = open::that_detached(url.as_str());
+    }
+}
+
+fn open_ui(app: &App, port: u16, hidden: bool) -> tauri::Result<()> {
+    let url: Url = format!("http://127.0.0.1:{port}/")
+        .parse()
+        .expect("a valid address");
+    WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(url))
+        .title("SAF Kanban")
+        .inner_size(1280.0, 800.0)
+        .min_inner_size(360.0, 480.0)
+        .visible(!hidden)
+        .on_navigation(move |url| {
+            // `blob:` is a file the UI made for saving, such as exported boards.
+            if is_ui(url, port) || matches!(url.scheme(), "blob" | "about") {
+                return true;
+            }
+            open_outside(url);
+            false
+        })
+        .on_new_window(|url, _| {
+            open_outside(&url);
+            NewWindowResponse::Deny
+        })
+        .build()?;
+    Ok(())
+}
+
+/// Shown in place of the UI when the server can't start, for instance when
+/// the data folder can't be written to.
+fn open_failure(app: &App, error: &std::io::Error) -> tauri::Result<()> {
+    let message: String = format!("{}: {error}", text().failed)
+        .chars()
+        .map(|character| match character {
+            '<' | '>' | '&' | '#' | '%' => ' ',
+            other => other,
+        })
+        .collect();
+    let page = format!(
+        "data:text/html;charset=utf-8,<body style='font:16px sans-serif;margin:2em'>{message}"
+    );
+    let url: Url = page
+        .parse()
+        .unwrap_or_else(|_| "about:blank".parse().expect("a valid address"));
+    WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(url))
+        .title("SAF Kanban")
+        .inner_size(560.0, 240.0)
+        .build()?;
+    Ok(())
+}
+
+/// The icon in the notification area, with its menu.
+fn add_tray(app: &App) -> tauri::Result<()> {
+    let text = text();
+    let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
+
+    let open = MenuItem::with_id(app, "open", text.open, true, None::<&str>)?;
+    let autostart = CheckMenuItem::with_id(
+        app,
+        "autostart",
+        text.autostart,
+        true,
+        autostart_on,
+        None::<&str>,
+    )?;
+    let quit = MenuItem::with_id(app, "quit", text.quit, true, None::<&str>)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &autostart,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
+
+    let mut tray = TrayIconBuilder::with_id("main")
+        .tooltip("SAF Kanban")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(move |app, event| match event.id().as_ref() {
+            "open" => show_window(app),
+            "autostart" => {
+                let manager = app.autolaunch();
+                let wanted = !manager.is_enabled().unwrap_or(false);
+                let _ = if wanted {
+                    manager.enable()
+                } else {
+                    manager.disable()
+                };
+                // Show what is actually set, whether or not that worked.
+                let _ = autostart.set_checked(manager.is_enabled().unwrap_or(false));
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
+/// Whether there is an icon in the notification area to bring the window back.
+struct InTray(bool);
+
+fn main() {
+    let args = args();
+    if args.mcp {
+        let _ = bridge::run(&args.data_dir);
+        return;
+    }
+
+    tauri::Builder::default()
+        // Starting the program again shows the window of the one running.
+        .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+            if !arguments.iter().any(|argument| argument == HIDDEN) {
+                show_window(app);
+            }
+        }))
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .arg(HIDDEN)
+                .app_name("SAF Kanban")
+                .build(),
+        )
+        .setup(move |app| {
+            let ui = built_in_ui(app.handle());
+            match tauri::async_runtime::block_on(start_server(&args, ui)) {
+                Ok(server) => {
+                    let port = server.address.port();
+                    tauri::async_runtime::spawn(server.run(std::future::pending()));
+                    open_ui(app, port, args.hidden)?;
+                    // Without the icon, closing the window has to quit.
+                    app.manage(InTray(add_tray(app).is_ok()));
+                }
+                Err(error) => {
+                    open_failure(app, &error)?;
+                    app.manage(InTray(false));
+                }
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.state::<InTray>().0 {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .run(tauri::generate_context!())
+        .expect("SAF Kanban couldn't start");
+}

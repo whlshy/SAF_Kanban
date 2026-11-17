@@ -16,8 +16,10 @@ import {
 import { atom, useAtom } from 'jotai';
 import { TEMPLATE_COPY_URL, useBoards } from '@/store/boards';
 import { t as translate, useT } from '@/i18n';
-import { Settings as SettingsIcon, FileUploadOutlined as ImportIcon, Refresh as RefreshIcon, CloudOffOutlined as OfflineIcon } from '@mui/icons-material';
+import { Add as AddIcon, Settings as SettingsIcon, FileUploadOutlined as ImportIcon, Refresh as RefreshIcon, CloudOffOutlined as OfflineIcon } from '@mui/icons-material';
 import { useOpenSettings } from '@/components/header/SettingDialog';
+import { useOpenNewBoard } from '@/components/header/NewBoardDialog';
+import { localAvailable } from '@/data/localApi';
 import { useStartImport } from '@/components/header/BoardTransfer';
 import { useBoardData, useBoardWrite } from '@/data/useBoardData';
 import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter';
@@ -32,10 +34,10 @@ const dialogAtom = atom({ open: false })
 export { dialogAtom }
 
 function Home() {
-  const { currentBoard } = useBoards();
+  const { currentBoard, loading } = useBoards();
   const { open } = useDialogStore();
   const t = useT();
-  const online = useOnline();
+  const connected = useOnline();
   const [filter, setFilter] = useAtom(filterAtom);
   // Typing in the search box stays smooth on a board with many tasks.
   const shownFilter = React.useDeferredValue(filter);
@@ -50,6 +52,9 @@ function Home() {
   useEffect(() => {
     setFilter({ open: false, ...EMPTY_FILTER });
   }, [boardId, setFilter]);
+
+  // A board on this computer works without a connection.
+  const online = connected || source?.needsNetwork === false;
 
   const notice = !source ? (
     <BoardNotice
@@ -83,7 +88,7 @@ function Home() {
         />
       )}
       <div className="min-h-0 flex-1">
-        {!currentBoard ? (
+        {loading ? null : !currentBoard ? (
           <EmptyBoards />
         ) : (
           <WHLKanban
@@ -129,20 +134,28 @@ function BoardNotice({ title, description, action }) {
 // Shown when there are no boards yet: set one up, or bring settings over from a file.
 function EmptyBoards() {
   const openSettings = useOpenSettings();
+  const openNewBoard = useOpenNewBoard();
   const startImport = useStartImport();
   const t = useT();
+  // In the desktop app the first board is normally one kept on this computer.
+  const local = localAvailable();
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
       <div className="flex flex-col gap-2">
         <h2 className="text-xl font-medium text-foreground">{t("board.empty.title")}</h2>
         <p className="text-sm text-muted-foreground">
-          {t("board.empty.description")}
+          {t(local ? "board.empty.description.local" : "board.empty.description")}
         </p>
       </div>
-      <div className="flex gap-3">
-        <MuiButton variant="contained" startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
-          {t("board.empty.settings")}
+      <div className="flex flex-wrap justify-center gap-3">
+        {local && (
+          <MuiButton variant="contained" startIcon={<AddIcon />} onClick={openNewBoard} sx={{ textTransform: 'none' }}>
+            {t("board.new")}
+          </MuiButton>
+        )}
+        <MuiButton variant={local ? "outlined" : "contained"} startIcon={<SettingsIcon />} onClick={openSettings} sx={{ textTransform: 'none' }}>
+          {t(local ? "board.empty.settings.sheet" : "board.empty.settings")}
         </MuiButton>
         <MuiButton variant="outlined" startIcon={<ImportIcon />} onClick={startImport} sx={{ textTransform: 'none' }}>
           {t("board.empty.import")}

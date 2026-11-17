@@ -11,6 +11,23 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.17.0 — 2026-11-17
+
+### Added
+
+- Desktop app for Windows, version 0.1.0: download it from [Releases](https://github.com/whlshy/SAF_Kanban/releases). Boards are files on your own computer and need neither Google Sheets nor a network; Google Sheet boards still work too. See the [desktop app's guide](desktop/README.md) (Traditional Chinese).
+  - For boards kept on the computer, columns and assignees are edited in Settings and reordered by dragging.
+  - A whole board (with its tasks and deleted tasks) can be exported to a file and imported again; a Google Sheet board can be copied into a board on the computer.
+  - Closing the window keeps it in the notification area, and it can start when you sign in.
+- AI agents can work on the desktop app's boards:
+  - A skill plus a command line, for Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor and other AI tools. SAF Kanban doesn't have to be open and no token is needed. The skill installs with one click in "AI / API".
+  - MCP and an HTTP API, for tools that take an MCP server or for your own programs.
+  - Changes made by AI show up in the window within a second.
+
+### Changed
+
+- Nothing changes in how the website is used. Importing a board file exported by the desktop app explains that such files can only be imported in the desktop app.
+
 ## 1.16.0 — 2026-11-16
 
 ### Added

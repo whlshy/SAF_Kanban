@@ -1,5 +1,5 @@
 import React from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createBoardSource } from './index'
 
 const EMPTY = []
@@ -10,10 +10,10 @@ const retry = (failureCount, error) => !error?.status && failureCount < 3
 
 // The data source of a board, rebuilt only when the settings it reads change.
 export function useBoardSource(board) {
-  const { type, sheetId, scriptId } = board || {}
+  const { id, type, sheetId, scriptId } = board || {}
   return React.useMemo(
-    () => createBoardSource(board && { type, sheetId, scriptId }),
-    [!!board, type, sheetId, scriptId]
+    () => createBoardSource(board && { id, type, sheetId, scriptId }),
+    [!!board, id, type, sheetId, scriptId]
   )
 }
 
@@ -30,6 +30,16 @@ export function useBoardData(board, { paused = false } = {}) {
   const columnsQuery = useQuery({ ...common, queryKey: queryKey("columns"), queryFn: () => source.loadColumns() })
   const tasksQuery = useQuery({ ...common, queryKey: queryKey("tasks"), queryFn: () => source.loadTasks(), refetchOnWindowFocus: true })
   const usersQuery = useQuery({ ...common, queryKey: queryKey("users"), queryFn: () => source.loadUsers() })
+
+  // Data that other programs can change (the local server's API) says when it
+  // did. While paused the queries are only marked out of date, and reload
+  // once they run again.
+  const queryClient = useQueryClient()
+  const boardId = board?.id
+  React.useEffect(
+    () => source?.subscribe?.(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] })),
+    [source, boardId, queryClient]
+  )
 
   return {
     source,

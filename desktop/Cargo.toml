@@ -1,0 +1,19 @@
+# The desktop app: a local server that stores boards on this computer and
+# offers them to the web UI and to other programs (server/), and the window
+# around it that gets installed (app/).
+[workspace]
+resolver = "2"
+members = ["server", "app"]
+# The app needs the web UI built first and, on Linux, system libraries; plain
+# `cargo test` and `cargo run` here are about the server.
+default-members = ["server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "ISC"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

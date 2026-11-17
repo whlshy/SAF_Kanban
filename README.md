@@ -10,6 +10,12 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 
 每次更新的內容請見[版本紀錄](CHANGELOG.md)。
 
+## 桌面版（Windows）
+
+不想用 Google Sheet，或想讓 AI agent 幫忙管理看板，可以安裝桌面版：看板存成自己電腦上的檔案，不需要網路；也能照常連接 Google Sheet 看板。Claude Code、Codex、Gemini CLI 等 AI 工具可以透過內附的 skill 和命令列直接操作看板，不必開著 SAF Kanban。
+
+到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載 `SAF-Kanban_<版本>_x64-setup.exe` 安裝。安裝檔沒有簽章，Windows 跳出警告時按「其他資訊」→「仍要執行」。使用方式與 AI 連線設定見[桌面版說明](desktop/README.md)。
+
 ## 功能
 
 - 建立、編輯與刪除 Task
@@ -26,6 +32,7 @@ SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需�
 - 依關鍵字、負責人、優先順序搜尋與篩選看板上的 Task
 - 可以安裝成應用程式；沒有網路時也能打開，查看上次載入的內容
 - 所有資料儲存在你自己的 Google Sheet
+- Windows 桌面版：看板存在自己的電腦，並可讓 AI agent 操作（見[桌面版](#桌面版windows)）
 
 ## 快速建立（推薦）
 
@@ -328,6 +335,14 @@ npm install
 npm start        # 開發伺服器，http://localhost:1001
 npm test         # 單元測試（Node 內建的測試工具）
 npm run build    # 建置到 dist/
+```
+
+桌面版的程式在 [`desktop/`](desktop/README.md)，用 Rust（Tauri）寫：
+
+```bash
+npm run local        # 建置桌面版畫面並啟動本機伺服器
+npm run test:server  # 伺服器和命令列的測試
+npm run build:app    # 桌面版程式和安裝檔（Windows 安裝檔由 GitHub Actions 建置）
 ```
 
 推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。建置結果不放進版本庫；repo 的 Settings → Pages → Source 要設成「GitHub Actions」。

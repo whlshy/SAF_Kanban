@@ -1,0 +1,5 @@
+target/
+# Written by the Tauri build.
+app/gen/
+# The command line, copied here for the installer by app/prepare-cli.mjs.
+app/binaries/
