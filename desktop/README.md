@@ -126,6 +126,8 @@ saf-kanban-cli edit <看板> <任務> [--title T] [--description 描述] [--prio
 saf-kanban-cli move <看板> <任務> <欄位> [--before 任務 | --after 任務]
 saf-kanban-cli delete <看板> <任務>       刪除任務（會留在已刪除的任務裡）
 saf-kanban-cli deleted <看板>             已刪除的任務
+saf-kanban-cli restore <看板> <任務> [--column C] [--before 任務 | --after 任務]
+                                          復原已刪除的任務（同一個 ID 和內容，放回原位）
 saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B]
 saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
 saf-kanban-cli skill [--install | --into 資料夾]   印出 skill，或安裝
@@ -171,10 +173,12 @@ AI 可以用的工具：
 | `move_task` | 把任務移到某個欄位，可指定放在哪個任務前面或後面 |
 | `delete_task` | 刪除任務（會留在已刪除的任務裡） |
 | `list_deleted_tasks` | 已刪除的任務 |
+| `restore_task` | 把已刪除的任務復原：同一個 ID 和內容，放回原本的欄位和位置 |
 | `create_board` | 建立看板 |
 | `update_board` | 改看板名稱、欄位、負責人 |
 
 - 沒有刪除看板的工具，刪除看板只能在畫面上做。
+- AI 誤刪任務時，可以用 `restore_task`（命令列是 `restore`）把它原樣放回：ID、內容、建立時間都不變，回到刪除前的欄位和位置；如果那個欄位已經被移除，要指定放回哪個欄位。skill 會告訴 AI 誤刪時用復原，而不是重新新增一個。
 - 工具裡任務的描述叫 `description`（HTTP API 裡是 `des`）。
 - AI 做的變更會即時出現在看板畫面上（用網址連線時立刻，其他方式在一秒內）。
 
@@ -199,6 +203,7 @@ AI 可以用的工具：
 | `POST /boards/{看板}/tasks/{任務}/move` | 移到某個欄位和位置 |
 | `DELETE /boards/{看板}/tasks/{任務}` | 刪除（會留在已刪除的任務裡） |
 | `GET /boards/{看板}/history` | 已刪除的任務，由新到舊 |
+| `POST /boards/{看板}/history/{任務}/restore` | 復原已刪除的任務；可以帶 `column`、`beforeId`、`afterId` 改放別的地方 |
 | `GET /events` | 有變更時通知（Server-Sent Events） |
 | `GET /connection` | 連線資訊：API 與 MCP 位址、資料夾、執行檔路徑 |
 | `POST /token` | 重新產生權杖，回傳新的權杖 |

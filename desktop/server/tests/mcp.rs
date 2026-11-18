@@ -105,6 +105,7 @@ async fn a_client_can_connect_and_list_the_tools() {
             "move_task",
             "delete_task",
             "list_deleted_tasks",
+            "restore_task",
             "create_board",
             "update_board"
         ]
@@ -263,9 +264,30 @@ async fn an_agent_can_work_a_board_through_the_tools() {
     let deleted = app.ok("list_deleted_tasks", json!({ "board": id })).await;
     assert_eq!(titles(&deleted), ["Ship"]);
     assert!(deleted[0]["deletedAt"].as_str().unwrap().ends_with('Z'));
+    assert_eq!(app.get(&format!("/api/boards/{id}")).await["taskCount"], 2);
+
+    // A deletion made by mistake is undone: the same task comes back.
+    let restored = app
+        .ok("restore_task", json!({ "board": id, "task": task(&third) }))
+        .await;
+    assert_eq!(restored["id"], third["id"]);
+    assert_eq!(restored["title"], "Ship");
+    assert_eq!(restored["createdAt"], third["createdAt"]);
+    assert_eq!(
+        app.ok("list_deleted_tasks", json!({ "board": id })).await,
+        json!([])
+    );
+    let (failed, message) = app
+        .tool("restore_task", json!({ "board": id, "task": task(&third) }))
+        .await;
+    assert!(failed, "{message}");
+    assert!(
+        message.as_str().unwrap().contains("DELETED_TASK_NOT_FOUND"),
+        "{message}"
+    );
 
     // The same board through the HTTP API: one store behind both.
-    assert_eq!(app.get(&format!("/api/boards/{id}")).await["taskCount"], 2);
+    assert_eq!(app.get(&format!("/api/boards/{id}")).await["taskCount"], 3);
 }
 
 #[tokio::test]

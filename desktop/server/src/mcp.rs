@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 use crate::error::ApiError;
 use crate::model::{Board, DeletedTask, Task};
-use crate::store::{BoardPatch, MoveInput, NewBoard, Store, TaskInput, TaskQuery};
+use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInput, TaskQuery};
 
 /// Protocol revisions this server can talk, newest first.
 const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -18,7 +18,8 @@ const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", 
 const INSTRUCTIONS: &str = "SAF Kanban boards kept on this computer. Start with list_boards to get board ids, \
 then get_board to see a board's columns and tasks. Tasks belong to a column (by name) and are ordered within the board; \
 use move_task to change a task's column or position and update_task to change its text, priority or assignee. \
-Deleted tasks are kept and can be read with list_deleted_tasks.";
+Deleted tasks are kept: list_deleted_tasks shows them, and restore_task puts one back as it was (same id and contents). \
+If a task was deleted by mistake, restore it rather than creating it again.";
 
 /// Runs a tool: `Ok` is the `tools/call` result (including tool failures, as
 /// `isError`), `Err` a message for a call that is itself invalid.
@@ -222,12 +223,26 @@ fn tools() -> Vec<Value> {
         tool(
             "delete_task",
             "Delete a task",
-            "Removes a task from the board. It is kept in the board's deleted tasks, where people can see it and create it again.",
+            "Removes a task from the board. It is kept in the board's deleted tasks, and restore_task can put it back.",
             false,
             json!({ "board": board, "task": task }),
             &["board", "task"],
         ),
-        tool("list_deleted_tasks", "List deleted tasks", "Lists a board's deleted tasks, newest first.", true, json!({ "board": board }), &["board"]),
+        tool("list_deleted_tasks", "List deleted tasks", "Lists a board's deleted tasks, newest first. Their ids can be given to restore_task.", true, json!({ "board": board }), &["board"]),
+        tool(
+            "restore_task",
+            "Restore a deleted task",
+            "Puts a deleted task back on the board as it was: the same id, fields and creation time, in the column and place it was deleted from. Use this, not create_task, to undo a deletion. If its column no longer exists, give `column`.",
+            false,
+            json!({
+                "board": board,
+                "task": text("Id of the deleted task, from list_deleted_tasks."),
+                "column": text("Column to put it in, if not the one it was deleted from."),
+                "beforeTask": text("Id of the task it should come right before, instead of its old place."),
+                "afterTask": text("Id of the task it should come right after, instead of its old place."),
+            }),
+            &["board", "task"],
+        ),
         tool(
             "create_board",
             "Create a board",
@@ -407,6 +422,18 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
         "delete_task" => {
             store.delete_task(&board()?, &task()?).map_err(failed)?;
             json!({ "deleted": true })
+        }
+        "restore_task" => {
+            let input = RestoreInput {
+                column: arguments.text("column")?,
+                before_id: arguments.text("beforeTask")?,
+                after_id: arguments.text("afterTask")?,
+            };
+            task_view(
+                &store
+                    .restore_task(&board()?, &task()?, input)
+                    .map_err(failed)?,
+            )
         }
         "list_deleted_tasks" => json!(store
             .history(&board()?)

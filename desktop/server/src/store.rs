@@ -89,6 +89,18 @@ pub struct MoveInput {
     pub after_id: Option<String>,
 }
 
+/// Where a deleted task goes back to. Left out, it goes back to the column
+/// and place it was deleted from.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct RestoreInput {
+    pub column: Option<String>,
+    /// Put it right before this task,
+    pub before_id: Option<String>,
+    /// or else right after this one.
+    pub after_id: Option<String>,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TaskQuery {
@@ -738,16 +750,85 @@ impl Store {
         })
     }
 
-    /// Removes the task from the board and keeps it in the board's history.
+    /// Removes the task from the board and keeps it in the board's history,
+    /// with where it was, so it can be restored.
     pub fn delete_task(&self, board_id: &str, task_id: &str) -> ApiResult<()> {
         self.update(board_id, |board| {
             let index = find_task(board, task_id)?;
+            let column = board.tasks[index].column.clone();
+            let same_column = |task: &&Task| task.column == column;
+            let previous_id = board.tasks[..index].iter().rev().find(same_column);
+            let next_id = board.tasks[index + 1..].iter().find(same_column);
+            let (previous_id, next_id) = (
+                previous_id.map(|task| task.id.clone()).unwrap_or_default(),
+                next_id.map(|task| task.id.clone()).unwrap_or_default(),
+            );
             let task = board.tasks.remove(index);
             board.history.push(DeletedTask {
                 task,
                 deleted_at: now(),
+                previous_id,
+                next_id,
             });
             Ok(())
+        })
+    }
+
+    /// Puts a deleted task back on the board as it was: the same id, contents
+    /// and creation time, in the column and place it was deleted from where
+    /// they still exist. Not a new task made from the old one.
+    pub fn restore_task(
+        &self,
+        board_id: &str,
+        task_id: &str,
+        input: RestoreInput,
+    ) -> ApiResult<Task> {
+        self.update(board_id, |board| {
+            // The latest deletion, if the same id was deleted more than once.
+            let at = board
+                .history
+                .iter()
+                .rposition(|deleted| deleted.task.id == task_id)
+                .ok_or_else(|| ApiError::deleted_task_not_found(task_id))?;
+            if board.tasks.iter().any(|task| task.id == task_id) {
+                return Err(ApiError::task_exists(task_id));
+            }
+            let deleted = &board.history[at];
+            let column = match input.column.filter(|column| !column.is_empty()) {
+                Some(column) => {
+                    check_column(board, &column)?;
+                    column
+                }
+                None if board.columns.contains(&deleted.task.column) => deleted.task.column.clone(),
+                None => return Err(ApiError::column_gone(&deleted.task.column, &board.columns)),
+            };
+
+            let position = |id: Option<&str>| {
+                id.filter(|id| !id.is_empty())
+                    .and_then(|id| board.tasks.iter().position(|task| task.id == id))
+            };
+            // Its old neighbours count only if they are still in that column.
+            let neighbour =
+                |id: &str| position(Some(id)).filter(|index| board.tasks[*index].column == column);
+            let back_home = column == deleted.task.column;
+            let target = if let Some(index) = position(input.before_id.as_deref()) {
+                index
+            } else if let Some(index) = position(input.after_id.as_deref()) {
+                index + 1
+            } else if let Some(index) = neighbour(&deleted.next_id).filter(|_| back_home) {
+                index
+            } else if let Some(index) = neighbour(&deleted.previous_id).filter(|_| back_home) {
+                index + 1
+            } else {
+                // The end of the column.
+                board.tasks.len()
+            };
+
+            let mut task = board.history.remove(at).task;
+            task.column = column;
+            task.updated_at = now();
+            board.tasks.insert(target, task.clone());
+            Ok(task)
         })
     }
 

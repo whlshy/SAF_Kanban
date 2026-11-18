@@ -125,7 +125,10 @@ saf-kanban-cli edit <board> <task> [--title T] [--description TEXT] [--priority 
 saf-kanban-cli move <board> <task> <column> [--before TASK | --after TASK]
                                           Move to a column, and optionally next to another task
 saf-kanban-cli delete <board> <task>      Delete a task (it is kept in the deleted tasks)
-saf-kanban-cli deleted <board>            Deleted tasks, newest first
+saf-kanban-cli deleted <board>            Deleted tasks, newest first, with their ids
+saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
+                                          Put a deleted task back as it was: same id and
+                                          contents, in its old column and place
 saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B]
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
                                           --columns and --users are the complete new lists, in order
@@ -140,6 +143,7 @@ saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW
 - Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, and the names tasks can be assigned to. Use those exact names.
 - Each task is in one column. Priorities are `high`, `medium` and `low`.
 - `--rename OLD=NEW` renames a column and its tasks follow it. A column that still has tasks can't be removed; move or delete them first.
-- Ask the user before deleting tasks, removing columns or renaming boards. Deleted tasks can be seen with `deleted`, but not restored from here.
+- Ask the user before deleting tasks, removing columns or renaming boards.
+- A deleted task can be put back with `restore`, exactly as it was. If a task was deleted by mistake, restore it (find its id with `deleted`) instead of adding it again with `add`, which would make a different task. If its column was removed since, pass `--column`.
 - When a command fails it says why (an unknown column, a task id that doesn't exist, ...) and exits with a non-zero status; fix the command and try again.
 "#;

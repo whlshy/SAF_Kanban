@@ -378,6 +378,158 @@ async fn a_board_can_be_exported_and_made_again_from_the_export() {
     assert!(!tasks[2]["createdAt"].as_str().unwrap().is_empty());
 }
 
+async fn delete(app: &App, board: &str, task: &Value) {
+    let (status, _) = app
+        .call(
+            Method::DELETE,
+            &format!("/api/boards/{board}/tasks/{}", task["id"].as_str().unwrap()),
+            Value::Null,
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+}
+
+async fn restore(app: &App, board: &str, task: &Value, body: Value) -> (StatusCode, Value) {
+    app.call(
+        Method::POST,
+        &format!(
+            "/api/boards/{board}/history/{}/restore",
+            task["id"].as_str().unwrap()
+        ),
+        body,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn a_deleted_task_comes_back_as_it_was() {
+    let app = app();
+    let board = app.board().await;
+    let a = app.task(&board, json!({ "title": "A" })).await;
+    let b = app
+        .task(
+            &board,
+            json!({ "title": "B", "des": "details", "priority": "high", "issueId": "7" }),
+        )
+        .await;
+    let c = app.task(&board, json!({ "title": "C" })).await;
+    let d = app
+        .task(&board, json!({ "title": "D", "column": "Doing" }))
+        .await;
+    let todo = || app.titles(&board, "?column=Todo");
+
+    // Back in its place, with its id, contents and creation time.
+    delete(&app, &board, &b).await;
+    assert_eq!(todo().await, ["A", "C"]);
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    let (status, restored) = restore(&app, &board, &b, Value::Null).await;
+    assert_eq!(status, StatusCode::OK, "{restored}");
+    assert_eq!(todo().await, ["A", "B", "C"]);
+    for field in [
+        "id",
+        "title",
+        "des",
+        "priority",
+        "issueId",
+        "column",
+        "createdAt",
+    ] {
+        assert_eq!(restored[field], b[field], "{field}");
+    }
+    assert_ne!(restored["updatedAt"], b["updatedAt"]);
+    assert!(app
+        .get(&format!("/api/boards/{board}/history"))
+        .await
+        .as_array()
+        .unwrap()
+        .is_empty());
+
+    // Only once: it isn't a deleted task any more.
+    let (status, answer) = restore(&app, &board, &b, Value::Null).await;
+    assert_eq!(
+        (status, code(&answer)),
+        (StatusCode::NOT_FOUND, "DELETED_TASK_NOT_FOUND")
+    );
+
+    // First and last in the column go back first and last.
+    delete(&app, &board, &c).await;
+    delete(&app, &board, &a).await;
+    restore(&app, &board, &a, Value::Null).await;
+    restore(&app, &board, &c, Value::Null).await;
+    assert_eq!(todo().await, ["A", "B", "C"]);
+
+    // Somewhere else, if asked.
+    delete(&app, &board, &b).await;
+    let (status, _) = restore(&app, &board, &b, json!({ "beforeId": a["id"] })).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(todo().await, ["B", "A", "C"]);
+
+    // Its column is gone: it has to be told where to go.
+    delete(&app, &board, &d).await;
+    app.call(
+        Method::PATCH,
+        &format!("/api/boards/{board}"),
+        json!({ "columns": ["Todo", "Done"] }),
+    )
+    .await;
+    let (status, answer) = restore(&app, &board, &d, Value::Null).await;
+    assert_eq!(
+        (status, code(&answer)),
+        (StatusCode::CONFLICT, "COLUMN_GONE")
+    );
+    assert!(
+        answer["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Todo, Done"),
+        "{answer}"
+    );
+    let (status, restored) = restore(&app, &board, &d, json!({ "column": "Done" })).await;
+    assert_eq!(
+        (status, restored["column"].clone()),
+        (StatusCode::OK, json!("Done"))
+    );
+
+    // Its id has been given to another task meanwhile.
+    delete(&app, &board, &c).await;
+    let path = format!("/api/boards/{board}/tasks/{}", c["id"].as_str().unwrap());
+    app.call(Method::PUT, &path, json!({ "title": "C again" }))
+        .await;
+    let (status, answer) = restore(&app, &board, &c, Value::Null).await;
+    assert_eq!(
+        (status, code(&answer)),
+        (StatusCode::CONFLICT, "TASK_EXISTS")
+    );
+    // Deleted twice under one id: the latest one comes back.
+    app.call(Method::DELETE, &path, Value::Null).await;
+    let (_, restored) = restore(&app, &board, &c, Value::Null).await;
+    assert_eq!(restored["title"], "C again");
+    assert_eq!(
+        app.get(&format!("/api/boards/{board}/history")).await[0]["title"],
+        "C"
+    );
+}
+
+#[tokio::test]
+async fn a_task_deleted_before_places_were_kept_goes_to_the_end_of_its_column() {
+    let app = app();
+    let (_, board) = app
+        .call(
+            Method::POST,
+            "/api/boards",
+            json!({
+                "title": "Old",
+                "tasks": [{ "id": "x", "title": "X" }, { "id": "y", "title": "Y" }],
+                "history": [{ "id": "old", "title": "Old one", "column": "Todo", "deletedAt": "2026-01-01T00:00:00.000Z" }],
+            }),
+        )
+        .await;
+    let board = board["id"].as_str().unwrap();
+    let (status, _) = restore(&app, board, &json!({ "id": "old" }), Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(app.titles(board, "").await, ["X", "Y", "Old one"]);
+}
+
 #[tokio::test]
 async fn moving_puts_a_task_next_to_a_neighbour() {
     let app = app();
