@@ -96,7 +96,8 @@ jobs:
 
           Windows installer: download ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
 
-          https://github.com/${{ github.repository }}/blob/$tag/desktop/README.md
+          說明 / Guide: https://github.com/${{ github.repository }}/blob/$tag/desktop/README.md
+          版本紀錄 / Changelog: https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md
           "@
           # From a file, so the quotes in the text reach GitHub as written.
           Set-Content -Path release-notes.md -Value $notes -Encoding utf8

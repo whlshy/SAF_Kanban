@@ -186,6 +186,26 @@ fn boards_and_tasks_can_be_managed_from_the_command_line() {
         "{deleted}"
     );
     assert!(ok(dir, &["deleted", "Home"]).contains("Take out trash"));
+    // The message says how to undo it, and undoing brings the same task back.
+    assert!(
+        deleted.contains(&format!("`restore Home {trash}` puts it back")),
+        "{deleted}"
+    );
+    let restored = ok(dir, &["restore", "Home", &trash]);
+    assert_eq!(
+        restored,
+        format!("Restored [{trash}] Take out trash · Todo · low · Ben")
+    );
+    assert_eq!(ok(dir, &["deleted", "Home"]), "No deleted tasks.");
+    assert!(ok(dir, &["tasks", "Home", "--column", "Todo"]).starts_with(&format!("[{trash}]")));
+    let again = run_in(dir, &["restore", "Home", &trash], None);
+    assert_eq!(again.status.code(), Some(1));
+    assert!(
+        err(&again).contains("DELETED_TASK_NOT_FOUND"),
+        "{}",
+        err(&again)
+    );
+    ok(dir, &["delete", "Home", &trash]);
 
     let renamed = ok(
         dir,

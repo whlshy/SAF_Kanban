@@ -11,6 +11,20 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## Desktop app 0.2.0 — 2026-11-18
+
+Download it from [Releases](https://github.com/whlshy/SAF_Kanban/releases). The website is unchanged.
+
+### Added
+
+- Restore deleted tasks: when an AI agent deletes a task by mistake, `restore` on the command line or the MCP tool `restore_task` brings it back as it was instead of creating it again. It keeps its id, contents and creation time and goes back to its column and place; if that column has been removed, you say which column to use. The HTTP API has `POST /api/boards/{board}/history/{task}/restore`.
+- Deleting a task on the command line tells you how to restore it, and the skill and the MCP instructions tell AI agents to restore a task deleted by mistake rather than add it again.
+
+### Changed
+
+- Deleting a task now records its place in the column, for restoring. Tasks deleted before this version go back to the end of their column.
+- After updating, open "AI / API" → "Skill (recommended)" and choose "Update the skill" so AI agents learn the new restore command.
+
 ## 1.17.0 — 2026-11-17
 
 ### Added

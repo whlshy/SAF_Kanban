@@ -31,6 +31,9 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
                                   Move to a column, optionally next to another task
   delete <board> <task>           Delete a task (kept in the deleted tasks)
   deleted <board>                 Deleted tasks, newest first
+  restore <board> <task> [--column C] [--before TASK | --after TASK]
+                                  Put a deleted task back as it was: same id and
+                                  contents, in its old column and place
   new-board <name> [--columns A,B,C] [--users A,B]
   edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
   skill [--install | --into DIR]  Print the AI agent skill, or install it: --install puts it
@@ -562,6 +565,23 @@ fn run(args: &Args) -> Result<String, Failure> {
             let task = call("move_task", Value::Object(arguments))?;
             shown(task.clone(), format!("Moved {}", task_line(&task, true)))
         }
+        "restore" => {
+            args.expect(&["board", "task"], &["column", "before", "after"])?;
+            let mut arguments = Map::new();
+            arguments.insert("board".into(), json!(board()?));
+            arguments.insert("task".into(), json!(word(1)));
+            copy_options(
+                args,
+                &mut arguments,
+                &[
+                    ("column", "column"),
+                    ("before", "beforeTask"),
+                    ("after", "afterTask"),
+                ],
+            )?;
+            let task = call("restore_task", Value::Object(arguments))?;
+            shown(task.clone(), format!("Restored {}", task_line(&task, true)))
+        }
         "delete" => {
             args.expect(&["board", "task"], &[])?;
             let id = board()?;
@@ -570,9 +590,10 @@ fn run(args: &Args) -> Result<String, Failure> {
             shown(
                 result,
                 format!(
-                    "Deleted [{}] {}. It is kept in the board's deleted tasks.",
-                    text(&task["id"]),
-                    text(&task["title"])
+                    "Deleted [{id}] {}. It is kept in the board's deleted tasks; `restore {} {id}` puts it back.",
+                    text(&task["title"]),
+                    args.words[0],
+                    id = text(&task["id"]),
                 ),
             )
         }

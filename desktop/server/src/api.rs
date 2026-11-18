@@ -17,6 +17,7 @@
 //! | POST   /api/boards/{board}/tasks/{task}/move | Move to a column and position          |
 //! | DELETE /api/boards/{board}/tasks/{task}      | Delete (kept in the history)           |
 //! | GET    /api/boards/{board}/history           | Deleted tasks, newest first            |
+//! | POST   /api/boards/{board}/history/{task}/restore | Put a deleted task back as it was |
 //! | GET    /api/events                           | Server-sent events, one per change     |
 //! | GET    /api/connection                       | Addresses and paths for connecting     |
 //! | POST   /api/token                            | Replace the API token                  |
@@ -48,7 +49,7 @@ use tokio_stream::{Stream, StreamExt};
 use crate::error::{ApiError, ApiResult};
 use crate::mcp;
 use crate::model::{Board, BoardInfo, DeletedTask, Task};
-use crate::store::{BoardPatch, MoveInput, NewBoard, Store, TaskInput, TaskQuery};
+use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInput, TaskQuery};
 
 pub struct AppState {
     pub store: Store,
@@ -81,6 +82,7 @@ pub fn router(state: Shared) -> Router {
         )
         .route("/boards/{board}/tasks/{task}/move", post(move_task))
         .route("/boards/{board}/history", get(history))
+        .route("/boards/{board}/history/{task}/restore", post(restore_task))
         .route("/events", get(events))
         .route("/connection", get(connection))
         .route("/skill", get(skill).post(install_skill))
@@ -370,6 +372,25 @@ async fn history(
     Path(board): Path<String>,
 ) -> ApiResult<Json<Vec<DeletedTask>>> {
     state.store.history(&board).map(Json)
+}
+
+/// The body is optional: without one the task goes back where it was.
+async fn restore_task(
+    State(state): State<Shared>,
+    Path((board, task)): Path<(String, String)>,
+    body: Bytes,
+) -> ApiResult<Json<Task>> {
+    let input: RestoreInput = if body.iter().all(u8::is_ascii_whitespace) {
+        RestoreInput::default()
+    } else {
+        serde_json::from_slice(&body).map_err(|error| {
+            ApiError::invalid(
+                "INVALID_JSON",
+                format!("The request body isn't valid: {error}"),
+            )
+        })?
+    };
+    state.store.restore_task(&board, &task, input).map(Json)
 }
 
 // ---- events ----

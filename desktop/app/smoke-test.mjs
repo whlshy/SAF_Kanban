@@ -152,6 +152,11 @@ try {
   await sleep(1500)
   const offline = await run(['add', 'Smoke test', 'Added with the app closed'])
   check('command line: works with the app closed', offline.code === 0, JSON.stringify(offline))
+  const offlineId = offline.stdout.match(/\[([^\]]+)\]/)?.[1]
+  const removed = await run(['delete', 'Smoke test', offlineId])
+  const back = await run(['restore', 'Smoke test', offlineId])
+  check('command line: a deleted task can be restored as it was', removed.code === 0 && back.code === 0
+    && back.stdout.startsWith(`Restored [${offlineId}] Added with the app closed`), JSON.stringify([removed, back]))
   const later = await mcp([
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'smoke-test', version: '1' } } },
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_tasks', arguments: { board: smoke.id } } },

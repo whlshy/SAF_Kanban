@@ -65,6 +65,36 @@ impl ApiError {
         .with(json!({ "id": id }))
     }
 
+    pub fn deleted_task_not_found(id: &str) -> Self {
+        Self::new(
+            StatusCode::NOT_FOUND,
+            "DELETED_TASK_NOT_FOUND",
+            format!("No deleted task with id `{id}` on this board. The deleted tasks list shows their ids."),
+        )
+        .with(json!({ "id": id }))
+    }
+
+    pub fn task_exists(id: &str) -> Self {
+        Self::new(
+            StatusCode::CONFLICT,
+            "TASK_EXISTS",
+            format!("A task with id `{id}` is on the board already, so the deleted one can't be brought back under that id."),
+        )
+        .with(json!({ "id": id }))
+    }
+
+    pub fn column_gone(column: &str, columns: &[String]) -> Self {
+        Self::new(
+            StatusCode::CONFLICT,
+            "COLUMN_GONE",
+            format!(
+                "The task was in column `{column}`, which this board no longer has. Give the column to put it back in; the board's columns are: {}.",
+                columns.join(", ")
+            ),
+        )
+        .with(json!({ "column": column }))
+    }
+
     pub fn unknown_column(column: &str, columns: &[String]) -> Self {
         Self::new(
             StatusCode::BAD_REQUEST,

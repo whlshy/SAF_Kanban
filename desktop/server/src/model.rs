@@ -28,6 +28,13 @@ pub struct DeletedTask {
     #[serde(flatten)]
     pub task: Task,
     pub deleted_at: String,
+    /// The tasks right before and after it in its column when it was deleted,
+    /// to put it back in the same place. Empty when there was none, and in
+    /// files from before restoring existed.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub previous_id: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub next_id: String,
 }
 
 /// One board file. `tasks` is in board order: a column shows its tasks in the
