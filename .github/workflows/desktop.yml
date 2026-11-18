@@ -26,9 +26,12 @@ on:
 permissions:
   contents: read
 
+# On a working branch, a newer push replaces a run that is still going. On
+# main every commit's run finishes, and a release run (started by hand) runs
+# beside the one its merge started instead of cancelling it.
 concurrency:
-  group: desktop-${{ github.ref }}
-  cancel-in-progress: true
+  group: desktop-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   windows:
