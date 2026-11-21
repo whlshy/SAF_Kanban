@@ -16,6 +16,15 @@ test('kanban rows become tasks, in row order', () => {
   assert.deepEqual(rowsToTasks(), [])
 })
 
+test('the creation time in column H is kept when there is one', () => {
+  const [made, older] = rowsToTasks([
+    ['a1', 'New', '', '', 'Todo', 'high', '', '2026-11-21 10:30:00'],
+    ['b2', 'Older', '', '', 'Todo', 'high', ''],
+  ])
+  assert.equal(made.createdAt, '2026-11-21 10:30:00')
+  assert.equal('createdAt' in older, false)
+})
+
 test('blank rows in the columns sheet are skipped', () => {
   assert.deepEqual(rowsToColumns([['Todo'], [], [''], ['Doing', 'note'], ['Done']]), ['Todo', 'Doing', 'Done'])
 })

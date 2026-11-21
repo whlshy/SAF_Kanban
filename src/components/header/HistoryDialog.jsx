@@ -7,6 +7,7 @@ import { dialogAtom, PriorityBadge } from '@/components/content/Home'
 import { PRIORITIES } from '@/lib/filter'
 import { langAtom, useT } from '@/i18n'
 import { filterHistory, parseHistory } from '@/lib/history'
+import { createdAtParts } from '@/lib/createdAt'
 import { useBoards } from '@/store/boards'
 import { useAtomValue, useSetAtom } from 'jotai'
 
@@ -140,6 +141,7 @@ export default function HistoryDialog({ closeDialog }) {
                     : <span key="issue">{record.issueId}</span>),
                   record.column && <span key="column">{t("history.column", { name: record.column })}</span>,
                   record.assignee && <span key="assignee">{record.assignee}</span>,
+                  record.createdAt && <span key="created">{t("task.createdAt", { time: createdAtParts(record.createdAt).full })}</span>,
                 ].filter(Boolean).map((part, i) => (
                   <React.Fragment key={i}>
                     {i > 0 && " · "}

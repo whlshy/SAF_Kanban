@@ -25,3 +25,16 @@ test('the history search matches every word in any field', () => {
   assert.deepEqual(filterHistory(records, 'done').map((r) => r.id), ['b'])
   assert.equal(filterHistory(records, '  ').length, 2)
 })
+
+test('the creation time in column I is kept, whether text or a date the Sheet recognised', () => {
+  const records = parseHistory([
+    ['a', 'Text', '', '', 'Todo', '', '', '2026-11-21 11:00:00', '2026-11-20 09:15:00'],
+    ['b', 'Date', '', '', 'Todo', '', '', '2026-11-21 10:00:00', 45000.5],
+    ['c', 'None', '', '', 'Todo', '', '', '2026-11-21 09:00:00'],
+  ])
+  assert.deepEqual(records.map((r) => [r.id, r.createdAt]), [
+    ['a', '2026-11-20 09:15:00'],
+    ['b', '2023-03-15 12:00'],
+    ['c', ''],
+  ])
+})

@@ -23,6 +23,7 @@ import { localAvailable } from '@/data/localApi';
 import { useStartImport } from '@/components/header/BoardTransfer';
 import { useBoardData, useBoardWrite } from '@/data/useBoardData';
 import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter';
+import { createdAtParts, shortCreatedAt } from '@/lib/createdAt';
 import useOnline from '@/lib/useOnline';
 import { filterAtom } from '@/store/filter';
 import FilterBar from './FilterBar';
@@ -178,6 +179,7 @@ export { PRIORITIES };
 // Read-only view of a task: an article-style info line, then the full description.
 function DescriptionView({ task, jiraLink }) {
   const t = useT();
+  const created = createdAtParts(task.createdAt);
   const parts = [
     task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
@@ -185,6 +187,7 @@ function DescriptionView({ task, jiraLink }) {
     task.issueId && (jiraLink
       ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.issueId}</a>
       : <span key="issue">{task.issueId}</span>),
+    created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
   ].filter(Boolean);
 
   return (
@@ -230,6 +233,8 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
+  // Only tasks made since creation times were kept have one.
+  const created = createdAtParts(task.createdAt);
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
   // Clicking the description shows all of it read-only, instead of editing the task.
@@ -288,11 +293,19 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
             </a>
           </div>
 
-          {task.assignee && (
-            <time className="text-[10px] tabular-nums whitespace-nowrap">
-              {task.assignee}
-            </time>
-          )}
+          <div className="flex shrink-0 items-center gap-2 text-[10px] whitespace-nowrap">
+            {task.assignee && <span>{task.assignee}</span>}
+            {created && (
+              <time
+                data-slot="task-created"
+                dateTime={task.createdAt}
+                title={t("task.createdAt", { time: created.full })}
+                className="tabular-nums"
+              >
+                {shortCreatedAt(created)}
+              </time>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -555,6 +568,7 @@ const EditTask = ({
   const [loading, setLoading] = useState(false);
   const { setAlert } = useAlertStore();
   const t = useT();
+  const created = task?.id ? createdAtParts(task.createdAt) : null;
 
   const handleCallback = (tf) => {
     setLoading(false);
@@ -627,6 +641,11 @@ const EditTask = ({
             ))}
           </Select>
         </FormControl>
+        {created && (
+          <div data-slot="task-created" className="mt-4 text-xs text-gray-500">
+            {t("task.createdAt", { time: created.full })}
+          </div>
+        )}
       </DialogContent>
       <DialogFooter>
         {task?.id &&

@@ -127,6 +127,7 @@ export default {
   "task.viewDescription": "View the full description",
   "task.priority": "Priority",
   "task.assignee": "Assignee",
+  "task.createdAt": "Created {time}",
   "task.unassigned": "Unassigned",
   "task.delete": "Delete",
   "task.deleteConfirm": "Delete this task?",

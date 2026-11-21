@@ -1,9 +1,11 @@
 // How a board's data is laid out in its Google Sheet, and how a task is sent
 // to the Apps Script. The rest of the app only sees the shapes returned here.
 //
-// Task: { id, title, issueId, des, column, priority, assignee }
+// Task: { id, title, issueId, des, column, priority, assignee, createdAt? }
 
-// kanban sheet, columns A:G, in row order.
+// kanban sheet, columns A:G, in row order. H is when the task was created,
+// written by the Apps Script (v3 and later) as text in the Sheet's time zone;
+// older scripts leave it empty, and then the task has no createdAt.
 export const rowsToTasks = (rows = []) =>
   rows.map((row) => ({
     id: row[0],
@@ -13,6 +15,7 @@ export const rowsToTasks = (rows = []) =>
     column: row[4],
     priority: row[5],
     assignee: row[6],
+    ...(row[7] ? { createdAt: String(row[7]) } : {}),
   }))
 
 // columns sheet, column A. Blank rows would become a nameless column, so skip them.

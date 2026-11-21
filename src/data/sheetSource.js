@@ -61,7 +61,7 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     needsNetwork: true,
 
     loadColumns: async () => rowsToColumns(await readRows(sheetId, "columns!A:B")),
-    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:G")),
+    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:H")),
     loadUsers: async () => rowsToUsers(await readRows(sheetId, "users!A:B")),
 
     // Deleted tasks, newest first. `missing`: there is no history sheet (an
@@ -69,7 +69,7 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     loadHistory: async () => {
       // Raw values so the deletion time comes back as a date serial number (or
       // the text the script wrote) instead of a string in the Sheet's locale.
-      const response = await fetchRange(sheetId, "history!A:H", {
+      const response = await fetchRange(sheetId, "history!A:I", {
         valueRenderOption: "UNFORMATTED_VALUE",
         dateTimeRenderOption: "SERIAL_NUMBER",
       }).catch(() => null)

@@ -11,6 +11,7 @@ import ListEditor, { rowNames, rowRenames, toRows } from '@/components/elements/
 import { createBoardSource } from '@/data';
 import { localAvailable } from '@/data/localApi';
 import { exportLocalBoard } from './BoardTransfer';
+import { sheetTimeToIso } from '@/lib/createdAt';
 
 export const SETTING_FIELDS = [
   { field: "title", labelKey: "field.title" },
@@ -77,8 +78,11 @@ const SettingDialog = ({ closeDialog }) => {
       content = {
         columns: [...new Set(columns.map((name) => String(name).trim()).filter(Boolean))],
         users,
-        // Blank rows of the Sheet aren't tasks.
-        tasks: tasks.filter((task) => task.id || task.title),
+        // Blank rows of the Sheet aren't tasks. A creation time the Sheet has
+        // is kept; without one the copy's time is used.
+        tasks: tasks
+          .filter((task) => task.id || task.title)
+          .map((task) => ({ ...task, createdAt: sheetTimeToIso(task.createdAt) })),
       };
     } catch {
       message.error(t("copyLocal.unreadable"), 8);
