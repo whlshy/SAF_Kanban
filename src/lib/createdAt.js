@@ -30,12 +30,6 @@ export function createdAtParts(value) {
   return { year, month, day, full: hour === null ? date : `${date} ${pad(hour)}:${pad(minute)}` }
 }
 
-// "11/21" this year, "2025/11/21" before.
-export function shortCreatedAt(parts, now = new Date()) {
-  if (!parts?.year) return parts?.full || ""
-  return parts.year === now.getFullYear() ? `${parts.month}/${parts.day}` : `${parts.year}/${parts.month}/${parts.day}`
-}
-
 // A Sheet time ("2026-11-21 10:30:00", the Sheet's local time) as a UTC ISO
 // time for a board kept on this computer, taking this computer's time zone
 // for the Sheet's. "" when there is no usable time.

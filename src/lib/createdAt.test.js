@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createdAtParts, sheetTimeToIso, shortCreatedAt } from './createdAt.js'
+import { createdAtParts, sheetTimeToIso } from './createdAt.js'
 
 const pad = (n) => String(n).padStart(2, "0")
 
@@ -21,14 +21,6 @@ test('no time, or text that is not a date', () => {
   assert.equal(createdAtParts(""), null)
   assert.equal(createdAtParts(undefined), null)
   assert.deepEqual(createdAtParts("last week"), { full: "last week" })
-  assert.equal(shortCreatedAt(createdAtParts("last week")), "last week")
-  assert.equal(shortCreatedAt(null), "")
-})
-
-test('the short form leaves out this year', () => {
-  const now = new Date(2026, 5, 1)
-  assert.equal(shortCreatedAt(createdAtParts("2026-11-21 10:30:00"), now), "11/21")
-  assert.equal(shortCreatedAt(createdAtParts("2025-03-04 10:30:00"), now), "2025/3/4")
 })
 
 test('a Sheet time becomes a UTC time for a local board', () => {
