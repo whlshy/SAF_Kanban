@@ -16,13 +16,18 @@ test('kanban rows become tasks, in row order', () => {
   assert.deepEqual(rowsToTasks(), [])
 })
 
-test('the creation time in column H is kept when there is one', () => {
-  const [made, older] = rowsToTasks([
-    ['a1', 'New', '', '', 'Todo', 'high', '', '2026-11-21 10:30:00'],
-    ['b2', 'Older', '', '', 'Todo', 'high', ''],
+test('the creation time in column H and move time in column I are kept when present', () => {
+  const [moved, createdOnly, older] = rowsToTasks([
+    ['a1', 'Moved', '', '', 'Done', 'high', '', '2026-11-21 10:30:00', '2026-11-22 14:15:00'],
+    ['b2', 'New', '', '', 'Todo', 'high', '', '2026-11-21 10:30:00'],
+    ['c3', 'Older', '', '', 'Todo', 'high', ''],
   ])
-  assert.equal(made.createdAt, '2026-11-21 10:30:00')
+  assert.equal(moved.createdAt, '2026-11-21 10:30:00')
+  assert.equal(moved.movedAt, '2026-11-22 14:15:00')
+  assert.equal(createdOnly.createdAt, '2026-11-21 10:30:00')
+  assert.equal('movedAt' in createdOnly, false)
   assert.equal('createdAt' in older, false)
+  assert.equal('movedAt' in older, false)
 })
 
 test('blank rows in the columns sheet are skipped', () => {

@@ -1,15 +1,17 @@
 import React from 'react'
 import { Box, Button, CircularProgress, DialogContent, IconButton, InputAdornment, Link, TextField, Tooltip, Typography } from '@mui/material'
-import { Search as SearchIcon, Replay as ReplayIcon } from '@mui/icons-material'
+import { Search as SearchIcon, Replay as ReplayIcon, RestoreFromTrash as RestoreIcon } from '@mui/icons-material'
+import { message } from 'antd'
 
 import { useBoardSource } from '@/data/useBoardData'
 import { dialogAtom, PriorityBadge } from '@/components/content/Home'
 import { PRIORITIES } from '@/lib/filter'
 import { langAtom, useT } from '@/i18n'
-import { filterHistory, parseHistory } from '@/lib/history'
+import { filterHistory } from '@/lib/history'
 import { createdAtParts } from '@/lib/createdAt'
 import { useBoards } from '@/store/boards'
 import { useAtomValue, useSetAtom } from 'jotai'
+import { useQueryClient } from '@tanstack/react-query'
 
 const PAGE_SIZE = 50
 
@@ -22,13 +24,16 @@ export default function HistoryDialog({ closeDialog }) {
   const { currentBoard } = useBoards()
   const lang = useAtomValue(langAtom)
   const setTaskDialog = useSetAtom(dialogAtom)
+  const queryClient = useQueryClient()
   const t = useT()
   const [state, setState] = React.useState({ status: "loading", records: [] })
   const [query, setQuery] = React.useState("")
   const [limit, setLimit] = React.useState(PAGE_SIZE)
+  const [restoringKey, setRestoringKey] = React.useState(null)
   const deferredQuery = React.useDeferredValue(query)
 
   const source = useBoardSource(currentBoard)
+  const canRestore = typeof source?.restoreTask === "function"
   const jiraLink = currentBoard?.jiraLink || ""
 
   // Loaded each time the dialog opens. A board without a history yet (older
@@ -62,6 +67,44 @@ export default function HistoryDialog({ closeDialog }) {
         assignee: record.assignee,
       },
     })
+  }
+
+  // Local boards only: put the deleted task back as it was (same ID, creation
+  // time, and original place). If its old column was removed, fall back to the
+  // board's first column.
+  const restore = async (record) => {
+    if (!canRestore || restoringKey) return
+    const key = `${record.row}-${record.id}`
+    setRestoringKey(key)
+    try {
+      let restored
+      let fallbackColumn = ""
+      try {
+        restored = await source.restoreTask(record.id)
+      } catch (error) {
+        const firstColumn = currentBoard?.columns?.[0]
+        if (error?.code === "COLUMN_GONE" && firstColumn) {
+          restored = await source.restoreTask(record.id, { column: firstColumn })
+          fallbackColumn = firstColumn
+        } else {
+          throw error
+        }
+      }
+      setState((prev) => ({
+        ...prev,
+        records: prev.records.filter((item) => item.row !== record.row || item.id !== record.id),
+      }))
+      queryClient.invalidateQueries({ queryKey: ["board", currentBoard?.id] })
+      if (fallbackColumn) {
+        message.success(t("history.restoredToColumn", { oldColumn: record.column, column: fallbackColumn }))
+      } else {
+        message.success(t("history.restored", { column: restored?.column || record.column }))
+      }
+    } catch (error) {
+      message.error(error?.userMessage || t("common.apiError"), 8)
+    } finally {
+      setRestoringKey(null)
+    }
   }
   const searching = !!deferredQuery.trim()
 
@@ -114,9 +157,11 @@ export default function HistoryDialog({ closeDialog }) {
             </Typography>
           )}
 
-          {shown.map((record) => (
+          {shown.map((record) => {
+            const rowKey = `${record.row}-${record.id}`
+            return (
             <Box
-              key={`${record.row}-${record.id}`}
+              key={rowKey}
               data-testid="history-row"
               sx={{ py: 1.25, borderBottom: 1, borderColor: 'divider' }}
             >
@@ -149,17 +194,37 @@ export default function HistoryDialog({ closeDialog }) {
                   </React.Fragment>
                 ))}
               </Typography>
-                <Tooltip title={t("history.recreateHint")}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => recreate(record)}
-                    aria-label={t("history.recreate")}
-                    sx={{ flexShrink: 0, my: -0.5 }}
-                  >
-                    <ReplayIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <Box className="flex items-center gap-0.5" sx={{ flexShrink: 0, my: -0.5 }}>
+                  {canRestore && (
+                    <Tooltip title={t("history.restoreHint")}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => restore(record)}
+                          disabled={!!restoringKey}
+                          aria-label={t("history.restore")}
+                          data-testid="history-restore"
+                        >
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                  <Tooltip title={t("history.recreateHint")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color={canRestore ? "default" : "primary"}
+                        onClick={() => recreate(record)}
+                        disabled={!!restoringKey}
+                        aria-label={t("history.recreate")}
+                      >
+                        <ReplayIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
               </Box>
               {record.des && (
                 <Typography
@@ -171,7 +236,8 @@ export default function HistoryDialog({ closeDialog }) {
                 </Typography>
               )}
             </Box>
-          ))}
+            )
+          })}
 
           {matches.length > limit && (
             <Box sx={{ textAlign: 'center', pt: 1.5 }}>

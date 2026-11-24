@@ -6,7 +6,7 @@
  */
 
 // 新版 Script 會在回應中帶上版本號，前端可據此判斷能使用哪些功能。
-const SCRIPT_VERSION = 3;
+const SCRIPT_VERSION = 4;
 
 // 通常留空：會使用這個 Apps Script 所屬的 Google Sheet。
 // 只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID。
@@ -14,9 +14,11 @@ const SPREADSHEET_ID = "";
 
 const KANBAN_SHEET_NAME = "kanban";
 const HISTORY_SHEET_NAME = "history";
-// kanban 的 A～G 欄是 Task 的內容；H 欄是建立時間，只在新增時寫入，之後修改不會動到。
+// kanban 的 A～G 欄是 Task 的內容；H 欄是建立時間（只在新增時寫入），
+// I 欄是最後一次移進目前欄位的時間（新增與跨欄移動時寫入）。
 const COLUMN_COUNT = 7;
 const CREATED_AT_COLUMN = 8;
+const MOVED_AT_COLUMN = 9;
 
 function doGet(e) {
   var lock = LockService.getScriptLock();
@@ -110,14 +112,21 @@ function handleUpsert(sheet, params) {
   var rowNumber = findTaskRow(sheet, task.id);
 
   if (rowNumber) {
+    var oldStatus = normalizeValue(sheet.getRange(rowNumber, 5).getValue());
     sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).setValues([rowData]);
+    if (oldStatus !== rowData[4]) {
+      sheet.getRange(rowNumber, MOVED_AT_COLUMN)
+        .setNumberFormat("@")
+        .setValue(formatNow(sheet.getParent()));
+    }
   } else {
     sheet.appendRow(rowData);
     rowNumber = sheet.getLastRow();
+    var now = formatNow(sheet.getParent());
     // 設成純文字，Sheet 才不會把時間改成依地區顯示的日期格式。
-    sheet.getRange(rowNumber, CREATED_AT_COLUMN)
+    sheet.getRange(rowNumber, CREATED_AT_COLUMN, 1, 2)
       .setNumberFormat("@")
-      .setValue(formatNow(sheet.getParent()));
+      .setValues([[now, now]]);
   }
 
   SpreadsheetApp.flush();
@@ -151,7 +160,13 @@ function handleMove(sheet, params) {
     fail("TASK_NOT_FOUND", { id: taskId });
   }
 
+  var oldStatus = normalizeValue(sheet.getRange(sourceRow, 5).getValue());
   sheet.getRange(sourceRow, 5).setValue(newStatus);
+  if (oldStatus !== normalizeValue(newStatus)) {
+    sheet.getRange(sourceRow, MOVED_AT_COLUMN)
+      .setNumberFormat("@")
+      .setValue(formatNow(sheet.getParent()));
+  }
 
   if (beforeId && beforeId !== taskId) {
     var beforeRow = findTaskRow(sheet, beforeId);
@@ -217,10 +232,11 @@ function handleDelete(spreadsheet, sheet, params) {
     fail("TASK_NOT_FOUND", { id: taskId });
   }
 
-  // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間。
-  var lastState = sheet.getRange(rowNumber, 1, 1, CREATED_AT_COLUMN).getValues()[0];
+  // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間，J 欄是移入目前欄位的時間。
+  var lastState = sheet.getRange(rowNumber, 1, 1, MOVED_AT_COLUMN).getValues()[0];
+  var movedAt = lastState.pop();
   var createdAt = lastState.pop();
-  getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME).appendRow(lastState.concat([formatNow(spreadsheet), createdAt]));
+  getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME).appendRow(lastState.concat([formatNow(spreadsheet), createdAt, movedAt]));
 
   sheet.deleteRow(rowNumber);
   SpreadsheetApp.flush();

@@ -78,11 +78,15 @@ const SettingDialog = ({ closeDialog }) => {
       content = {
         columns: [...new Set(columns.map((name) => String(name).trim()).filter(Boolean))],
         users,
-        // Blank rows of the Sheet aren't tasks. A creation time the Sheet has
-        // is kept; without one the copy's time is used.
+        // Blank rows of the Sheet aren't tasks. Creation and column-move times
+        // the Sheet has are kept; without a creation time the copy's time is used.
         tasks: tasks
           .filter((task) => task.id || task.title)
-          .map((task) => ({ ...task, createdAt: sheetTimeToIso(task.createdAt) })),
+          .map((task) => ({
+            ...task,
+            createdAt: sheetTimeToIso(task.createdAt),
+            movedAt: sheetTimeToIso(task.movedAt),
+          })),
       };
     } catch {
       message.error(t("copyLocal.unreadable"), 8);
