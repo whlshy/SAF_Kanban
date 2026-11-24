@@ -62,7 +62,7 @@ history
 
 ### `kanban` 工作表
 
-這張表用來儲存 Task，每一列代表一個 Task，欄位順序固定為 A:G：
+這張表用來儲存 Task，每一列代表一個 Task，欄位順序固定為 A:H：
 
 | 欄位 | 內容 | 範例 |
 | --- | --- | --- |
@@ -73,8 +73,9 @@ history
 | E | Kanban Column | `Todo` |
 | F | Priority | `high`、`medium`、`low` |
 | G | Assignee | `王小明` |
+| H | 建立時間（Apps Script 自動填入，依 Sheet 設定的時區） | `2026-11-21 10:30:00` |
 
-`kanban` 工作表可以先保持空白。新增 Task 時，網站會自動產生 Task ID。
+`kanban` 工作表可以先保持空白。新增 Task 時，網站會自動產生 Task ID，Apps Script（v3 起）會在 H 欄寫入建立時間；H 欄不需要手動填，用舊版 Script 建立的 Task 這欄是空的，畫面上就不顯示建立時間。
 
 ### `columns` 工作表
 
@@ -108,6 +109,7 @@ history
 | --- | --- | --- |
 | A～G | 與 `kanban` 工作表相同：Task ID、Title、Issue ID、Description、Kanban Column、Priority、Assignee | |
 | H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
+| I | 建立時間，從 `kanban` 的 H 欄帶過來 | `2026-11-01 09:00:00` |
 
 需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
 
@@ -259,6 +261,7 @@ Issue Link 範例：
 - 刪除 Task 時保存到 `history` 工作表。
 - 確認 Script 連到的就是看板設定的 Sheet，不一致時拒絕寫入，避免寫到別份 Sheet。
 - 錯誤訊息會依照介面語言顯示。
+- 新增 Task 時記錄建立時間（`kanban` 的 H 欄），顯示在卡片和任務內容裡。
 
 更新方式：
 

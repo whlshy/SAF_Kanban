@@ -1,7 +1,8 @@
 import { matchesTerms, searchTerms } from './search.js'
 
 // Helpers for the history sheet: one deleted task per row, columns A:G as in
-// the kanban sheet and H the deletion time.
+// the kanban sheet, H the deletion time and I when the task was created
+// (Apps Script v3 and later).
 
 // Google Sheets date serials count days from 1899-12-30; 25569 is 1970-01-01.
 const SERIAL_UNIX_EPOCH = 25569
@@ -43,6 +44,8 @@ export const parseHistory = (values = []) =>
         assignee: text(row[6]),
         serial,
         deletedAt: serial === null ? text(row[7]) : formatSerial(serial),
+        // A date the Sheet recognised comes as a serial; text stays as written.
+        createdAt: typeof row[8] === "number" ? formatSerial(row[8]) : text(row[8]),
       }
     })
     .filter((r) => r.id || r.title)

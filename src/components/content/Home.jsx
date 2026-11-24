@@ -23,6 +23,7 @@ import { localAvailable } from '@/data/localApi';
 import { useStartImport } from '@/components/header/BoardTransfer';
 import { useBoardData, useBoardWrite } from '@/data/useBoardData';
 import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter';
+import { createdAtParts } from '@/lib/createdAt';
 import useOnline from '@/lib/useOnline';
 import { filterAtom } from '@/store/filter';
 import FilterBar from './FilterBar';
@@ -178,6 +179,7 @@ export { PRIORITIES };
 // Read-only view of a task: an article-style info line, then the full description.
 function DescriptionView({ task, jiraLink }) {
   const t = useT();
+  const created = createdAtParts(task.createdAt);
   const parts = [
     task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
@@ -185,6 +187,7 @@ function DescriptionView({ task, jiraLink }) {
     task.issueId && (jiraLink
       ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.issueId}</a>
       : <span key="issue">{task.issueId}</span>),
+    created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
   ].filter(Boolean);
 
   return (
@@ -230,7 +233,22 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
+  // Only tasks made since creation times were kept have one.
+  const created = createdAtParts(task.createdAt);
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
+
+  // Resting the mouse on the card shows its whole title and, when known, when
+  // it was created. Not on touch screens (a long press drags the card), not
+  // on keyboard focus, not on the copy that follows a drag, and not while the
+  // card is pressed, so it never trails a dragged card.
+  const [hint, setHint] = useState(false);
+  const pressed = React.useRef(false);
+  const hintContent = (
+    <div data-slot="task-hint">
+      <div>{task.title}</div>
+      {created && <div data-slot="task-created" style={{ opacity: 0.85 }}>{t("task.createdAt", { time: created.full })}</div>}
+    </div>
+  );
 
   // Clicking the description shows all of it read-only, instead of editing the task.
   const openDescription = (e) => {
@@ -243,17 +261,29 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   };
 
   const cardContent = (
+    <Tooltip
+      title={hintContent}
+      placement="top"
+      open={hint && !!asHandle}
+      onOpen={() => !pressed.current && setHint(true)}
+      onClose={() => setHint(false)}
+      enterDelay={500}
+      enterNextDelay={500}
+      disableTouchListener
+      disableFocusListener
+    >
     <div
       className="rounded-md border bg-card p-3 shadow-xs"
       onClick={() => setDialog({ open: true, task })}
+      onPointerDown={() => { pressed.current = true; setHint(false); }}
+      onPointerUp={() => { pressed.current = false; }}
+      onPointerLeave={() => { pressed.current = false; }}
     >
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-2">
-          <Tooltip title={task.title} placement='top'>
-            <span className="line-clamp-2 font-medium text-sm">
-              {task.title}
-            </span>
-          </Tooltip>
+          <span className="line-clamp-2 font-medium text-sm">
+            {task.title}
+          </span>
           <PriorityBadge priority={task.priority} />
         </div>
 
@@ -289,13 +319,14 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
           </div>
 
           {task.assignee && (
-            <time className="text-[10px] tabular-nums whitespace-nowrap">
+            <span className="text-[10px] tabular-nums whitespace-nowrap">
               {task.assignee}
-            </time>
+            </span>
           )}
         </div>
       </div>
     </div>
+    </Tooltip>
   );
 
   return (

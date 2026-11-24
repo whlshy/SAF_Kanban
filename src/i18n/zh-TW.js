@@ -118,6 +118,7 @@ export default {
   "task.viewDescription": "查看完整描述",
   "task.priority": "優先順序",
   "task.assignee": "負責人",
+  "task.createdAt": "建立於 {time}",
   "task.unassigned": "未指派",
   "task.delete": "刪除",
   "task.deleteConfirm": "確定要刪除？",

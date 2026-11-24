@@ -8,8 +8,24 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 | Version | Released with | Changes |
 | --- | --- | --- |
+| v3 | 1.18.0 | Records when each new task was created in column H of `kanban`; deleting a task keeps that time in column I of `history` |
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
+
+## 1.18.0 and desktop app 0.3.0 — 2026-11-24
+
+Download the desktop app from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+
+### Added
+
+- When each task was created: resting the mouse on a task shows its whole title and "Created 2026-11-21 10:30"; the task's details and the deleted tasks list show it too. Cards don't show it.
+  - Google Sheet boards: new tasks get their creation time in column H of the `kanban` sheet (in the Sheet's time zone), and deleting a task keeps it in column I of `history`. Needs the current Apps Script (v3). Tasks created before the update have no creation time and show none.
+  - Boards kept on the computer in the desktop app: the creation time was already recorded and is now shown, for existing tasks too, in the computer's time zone.
+- Copying a Google Sheet board to the computer in the desktop app keeps the tasks' creation times.
+
+### Changed
+
+- The tooltip of a task now shows its title and creation time instead of only the title. It appears after the mouse rests on the task for about half a second, not while the task is pressed or dragged, and not from a long press on a phone.
 
 ## Desktop app 0.2.0 — 2026-11-18
 

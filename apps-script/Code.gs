@@ -6,7 +6,7 @@
  */
 
 // 新版 Script 會在回應中帶上版本號，前端可據此判斷能使用哪些功能。
-const SCRIPT_VERSION = 2;
+const SCRIPT_VERSION = 3;
 
 // 通常留空：會使用這個 Apps Script 所屬的 Google Sheet。
 // 只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID。
@@ -14,7 +14,9 @@ const SPREADSHEET_ID = "";
 
 const KANBAN_SHEET_NAME = "kanban";
 const HISTORY_SHEET_NAME = "history";
+// kanban 的 A～G 欄是 Task 的內容；H 欄是建立時間，只在新增時寫入，之後修改不會動到。
 const COLUMN_COUNT = 7;
+const CREATED_AT_COLUMN = 8;
 
 function doGet(e) {
   var lock = LockService.getScriptLock();
@@ -112,6 +114,10 @@ function handleUpsert(sheet, params) {
   } else {
     sheet.appendRow(rowData);
     rowNumber = sheet.getLastRow();
+    // 設成純文字，Sheet 才不會把時間改成依地區顯示的日期格式。
+    sheet.getRange(rowNumber, CREATED_AT_COLUMN)
+      .setNumberFormat("@")
+      .setValue(formatNow(sheet.getParent()));
   }
 
   SpreadsheetApp.flush();
@@ -211,9 +217,10 @@ function handleDelete(spreadsheet, sheet, params) {
     fail("TASK_NOT_FOUND", { id: taskId });
   }
 
-  // 刪除前把最後的狀態存到 history，H 欄是刪除時間。
-  var lastState = sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).getValues()[0];
-  getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME).appendRow(lastState.concat([formatNow(spreadsheet)]));
+  // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間。
+  var lastState = sheet.getRange(rowNumber, 1, 1, CREATED_AT_COLUMN).getValues()[0];
+  var createdAt = lastState.pop();
+  getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME).appendRow(lastState.concat([formatNow(spreadsheet), createdAt]));
 
   sheet.deleteRow(rowNumber);
   SpreadsheetApp.flush();
