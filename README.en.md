@@ -62,7 +62,7 @@ Header rows are not skipped, so don't add column headers to any sheet: data star
 
 ### `kanban` sheet
 
-Stores the tasks, one task per row, with columns A:H in this order:
+Stores the tasks, one task per row, with columns A:I in this order:
 
 | Column | Content | Example |
 | --- | --- | --- |
@@ -74,8 +74,9 @@ Stores the tasks, one task per row, with columns A:H in this order:
 | F | Priority | `high`, `medium`, `low` |
 | G | Assignee | `Alice` |
 | H | When it was created (filled in by the Apps Script, in the Sheet's time zone) | `2026-11-21 10:30:00` |
+| I | When it last moved into its current column (Apps Script v4+, updated on creation and cross-column moves) | `2026-11-24 14:20:00` |
 
-The `kanban` sheet can start empty. New tasks get a Task ID from the site automatically, and the Apps Script (v3 and later) writes the creation time into column H. Don't fill in H yourself; tasks created with an older script leave it empty, and then no creation time is shown.
+The `kanban` sheet can start empty. New tasks get a Task ID from the site automatically, and the Apps Script writes the creation time into column H (v3+) and when the task entered its current column into column I (v4+, updated when moved to another column). Don't fill in H or I yourself; tasks from older scripts leave them empty.
 
 ### `columns` sheet
 
@@ -110,6 +111,7 @@ Keeps deleted tasks and can start empty. When a task is deleted, the Apps Script
 | A–G | Same as the `kanban` sheet: Task ID, Title, Issue ID, Description, Kanban Column, Priority, Assignee | |
 | H | When it was deleted (in the Sheet's time zone) | `2026-11-04 15:30:00` |
 | I | When it was created, taken from column H of `kanban` | `2026-11-01 09:00:00` |
+| J | When it last moved into its column, taken from column I of `kanban` (v4+) | `2026-11-03 18:10:00` |
 
 This needs the [current Apps Script](#update-the-apps-script). Older scripts delete tasks without saving them here.
 
@@ -261,7 +263,7 @@ When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep
 - Saves deleted tasks to the `history` sheet.
 - Checks that it's connected to the Sheet set for the board, and refuses to write otherwise so data never lands in the wrong Sheet.
 - Lets error messages follow the interface language.
-- Records when each new task was created (column H of `kanban`), shown on its card and in its details.
+- Records when each new task was created (column H of `kanban`) and when it last moved into its current column (column I), shown in the tooltip and task details.
 
 To update:
 

@@ -8,9 +8,31 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 | Version | Released with | Changes |
 | --- | --- | --- |
+| v4 | 1.19.0 | Records when each task last moved into its current column in column I of `kanban` (on creation and cross-column moves); deleting a task keeps it in column J of `history` |
 | v3 | 1.18.0 | Records when each new task was created in column H of `kanban`; deleting a task keeps that time in column I of `history` |
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
+
+## 1.19.0 and desktop app 0.4.0 — 2026-11-24
+
+Download the desktop app from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+
+### Added
+
+- When each task moved into its current column (`movedAt`): recorded when a task is created or moved to a different column (reordering within the same column, editing fields, or renaming a column leaves it unchanged). Once a task has moved columns, its hover tooltip and details view show an extra "Moved here …" line.
+  - Google Sheet boards: stored as plain text in column I of `kanban` (in the Sheet's time zone), and kept in column J of `history` on deletion. Needs the current Apps Script (v4); older scripts and existing tasks keep working without it until moved.
+  - Boards kept on the computer in the desktop app: recorded on creation and cross-column moves, and preserved when copying a Google Sheet board to the computer.
+- Restore button in the desktop app's "Deleted tasks" dialog: for boards kept on the computer, restores a deleted task as it was (same ID, creation time, original column and place); if its old column was removed, restores it to the first column with a notice.
+- Command-line (`saf-kanban-cli`) and MCP improvements:
+  - `edit` adds `--append-description` (text or `-` from stdin) and `--append-description-file`, appending after a blank line inside the file lock; MCP `update_task` adds `appendDescription`, and HTTP `PATCH` accepts `appendDes`.
+  - `add` and `edit` add `--description-file`; stdin and file reads strip UTF-8 BOM and decode UTF-16 (fixing PowerShell BOM/encoding issues), and the skill advises using description files in PowerShell.
+  - `move` accepts multiple task IDs in one atomic write: `move <board> <task>... <column>`. If any ID doesn't exist, nothing changes.
+  - `board` adds `--column` and `--limit N` (showing "… and N more" when truncated; default output is unchanged).
+  - `task` shows `moved`; `tasks` and MCP `list_tasks` add `--since`, `--until` (`YYYY-MM-DD` or ISO timestamp) and `--limit N` (returning the N tasks most recently moved into their column).
+
+### Changed
+
+- After updating the desktop app, open "AI / API" → "Skill (recommended)" and choose "Update the skill" so AI agents learn the new options and PowerShell file tip.
 
 ## 1.18.0 and desktop app 0.3.0 — 2026-11-24
 
