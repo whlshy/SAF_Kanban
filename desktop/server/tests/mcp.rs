@@ -286,6 +286,34 @@ async fn an_agent_can_work_a_board_through_the_tools() {
         "{message}"
     );
 
+    // appendDescription adds after a blank line without overwriting, and
+    // conflicts with description.
+    let appended = app
+        .ok(
+            "update_task",
+            json!({ "board": id, "task": task(&first), "appendDescription": "line 3" }),
+        )
+        .await;
+    assert_eq!(appended["description"], "line 1\nline 2\n\nline 3");
+    assert!(appended["movedAt"].as_str().unwrap().ends_with('Z'));
+    let (failed, conflict) = app
+        .tool(
+            "update_task",
+            json!({ "board": id, "task": task(&first), "description": "x", "appendDescription": "y" }),
+        )
+        .await;
+    assert!(
+        failed && conflict.as_str().unwrap().contains("CONFLICTING_FIELDS"),
+        "{conflict}"
+    );
+    let limited = app
+        .ok(
+            "list_tasks",
+            json!({ "board": id, "column": "In progress", "limit": 1 }),
+        )
+        .await;
+    assert_eq!(limited.as_array().unwrap().len(), 1);
+
     // The same board through the HTTP API: one store behind both.
     assert_eq!(app.get(&format!("/api/boards/{id}")).await["taskCount"], 3);
 }

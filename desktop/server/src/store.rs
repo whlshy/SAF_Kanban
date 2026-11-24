@@ -18,7 +18,7 @@ use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
+use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use tokio::sync::broadcast;
 
 use crate::error::{ApiError, ApiResult};
@@ -73,6 +73,10 @@ pub struct TaskInput {
     pub title: Option<String>,
     pub issue_id: Option<String>,
     pub des: Option<String>,
+    /// Appended to the existing description with a blank line in between,
+    /// inside the write lock so concurrent edits aren't overwritten.
+    #[serde(alias = "appendDescription")]
+    pub append_des: Option<String>,
     pub column: Option<String>,
     pub priority: Option<String>,
     pub assignee: Option<String>,
@@ -110,6 +114,14 @@ pub struct TaskQuery {
     pub priority: Option<String>,
     /// Words that must all appear in the title, description, issue ID or assignee.
     pub q: Option<String>,
+    /// Only tasks moved into their current column at or after this time
+    /// (`YYYY-MM-DD` or ISO timestamp).
+    pub since: Option<String>,
+    /// Only tasks moved into their current column at or before this time
+    /// (`YYYY-MM-DD`, inclusive of the whole day, or ISO timestamp).
+    pub until: Option<String>,
+    /// At most this many tasks, most recently moved into their column first.
+    pub limit: Option<usize>,
 }
 
 pub struct Store {
@@ -140,8 +152,8 @@ struct Access<'a> {
 }
 
 /// UTC with milliseconds, always the same width, so the strings sort by time.
-fn now() -> String {
-    let time = OffsetDateTime::now_utc();
+fn format_utc(time: OffsetDateTime) -> String {
+    let time = time.to_offset(UtcOffset::UTC);
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
         time.year(),
@@ -152,6 +164,125 @@ fn now() -> String {
         time.second(),
         time.millisecond()
     )
+}
+
+fn now() -> String {
+    format_utc(OffsetDateTime::now_utc())
+}
+
+/// Parses a `since`/`until` bound (`YYYY-MM-DD` or ISO timestamp) into a UTC
+/// timestamp formatted like [`now`]. With `end_of_day`, an omitted time or
+/// sub-second part fills to the end of that unit so `--until 2026-11-24`
+/// includes the whole day.
+fn parse_time_bound(raw: &str, end_of_day: bool) -> ApiResult<String> {
+    let invalid = || {
+        ApiError::invalid(
+            "INVALID_TIME",
+            format!(
+                "`{raw}` isn't a valid date or time. Use YYYY-MM-DD or an ISO timestamp like 2026-11-24T08:00:00Z."
+            ),
+        )
+    };
+    let text = raw.trim();
+    if text.len() < 10 {
+        return Err(invalid());
+    }
+    let bytes = text.as_bytes();
+    if bytes[4] != b'-' || bytes[7] != b'-' {
+        return Err(invalid());
+    }
+    let year: i32 = text[0..4].parse().map_err(|_| invalid())?;
+    let month: u8 = text[5..7].parse().map_err(|_| invalid())?;
+    let day: u8 = text[8..10].parse().map_err(|_| invalid())?;
+    let date = Date::from_calendar_date(year, Month::try_from(month).map_err(|_| invalid())?, day)
+        .map_err(|_| invalid())?;
+
+    let rest = &text[10..];
+    if rest.is_empty() {
+        let time = if end_of_day {
+            Time::from_hms_milli(23, 59, 59, 999).map_err(|_| invalid())?
+        } else {
+            Time::MIDNIGHT
+        };
+        return Ok(format_utc(PrimitiveDateTime::new(date, time).assume_utc()));
+    }
+
+    let rest = rest
+        .strip_prefix('T')
+        .or_else(|| rest.strip_prefix('t'))
+        .or_else(|| rest.strip_prefix(' '))
+        .ok_or_else(invalid)?;
+
+    let (time_part, offset) =
+        if let Some(stripped) = rest.strip_suffix('Z').or_else(|| rest.strip_suffix('z')) {
+            (stripped, UtcOffset::UTC)
+        } else if let Some(sign_pos) = rest.rfind(['+', '-']) {
+            let sign: i8 = if rest.as_bytes()[sign_pos] == b'+' {
+                1
+            } else {
+                -1
+            };
+            let tz = &rest[sign_pos + 1..];
+            let (tz_h, tz_m) = match tz.split_once(':') {
+                Some((h, m)) if h.len() == 2 && m.len() == 2 => (h, m),
+                None if tz.len() == 4 => (&tz[0..2], &tz[2..4]),
+                _ => return Err(invalid()),
+            };
+            let h: i8 = tz_h.parse().map_err(|_| invalid())?;
+            let m: i8 = tz_m.parse().map_err(|_| invalid())?;
+            if !(0..=23).contains(&h) || !(0..=59).contains(&m) {
+                return Err(invalid());
+            }
+            let offset = UtcOffset::from_hms(sign * h, sign * m, 0).map_err(|_| invalid())?;
+            (&rest[..sign_pos], offset)
+        } else {
+            (rest, UtcOffset::UTC)
+        };
+
+    let (hms, frac) = match time_part.split_once('.') {
+        Some((hms, frac)) if !frac.is_empty() && frac.bytes().all(|b| b.is_ascii_digit()) => {
+            (hms, Some(frac))
+        }
+        Some(_) => return Err(invalid()),
+        None => (time_part, None),
+    };
+    let parts: Vec<&str> = hms.split(':').collect();
+    if parts.len() != 2 && parts.len() != 3 {
+        return Err(invalid());
+    }
+    if parts.iter().any(|part| part.len() != 2) {
+        return Err(invalid());
+    }
+    let hour: u8 = parts[0].parse().map_err(|_| invalid())?;
+    let minute: u8 = parts[1].parse().map_err(|_| invalid())?;
+    let (second, milli) = if parts.len() == 3 {
+        let second: u8 = parts[2].parse().map_err(|_| invalid())?;
+        let milli: u16 = match frac {
+            Some(frac) => {
+                let mut digits = frac.chars().take(3).collect::<String>();
+                while digits.len() < 3 {
+                    digits.push('0');
+                }
+                digits.parse().map_err(|_| invalid())?
+            }
+            None if end_of_day => 999,
+            None => 0,
+        };
+        (second, milli)
+    } else {
+        if frac.is_some() {
+            return Err(invalid());
+        }
+        if end_of_day {
+            (59, 999)
+        } else {
+            (0, 0)
+        }
+    };
+    let time = Time::from_hms_milli(hour, minute, second, milli).map_err(|_| invalid())?;
+    Ok(format_utc(
+        PrimitiveDateTime::new(date, time).assume_offset(offset),
+    ))
 }
 
 fn new_id() -> String {
@@ -599,6 +730,18 @@ impl Store {
         if let Some(column) = &query.column {
             check_column(&board, column)?;
         }
+        let since = query
+            .since
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| parse_time_bound(value, false))
+            .transpose()?;
+        let until = query
+            .until
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| parse_time_bound(value, true))
+            .transpose()?;
         let terms: Vec<String> = query
             .q
             .as_deref()
@@ -607,7 +750,7 @@ impl Store {
             .split_whitespace()
             .map(str::to_string)
             .collect();
-        Ok(board
+        let mut tasks: Vec<Task> = board
             .tasks
             .into_iter()
             .filter(|task| {
@@ -629,12 +772,34 @@ impl Store {
                     .is_none_or(|priority| &task.priority == priority)
             })
             .filter(|task| {
+                since
+                    .as_ref()
+                    .is_none_or(|bound| !task.moved_at.is_empty() && task.moved_at >= *bound)
+            })
+            .filter(|task| {
+                until
+                    .as_ref()
+                    .is_none_or(|bound| !task.moved_at.is_empty() && task.moved_at <= *bound)
+            })
+            .filter(|task| {
                 let haystack = [&task.title, &task.des, &task.issue_id, &task.assignee]
                     .map(|field| field.to_lowercase())
                     .join("\n");
                 terms.iter().all(|term| haystack.contains(term))
             })
-            .collect())
+            .collect();
+        if let Some(limit) = query.limit {
+            tasks.sort_by(
+                |a, b| match (a.moved_at.is_empty(), b.moved_at.is_empty()) {
+                    (true, true) => std::cmp::Ordering::Equal,
+                    (true, false) => std::cmp::Ordering::Greater,
+                    (false, true) => std::cmp::Ordering::Less,
+                    (false, false) => b.moved_at.cmp(&a.moved_at),
+                },
+            );
+            tasks.truncate(limit);
+        }
+        Ok(tasks)
     }
 
     pub fn get_task(&self, board_id: &str, task_id: &str) -> ApiResult<Task> {
@@ -675,14 +840,18 @@ impl Store {
                         }
                         None => board.tasks[index].column.clone(),
                     };
+                    let time = now();
                     let task = &mut board.tasks[index];
                     task.title = input.title.unwrap_or_default();
                     task.issue_id = input.issue_id.unwrap_or_default();
                     task.des = input.des.unwrap_or_default();
                     task.priority = input.priority.unwrap_or_default();
                     task.assignee = input.assignee.unwrap_or_default();
+                    if task.column != column {
+                        task.moved_at = time.clone();
+                    }
                     task.column = column;
-                    task.updated_at = now();
+                    task.updated_at = time;
                     Ok(task.clone())
                 }
             }
@@ -691,11 +860,18 @@ impl Store {
 
     /// Changes only the fields that are given.
     pub fn patch_task(&self, board_id: &str, task_id: &str, input: TaskInput) -> ApiResult<Task> {
+        if input.des.is_some() && input.append_des.is_some() {
+            return Err(ApiError::invalid(
+                "CONFLICTING_FIELDS",
+                "Give either `description` or `appendDescription`, not both.",
+            ));
+        }
         self.update(board_id, |board| {
             let index = find_task(board, task_id)?;
             if let Some(column) = &input.column {
                 check_column(board, column)?;
             }
+            let time = now();
             let task = &mut board.tasks[index];
             if let Some(title) = input.title {
                 task.title = title;
@@ -706,7 +882,20 @@ impl Store {
             if let Some(des) = input.des {
                 task.des = des;
             }
+            if let Some(append) = input.append_des {
+                if !append.is_empty() {
+                    let existing = task.des.trim_end_matches(['\r', '\n']);
+                    if existing.is_empty() {
+                        task.des = append;
+                    } else {
+                        task.des = format!("{existing}\n\n{append}");
+                    }
+                }
+            }
             if let Some(column) = input.column {
+                if task.column != column {
+                    task.moved_at = time.clone();
+                }
                 task.column = column;
             }
             if let Some(priority) = input.priority {
@@ -715,7 +904,7 @@ impl Store {
             if let Some(assignee) = input.assignee {
                 task.assignee = assignee;
             }
-            task.updated_at = now();
+            task.updated_at = time;
             Ok(task.clone())
         })
     }
@@ -734,9 +923,13 @@ impl Store {
             let before = neighbour(&input.before_id);
             let after = neighbour(&input.after_id);
 
+            let time = now();
             let mut task = board.tasks.remove(index);
+            if task.column != input.column {
+                task.moved_at = time.clone();
+            }
             task.column = input.column.clone();
-            task.updated_at = now();
+            task.updated_at = time;
             let position = |id: &str| board.tasks.iter().position(|task| task.id == id);
             let target = match (before, after) {
                 (Some(before), _) => position(&before).unwrap_or(index),
@@ -747,6 +940,76 @@ impl Store {
                 .tasks
                 .insert(target.min(board.tasks.len()), task.clone());
             Ok(task)
+        })
+    }
+
+    /// Moves several tasks to a column in a single write. If any task id
+    /// doesn't exist, nothing is changed.
+    pub fn move_tasks(
+        &self,
+        board_id: &str,
+        task_ids: &[String],
+        input: MoveInput,
+    ) -> ApiResult<Vec<Task>> {
+        self.update(board_id, |board| {
+            check_column(board, &input.column)?;
+            let mut seen = HashSet::new();
+            let mut unique_ids = Vec::new();
+            for id in task_ids {
+                find_task(board, id)?;
+                if seen.insert(id.as_str()) {
+                    unique_ids.push(id.clone());
+                }
+            }
+            let moving: HashSet<&str> = unique_ids.iter().map(String::as_str).collect();
+            let neighbour = |id: &Option<String>| {
+                id.as_deref()
+                    .filter(|id| {
+                        !moving.contains(*id) && board.tasks.iter().any(|task| task.id == *id)
+                    })
+                    .map(str::to_string)
+            };
+            let before = neighbour(&input.before_id);
+            let after = neighbour(&input.after_id);
+            let time = now();
+
+            if before.is_none() && after.is_none() {
+                let mut moved = Vec::with_capacity(unique_ids.len());
+                for id in &unique_ids {
+                    let index = find_task(board, id)?;
+                    let task = &mut board.tasks[index];
+                    if task.column != input.column {
+                        task.moved_at = time.clone();
+                    }
+                    task.column = input.column.clone();
+                    task.updated_at = time.clone();
+                    moved.push(task.clone());
+                }
+                return Ok(moved);
+            }
+
+            let mut moved = Vec::with_capacity(unique_ids.len());
+            for id in &unique_ids {
+                let index = find_task(board, id)?;
+                let mut task = board.tasks.remove(index);
+                if task.column != input.column {
+                    task.moved_at = time.clone();
+                }
+                task.column = input.column.clone();
+                task.updated_at = time.clone();
+                moved.push(task);
+            }
+            let position = |id: &str| board.tasks.iter().position(|task| task.id == id);
+            let target = match (before, after) {
+                (Some(before), _) => position(&before).unwrap_or(board.tasks.len()),
+                (None, Some(after)) => position(&after)
+                    .map(|at| at + 1)
+                    .unwrap_or(board.tasks.len()),
+                (None, None) => board.tasks.len(),
+            };
+            let target = target.min(board.tasks.len());
+            board.tasks.splice(target..target, moved.iter().cloned());
+            Ok(moved)
         })
     }
 
@@ -824,9 +1087,13 @@ impl Store {
                 board.tasks.len()
             };
 
+            let time = now();
             let mut task = board.history.remove(at).task;
+            if !back_home {
+                task.moved_at = time.clone();
+            }
             task.column = column;
-            task.updated_at = now();
+            task.updated_at = time;
             board.tasks.insert(target, task.clone());
             Ok(task)
         })
@@ -865,7 +1132,8 @@ fn add_task(board: &mut Board, id: String, input: TaskInput) -> ApiResult<Task> 
             .unwrap_or_else(|| DEFAULT_PRIORITY.to_string()),
         assignee: input.assignee.unwrap_or_default(),
         created_at: time.clone(),
-        updated_at: time,
+        updated_at: time.clone(),
+        moved_at: time,
     };
     board.tasks.push(task.clone());
     Ok(task)

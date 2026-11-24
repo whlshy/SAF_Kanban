@@ -20,6 +20,10 @@ pub struct Task {
     /// UTC, like `2026-11-16T08:30:00.000Z`.
     pub created_at: String,
     pub updated_at: String,
+    /// UTC time the task last entered its current column. Empty for tasks
+    /// saved before this was tracked.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub moved_at: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

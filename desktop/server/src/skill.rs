@@ -114,16 +114,21 @@ Below it is written as `saf-kanban-cli`; always type the full command above inst
 
 ```
 saf-kanban-cli boards                     List the boards
-saf-kanban-cli board <board>              Columns with their tasks in order, and the assignees
+saf-kanban-cli board <board> [--column C] [--limit N]
+                                          Columns with their tasks in order, and the assignees
 saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+                     [--since TIME] [--until TIME] [--limit N]
                                           Find tasks (--assignee "" finds unassigned ones)
 saf-kanban-cli task <board> <task>        One task, with its whole description
-saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--description TEXT]
+saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID]
+                   [--description TEXT | --description-file FILE]
                                           Add a task at the end of a column (default: the first)
-saf-kanban-cli edit <board> <task> [--title T] [--description TEXT] [--priority P] [--assignee A] [--issue ID]
+saf-kanban-cli edit <board> <task> [--title T] [--priority P] [--assignee A] [--issue ID]
+                    [--description TEXT | --description-file FILE |
+                     --append-description TEXT | --append-description-file FILE]
                                           Change some fields; an empty value ("") clears one
-saf-kanban-cli move <board> <task> <column> [--before TASK | --after TASK]
-                                          Move to a column, and optionally next to another task
+saf-kanban-cli move <board> <task>... <column> [--before TASK | --after TASK]
+                                          Move one or more tasks to a column, optionally next to another
 saf-kanban-cli delete <board> <task>      Delete a task (it is kept in the deleted tasks)
 saf-kanban-cli deleted <board>            Deleted tasks, newest first, with their ids
 saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
@@ -136,7 +141,9 @@ saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW
 
 - `<board>` is a board's id or its exact name. `<task>` is a task id, shown in brackets like `[3f9a1c2e]`.
 - Add `--json` to any command to get JSON instead of text.
-- For a description with several lines, pass `--description -` and send the text on standard input.
+- To add notes to an existing description without replacing it, use `--append-description` (or `--append-description-file`): it appends after a blank line safely under the file lock.
+- For a description with several lines, pass `--description -` (or `--append-description -`) to read from standard input, or `--description-file FILE` / `--append-description-file FILE` to read from a file. **In PowerShell, write the text to a temporary file and use `--description-file` / `--append-description-file` instead of piping through standard input**, to avoid PowerShell pipeline encoding issues.
+- On a large board, narrow the view with `board <board> --column C --limit N` (or `tasks <board> --column C --limit N`). `--since` and `--until` (`YYYY-MM-DD` or ISO timestamp) filter by when a task last moved into its current column (`movedAt`), and `--limit N` returns the `N` tasks most recently moved into their column.
 
 ## How boards work
 

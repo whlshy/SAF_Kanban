@@ -628,6 +628,33 @@ async fn tasks_can_be_filtered() {
         (status, code(&body)),
         (StatusCode::BAD_REQUEST, "UNKNOWN_COLUMN")
     );
+
+    // PATCH with appendDes appends after a blank line, and limit returns the newest movedAt first.
+    let first = app.get(&format!("/api/boards/{board}/tasks")).await[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let (status, patched) = app
+        .call(
+            Method::PATCH,
+            &format!("/api/boards/{board}/tasks/{first}"),
+            json!({ "appendDes": "Reproduced on iOS" }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(patched["des"], "Safari only\n\nReproduced on iOS");
+    assert_eq!(app.titles(&board, "?limit=1").await.len(), 1);
+    let (status, body) = app
+        .call(
+            Method::GET,
+            &format!("/api/boards/{board}/tasks?since=not-a-date"),
+            Value::Null,
+        )
+        .await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::BAD_REQUEST, "INVALID_TIME")
+    );
 }
 
 #[tokio::test]
