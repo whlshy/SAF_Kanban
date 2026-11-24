@@ -180,6 +180,7 @@ export { PRIORITIES };
 function DescriptionView({ task, jiraLink }) {
   const t = useT();
   const created = createdAtParts(task.createdAt);
+  const moved = task.movedAt && task.movedAt !== task.createdAt ? createdAtParts(task.movedAt) : null;
   const parts = [
     task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
@@ -188,6 +189,7 @@ function DescriptionView({ task, jiraLink }) {
       ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.issueId}</a>
       : <span key="issue">{task.issueId}</span>),
     created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
+    moved && <span key="moved" data-slot="task-moved">{t("task.movedAt", { time: moved.full })}</span>,
   ].filter(Boolean);
 
   return (
@@ -233,20 +235,22 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   const [, setDialog] = useAtom(dialogAtom);
   const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
-  // Only tasks made since creation times were kept have one.
+  // Only tasks made since creation/move times were kept have them.
   const created = createdAtParts(task.createdAt);
+  const moved = task.movedAt && task.movedAt !== task.createdAt ? createdAtParts(task.movedAt) : null;
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
   // Resting the mouse on the card shows its whole title and, when known, when
-  // it was created. Not on touch screens (a long press drags the card), not
-  // on keyboard focus, not on the copy that follows a drag, and not while the
-  // card is pressed, so it never trails a dragged card.
+  // it was created and moved into this column. Not on touch screens (a long
+  // press drags the card), not on keyboard focus, not on the copy that follows
+  // a drag, and not while the card is pressed, so it never trails a dragged card.
   const [hint, setHint] = useState(false);
   const pressed = React.useRef(false);
   const hintContent = (
     <div data-slot="task-hint">
       <div>{task.title}</div>
       {created && <div data-slot="task-created" style={{ opacity: 0.85 }}>{t("task.createdAt", { time: created.full })}</div>}
+      {moved && <div data-slot="task-moved" style={{ opacity: 0.85 }}>{t("task.movedAt", { time: moved.full })}</div>}
     </div>
   );
 

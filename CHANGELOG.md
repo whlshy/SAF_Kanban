@@ -8,9 +8,31 @@
 
 | 版本 | 隨網站版本推出 | 內容 |
 | --- | --- | --- |
+| v4 | 1.19.0 | 在 `kanban` 的 I 欄記錄任務最後一次移進目前欄位的時間（新增與跨欄移動時更新）；刪除時一併存到 `history` 的 J 欄 |
 | v3 | 1.18.0 | 新增的 Task 在 `kanban` 的 H 欄記錄建立時間；刪除時把建立時間存到 `history` 的 I 欄 |
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
+
+## 1.19.0 與桌面版 0.4.0 — 2026-11-24
+
+桌面版到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。
+
+### 新增
+
+- 任務移進目前欄位的時間（`movedAt`）：新增或跨欄移動時會記錄當下時間（同欄拖曳、編輯內容或欄位改名不會改變）。滑鼠停在任務上或點開描述時，若任務曾移過欄位，會多顯示一行「移至此欄於 …」。
+  - Google Sheet 看板：存在 `kanban` 工作表的 I 欄（純文字，依 Sheet 設定的時區），刪除時保留到 `history` 的 J 欄。需要新版 Apps Script（v4）；舊版 Script 或更新前的任務不受影響，只是在下次跨欄移動前不顯示這筆時間。
+  - 桌面版存在電腦上的看板：新增與跨欄移動都會記錄；把 Google Sheet 看板複製成本機看板時也會保留。
+- 桌面版「已刪除的任務」視窗新增「復原」按鈕：只針對存在電腦上的看板，可將誤刪的任務原樣放回原本的欄位與位置（保留原 ID 與建立時間）；原本的欄位已移除時會自動放回第一個欄位並提示。
+- 命令列（`saf-kanban-cli`）與 MCP 改進：
+  - `edit` 新增 `--append-description`（支援文字或 `-` 標準輸入）與 `--append-description-file`，在檔案鎖內空一行接在原本的描述後面；MCP 的 `update_task` 同步支援 `appendDescription`，HTTP API 的 `PATCH` 支援 `appendDes`。
+  - `add`／`edit` 新增 `--description-file`，讀取檔案與標準輸入時自動去除 UTF-8 BOM 並辨識 UTF-16（解決 PowerShell 編碼與 BOM 問題）；skill 已註明在 PowerShell 改用讀檔。
+  - `move` 支援一次移動多張任務：`move <看板> <任務...> <欄位>`，任一 ID 不存在就整批不動，一次寫入。
+  - `board` 新增 `--column` 與 `--limit N`（超過時顯示「… and N more」，預設輸出不變）。
+  - `task` 顯示 `moved` 時間；`tasks` 與 MCP 的 `list_tasks` 支援 `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）與 `--limit N`（依 `movedAt` 列出最近移入的 N 張）。
+
+### 變更
+
+- 桌面版更新後，請到「AI / API 連線」→「Skill（建議）」按「更新 skill」，AI 才會知道新的命令列參數與 PowerShell 讀檔提示。
 
 ## 1.18.0 與桌面版 0.3.0 — 2026-11-24
 

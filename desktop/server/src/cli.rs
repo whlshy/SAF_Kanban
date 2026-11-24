@@ -10,7 +10,7 @@ use std::process::ExitCode;
 
 use serde_json::{json, Map, Value};
 
-use crate::store::Store;
+use crate::store::{MoveInput, Store};
 use crate::{default_data_dir, mcp, skill};
 
 const USAGE: &str = "\
@@ -19,16 +19,21 @@ SAF Kanban from the command line. Works whether or not the app is open.
 Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
 
   boards                          List the boards
-  board <board>                   Columns with their tasks, and the assignees
+  board <board> [--column C] [--limit N]
+                                  Columns with their tasks, and the assignees
   tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+                [--since TIME] [--until TIME] [--limit N]
                                   Find tasks (--assignee \"\" finds unassigned ones)
   task <board> <task>             One task, with its whole description
-  add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--description TEXT]
+  add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID]
+                      [--description TEXT | --description-file FILE]
                                   Add a task at the end of a column (default: the first)
-  edit <board> <task> [--title T] [--description TEXT] [--priority P] [--assignee A] [--issue ID]
+  edit <board> <task> [--title T] [--priority P] [--assignee A] [--issue ID]
+                      [--description TEXT | --description-file FILE |
+                       --append-description TEXT | --append-description-file FILE]
                                   Change some fields; an empty value clears one
-  move <board> <task> <column> [--before TASK | --after TASK]
-                                  Move to a column, optionally next to another task
+  move <board> <task>... <column> [--before TASK | --after TASK]
+                                  Move one or more tasks to a column, optionally next to another
   delete <board> <task>           Delete a task (kept in the deleted tasks)
   deleted <board>                 Deleted tasks, newest first
   restore <board> <task> [--column C] [--before TASK | --after TASK]
@@ -42,7 +47,10 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
                                   agent's skills folder
 
 <board> is a board's id or exact name; <task> is a task id.
---description - reads the description from standard input.
+--description - and --append-description - read from standard input (UTF-8 or UTF-16).
+--description-file and --append-description-file read from a file (UTF-8 or UTF-16).
+--since and --until filter by when a task moved into its current column (YYYY-MM-DD or ISO).
+--limit N keeps the N tasks most recently moved into their column.
 --json prints JSON instead of text. --data-dir picks another data folder.";
 
 /// What went wrong: the command was mistyped (exit status 2) or it could not
@@ -138,6 +146,18 @@ fn parse(raw: Vec<String>) -> Result<Args, Failure> {
 }
 
 impl Args {
+    /// Checks which options were given.
+    fn expect_options(&self, options: &[&str]) -> Result<(), Failure> {
+        if let Some((name, _)) = self
+            .options
+            .iter()
+            .find(|(name, _)| !options.contains(&name.as_str()))
+        {
+            return Err(usage(format!("`{}` has no option --{name}.", self.command)));
+        }
+        Ok(())
+    }
+
     /// Checks the number of words and which options were given.
     fn expect(&self, words: &[&str], options: &[&str]) -> Result<(), Failure> {
         if self.words.len() != words.len() {
@@ -149,14 +169,7 @@ impl Args {
                 wanted.join(" ")
             )));
         }
-        if let Some((name, _)) = self
-            .options
-            .iter()
-            .find(|(name, _)| !options.contains(&name.as_str()))
-        {
-            return Err(usage(format!("`{}` has no option --{name}.", self.command)));
-        }
-        Ok(())
+        self.expect_options(options)
     }
 
     fn option(&self, name: &str) -> Option<&str> {
@@ -185,6 +198,77 @@ fn list(text: &str) -> Value {
         .collect::<Vec<_>>())
 }
 
+/// Decodes text read from standard input or a file, handling UTF-8 (with or
+/// without BOM) and UTF-16 (LE/BE with BOM, or LE without BOM), which
+/// PowerShell commonly produces.
+fn decode_text(bytes: &[u8]) -> Result<String, String> {
+    let decode_utf16 = |slice: &[u8], be: bool| -> Result<String, String> {
+        let (pairs, remainder) = slice.as_chunks::<2>();
+        if !remainder.is_empty() {
+            return Err("UTF-16 text has an odd number of bytes.".to_string());
+        }
+        let units: Vec<u16> = pairs
+            .iter()
+            .map(|&pair| {
+                if be {
+                    u16::from_be_bytes(pair)
+                } else {
+                    u16::from_le_bytes(pair)
+                }
+            })
+            .collect();
+        String::from_utf16(&units).map_err(|error| format!("Invalid UTF-16 text: {error}"))
+    };
+
+    let decoded = if let Some(rest) = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
+        String::from_utf8(rest.to_vec()).map_err(|error| format!("Invalid UTF-8 text: {error}"))?
+    } else if let Some(rest) = bytes.strip_prefix(&[0xFF, 0xFE]) {
+        decode_utf16(rest, false)?
+    } else if let Some(rest) = bytes.strip_prefix(&[0xFE, 0xFF]) {
+        decode_utf16(rest, true)?
+    } else if bytes.len() >= 2
+        && bytes.len().is_multiple_of(2)
+        && bytes.iter().skip(1).step_by(2).any(|b| *b == 0)
+        && bytes.contains(&0)
+    {
+        decode_utf16(bytes, false)?
+    } else {
+        String::from_utf8(bytes.to_vec()).map_err(|error| format!("Invalid UTF-8 text: {error}"))?
+    };
+
+    let cleaned = decoded.strip_prefix('\u{feff}').unwrap_or(&decoded);
+    Ok(cleaned
+        .replace("\r\n", "\n")
+        .trim_end_matches(['\r', '\n'])
+        .to_string())
+}
+
+fn read_stdin_text(label: &str) -> Result<String, Failure> {
+    let mut bytes = Vec::new();
+    std::io::stdin()
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Couldn't read {label}: {error}"))?;
+    decode_text(&bytes)
+        .map_err(|error| Failure::Failed(format!("Couldn't decode {label}: {error}")))
+}
+
+fn read_file_text(path: &str, label: &str) -> Result<String, Failure> {
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("Couldn't read {label} from `{path}`: {error}"))?;
+    decode_text(&bytes)
+        .map_err(|error| Failure::Failed(format!("Couldn't decode {label} from `{path}`: {error}")))
+}
+
+fn parse_limit(args: &Args) -> Result<Option<usize>, Failure> {
+    args.option("limit")
+        .map(|raw| {
+            raw.trim()
+                .parse::<usize>()
+                .map_err(|_| usage("--limit must be a non-negative integer."))
+        })
+        .transpose()
+}
+
 /// Copies the given options into a tool's arguments, under the tool's names.
 fn copy_options(
     args: &Args,
@@ -193,15 +277,12 @@ fn copy_options(
 ) -> Result<(), Failure> {
     for (option, argument) in names {
         if let Some(value) = args.option(option) {
-            let value = if *option == "description" && value == "-" {
-                let mut text = String::new();
-                std::io::stdin()
-                    .read_to_string(&mut text)
-                    .map_err(|error| format!("Couldn't read the description: {error}"))?;
-                text.trim_end_matches(['\r', '\n']).to_string()
-            } else {
-                value.to_string()
-            };
+            let value =
+                if (*option == "description" || *option == "append-description") && value == "-" {
+                    read_stdin_text("the description")?
+                } else {
+                    value.to_string()
+                };
             into.insert(argument.to_string(), json!(value));
         }
     }
@@ -345,9 +426,13 @@ fn show_board(board: &Value) -> String {
     }
     for column in board["columns"].as_array().into_iter().flatten() {
         let tasks = column["tasks"].as_array().cloned().unwrap_or_default();
+        let total = column["total"]
+            .as_u64()
+            .map(|count| count as usize)
+            .unwrap_or(tasks.len());
         out.push(String::new());
-        out.push(format!("{} ({})", text(&column["name"]), tasks.len()));
-        if tasks.is_empty() {
+        out.push(format!("{} ({})", text(&column["name"]), total));
+        if total == 0 {
             out.push("  (no tasks)".to_string());
         }
         for task in &tasks {
@@ -355,6 +440,9 @@ fn show_board(board: &Value) -> String {
             if let Some(line) = first_line(text(&task["description"])) {
                 out.push(format!("      {line}"));
             }
+        }
+        if total > tasks.len() {
+            out.push(format!("  … and {} more", total - tasks.len()));
         }
     }
     out.join("\n")
@@ -380,6 +468,7 @@ fn show_task(task: &Value) -> String {
         ("assignee", "assignee"),
         ("issue", "issueId"),
         ("created", "createdAt"),
+        ("moved", "movedAt"),
         ("updated", "updatedAt"),
         ("deleted", "deletedAt"),
     ] {
@@ -432,6 +521,55 @@ fn show_board_info(verb: &str, board: &Value) -> String {
     )
 }
 
+/// Applies `--column` and `--limit` filters to a board view from `get_board`.
+fn filter_board(
+    mut board: Value,
+    columns_wanted: &[&str],
+    limit: Option<usize>,
+) -> Result<Value, Failure> {
+    let all_columns = board["columns"].as_array().cloned().unwrap_or_default();
+    let known: Vec<&str> = all_columns
+        .iter()
+        .map(|column| text(&column["name"]))
+        .collect();
+    for wanted in columns_wanted {
+        if !known.contains(wanted) {
+            return Err(Failure::Failed(format!(
+                "This board has no column named `{wanted}`. Its columns are: {}. (UNKNOWN_COLUMN)",
+                known.join(", ")
+            )));
+        }
+    }
+    let mut filtered = Vec::new();
+    for mut column in all_columns {
+        if !columns_wanted.is_empty() && !columns_wanted.contains(&text(&column["name"])) {
+            continue;
+        }
+        if let Some(limit) = limit {
+            if let Some(tasks) = column["tasks"].as_array_mut() {
+                let total = tasks.len();
+                tasks.sort_by(|a, b| {
+                    let a_moved = text(&a["movedAt"]);
+                    let b_moved = text(&b["movedAt"]);
+                    match (a_moved.is_empty(), b_moved.is_empty()) {
+                        (true, true) => std::cmp::Ordering::Equal,
+                        (true, false) => std::cmp::Ordering::Greater,
+                        (false, true) => std::cmp::Ordering::Less,
+                        (false, false) => b_moved.cmp(a_moved),
+                    }
+                });
+                tasks.truncate(limit);
+                if total > limit {
+                    column["total"] = json!(total);
+                }
+            }
+        }
+        filtered.push(column);
+    }
+    board["columns"] = Value::Array(filtered);
+    Ok(board)
+}
+
 // ---- commands ----
 
 /// Runs the command; returns what to print.
@@ -478,12 +616,21 @@ fn run(args: &Args) -> Result<String, Failure> {
             shown(boards.clone(), show_boards(&boards))
         }
         "board" => {
-            args.expect(&["board"], &[])?;
+            args.expect(&["board"], &["column", "limit"])?;
+            let limit = parse_limit(args)?;
+            let columns_wanted = args.all("column");
             let found = call("get_board", json!({ "board": board()? }))?;
+            let found = filter_board(found, &columns_wanted, limit)?;
             shown(found.clone(), show_board(&found))
         }
         "tasks" => {
-            args.expect(&["board"], &["column", "assignee", "priority", "search"])?;
+            args.expect(
+                &["board"],
+                &[
+                    "column", "assignee", "priority", "search", "since", "until", "limit",
+                ],
+            )?;
+            let limit = parse_limit(args)?;
             let mut arguments = Map::new();
             arguments.insert("board".into(), json!(board()?));
             copy_options(
@@ -494,8 +641,13 @@ fn run(args: &Args) -> Result<String, Failure> {
                     ("assignee", "assignee"),
                     ("priority", "priority"),
                     ("search", "query"),
+                    ("since", "since"),
+                    ("until", "until"),
                 ],
             )?;
+            if let Some(limit) = limit {
+                arguments.insert("limit".into(), json!(limit));
+            }
             let tasks = call("list_tasks", Value::Object(arguments))?;
             shown(tasks.clone(), show_tasks(&tasks))
         }
@@ -507,8 +659,20 @@ fn run(args: &Args) -> Result<String, Failure> {
         "add" => {
             args.expect(
                 &["board", "title"],
-                &["column", "priority", "assignee", "issue", "description"],
+                &[
+                    "column",
+                    "priority",
+                    "assignee",
+                    "issue",
+                    "description",
+                    "description-file",
+                ],
             )?;
+            if args.option("description").is_some() && args.option("description-file").is_some() {
+                return Err(usage(
+                    "Give either --description or --description-file, not both.",
+                ));
+            }
             let mut arguments = Map::new();
             arguments.insert("board".into(), json!(board()?));
             arguments.insert("title".into(), json!(word(1)));
@@ -523,16 +687,45 @@ fn run(args: &Args) -> Result<String, Failure> {
                     ("description", "description"),
                 ],
             )?;
+            if let Some(path) = args.option("description-file") {
+                arguments.insert(
+                    "description".into(),
+                    json!(read_file_text(path, "the description")?),
+                );
+            }
             let task = call("create_task", Value::Object(arguments))?;
             shown(task.clone(), format!("Added {}", task_line(&task, true)))
         }
         "edit" => {
             args.expect(
                 &["board", "task"],
-                &["title", "priority", "assignee", "issue", "description"],
+                &[
+                    "title",
+                    "priority",
+                    "assignee",
+                    "issue",
+                    "description",
+                    "description-file",
+                    "append-description",
+                    "append-description-file",
+                ],
             )?;
             if args.options.is_empty() {
                 return Err(usage("Say what to change, e.g. --title \"New title\"."));
+            }
+            let desc_options = [
+                "description",
+                "description-file",
+                "append-description",
+                "append-description-file",
+            ]
+            .into_iter()
+            .filter(|name| args.option(name).is_some())
+            .count();
+            if desc_options > 1 {
+                return Err(usage(
+                    "Use at most one of --description, --description-file, --append-description, --append-description-file.",
+                ));
             }
             let mut arguments = Map::new();
             arguments.insert("board".into(), json!(board()?));
@@ -546,24 +739,61 @@ fn run(args: &Args) -> Result<String, Failure> {
                     ("assignee", "assignee"),
                     ("issue", "issueId"),
                     ("description", "description"),
+                    ("append-description", "appendDescription"),
                 ],
             )?;
+            if let Some(path) = args.option("description-file") {
+                arguments.insert(
+                    "description".into(),
+                    json!(read_file_text(path, "the description")?),
+                );
+            }
+            if let Some(path) = args.option("append-description-file") {
+                arguments.insert(
+                    "appendDescription".into(),
+                    json!(read_file_text(path, "the description")?),
+                );
+            }
             let task = call("update_task", Value::Object(arguments))?;
             shown(task.clone(), format!("Updated {}", task_line(&task, true)))
         }
         "move" => {
-            args.expect(&["board", "task", "column"], &["before", "after"])?;
-            let mut arguments = Map::new();
-            arguments.insert("board".into(), json!(board()?));
-            arguments.insert("task".into(), json!(word(1)));
-            arguments.insert("column".into(), json!(word(2)));
-            copy_options(
-                args,
-                &mut arguments,
-                &[("before", "beforeTask"), ("after", "afterTask")],
-            )?;
-            let task = call("move_task", Value::Object(arguments))?;
-            shown(task.clone(), format!("Moved {}", task_line(&task, true)))
+            if args.words.len() < 3 {
+                return Err(usage("`move` takes <board> <task>... <column>."));
+            }
+            args.expect_options(&["before", "after"])?;
+            let board_id = board()?;
+            let column = args.words.last().unwrap().clone();
+            let task_ids = &args.words[1..args.words.len() - 1];
+            if task_ids.len() == 1 {
+                let mut arguments = Map::new();
+                arguments.insert("board".into(), json!(board_id));
+                arguments.insert("task".into(), json!(task_ids[0]));
+                arguments.insert("column".into(), json!(column));
+                copy_options(
+                    args,
+                    &mut arguments,
+                    &[("before", "beforeTask"), ("after", "afterTask")],
+                )?;
+                let task = call("move_task", Value::Object(arguments))?;
+                shown(task.clone(), format!("Moved {}", task_line(&task, true)))
+            } else {
+                let input = MoveInput {
+                    column,
+                    before_id: args.option("before").map(str::to_string),
+                    after_id: args.option("after").map(str::to_string),
+                };
+                let moved = store
+                    .move_tasks(&board_id, task_ids, input)
+                    .map_err(|error| format!("{} ({})", error.message, error.code))?;
+                let views: Vec<Value> = moved.iter().map(mcp::task_view).collect();
+                let plain = views
+                    .iter()
+                    .map(|task| format!("Moved {}", task_line(task, true)))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                shown(Value::Array(views), plain)
+            }
         }
         "restore" => {
             args.expect(&["board", "task"], &["column", "before", "after"])?;

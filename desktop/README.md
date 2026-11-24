@@ -118,12 +118,17 @@ SAF Kanban local server
 
 ```text
 saf-kanban-cli boards                     列出看板
-saf-kanban-cli board <看板>               欄位和每個欄位裡的任務、負責人
+saf-kanban-cli board <看板> [--column C] [--limit N]
+                                          欄位和每個欄位裡的任務、負責人
 saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--search 關鍵字]
+                     [--since 時間] [--until 時間] [--limit N]
 saf-kanban-cli task <看板> <任務>         一個任務的完整內容
-saf-kanban-cli add <看板> <標題> [--column C] [--priority P] [--assignee A] [--issue ID] [--description 描述]
-saf-kanban-cli edit <看板> <任務> [--title T] [--description 描述] [--priority P] [--assignee A] [--issue ID]
-saf-kanban-cli move <看板> <任務> <欄位> [--before 任務 | --after 任務]
+saf-kanban-cli add <看板> <標題> [--column C] [--priority P] [--assignee A] [--issue ID]
+                   [--description 描述 | --description-file 檔案]
+saf-kanban-cli edit <看板> <任務> [--title T] [--priority P] [--assignee A] [--issue ID]
+                    [--description 描述 | --description-file 檔案 |
+                     --append-description 描述 | --append-description-file 檔案]
+saf-kanban-cli move <看板> <任務>... <欄位> [--before 任務 | --after 任務]
 saf-kanban-cli delete <看板> <任務>       刪除任務（會留在已刪除的任務裡）
 saf-kanban-cli deleted <看板>             已刪除的任務
 saf-kanban-cli restore <看板> <任務> [--column C] [--before 任務 | --after 任務]
@@ -133,9 +138,11 @@ saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=�
 saf-kanban-cli skill [--install | --into 資料夾]   印出 skill，或安裝
 ```
 
-- `<看板>` 可以是看板 ID 或名稱；`<任務>` 是任務 ID（輸出裡方括號中的那段）。
+- `<看板>` 可以是看板 ID 或名稱；`<任務>` 是任務 ID（輸出裡方括號中的那段）。`move` 可以一次指定多個任務 ID。
 - 每個指令都可以加 `--json` 改成輸出 JSON，加 `--data-dir <資料夾>` 指定其他資料夾。
-- `--description -` 從標準輸入讀描述，可以有多行。
+- `--description -` 與 `--append-description -` 從標準輸入讀內容（自動處理 UTF-8 BOM 與 UTF-16）；也可以用 `--description-file`、`--append-description-file` 直接讀檔（PowerShell 建議改用讀檔）。
+- `--append-description` 會在檔案鎖內空一行接在原本的描述後面，不覆蓋原內容。
+- `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）依任務最後一次移進目前欄位的時間（`movedAt`）篩選；`--limit N` 依 `movedAt` 列出最近的 N 張任務。
 - 失敗時錯誤訊息印在標準錯誤，結束碼是 1（打錯指令是 2）。
 
 ### MCP
@@ -166,10 +173,10 @@ AI 可以用的工具：
 | --- | --- |
 | `list_boards` | 列出看板 |
 | `get_board` | 一個看板的欄位（依序）和每個欄位裡的任務 |
-| `list_tasks` | 列出任務，可依欄位、負責人、優先順序、關鍵字篩選 |
+| `list_tasks` | 列出任務，可依欄位、負責人、優先順序、關鍵字、移入時間（`since`／`until`）篩選，並可用 `limit` 取最近移入的 N 張 |
 | `get_task` | 一個任務的完整內容 |
 | `create_task` | 新增任務 |
-| `update_task` | 修改任務的標題、描述、優先順序、負責人、Issue ID |
+| `update_task` | 修改任務的標題、描述（可用 `appendDescription` 追加）、優先順序、負責人、Issue ID |
 | `move_task` | 把任務移到某個欄位，可指定放在哪個任務前面或後面 |
 | `delete_task` | 刪除任務（會留在已刪除的任務裡） |
 | `list_deleted_tasks` | 已刪除的任務 |
@@ -199,7 +206,7 @@ AI 可以用的工具：
 | `POST /boards/{看板}/tasks` | 新增任務 |
 | `GET /boards/{看板}/tasks/{任務}` | 一個任務 |
 | `PUT /boards/{看板}/tasks/{任務}` | 整個取代；不存在就用這個 ID 建立 |
-| `PATCH /boards/{看板}/tasks/{任務}` | 只改有給的欄位 |
+| `PATCH /boards/{看板}/tasks/{任務}` | 只改有給的欄位（支援 `appendDes` 追加描述） |
 | `POST /boards/{看板}/tasks/{任務}/move` | 移到某個欄位和位置 |
 | `DELETE /boards/{看板}/tasks/{任務}` | 刪除（會留在已刪除的任務裡） |
 | `GET /boards/{看板}/history` | 已刪除的任務，由新到舊 |
@@ -220,12 +227,14 @@ AI 可以用的工具：
   "priority": "high",
   "assignee": "Amy",
   "createdAt": "2026-11-16T17:10:44.708Z",
-  "updatedAt": "2026-11-16T17:10:44.708Z"
+  "updatedAt": "2026-11-16T17:10:44.708Z",
+  "movedAt": "2026-11-16T17:10:44.708Z"
 }
 ```
 
 - `column` 是欄位名稱，必須是看板現有的欄位。
 - `priority` 畫面上用 `high`、`medium`、`low`；新增時沒給就是 `medium`。
+- `movedAt` 是任務最後一次移進目前欄位的 UTC 時間；舊版建立的任務在下次跨欄移動前不會有這個欄位。
 - 任務在看板裡有一個整體順序，每個欄位依這個順序顯示自己的任務。新增的任務排在最後。
 
 ### 例子
@@ -249,7 +258,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
   -d '{"column": "完成", "beforeId": "<另一個任務>"}' $API/boards/<看板>/tasks/<任務>/move
 ```
 
-- 篩選參數：`column`、`assignee`（給空字串是找未指派的）、`priority`、`q`（用空白隔開的詞要全部出現在標題、描述、Issue ID 或負責人裡）。
+- 篩選參數：`column`、`assignee`（給空字串是找未指派的）、`priority`、`q`（用空白隔開的詞要全部出現在標題、描述、Issue ID 或負責人裡）、`since`、`until`（依 `movedAt` 篩選）、`limit`（依 `movedAt` 取最近的 N 張）。
 - 移動：`beforeId` 是放在那個任務前面，`afterId` 是放在後面，兩個都給時用 `beforeId`；都不給就只換欄位，整體順序不變。
 - 改欄位：`PATCH /boards/{看板}` 的 `columns` 是新的欄位清單（依序），`renames` 是 `{"舊名稱": "新名稱"}`，欄位裡的任務會跟著改名。還有任務的欄位不能從清單拿掉。
 

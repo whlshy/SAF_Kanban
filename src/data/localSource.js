@@ -43,6 +43,8 @@ export const createLocalSource = ({ id }) => {
     moveTask: ({ id: taskId, column, beforeId, afterId }) =>
       localRequest("POST", `${task(taskId)}/move`, { column, beforeId, afterId }),
     deleteTask: (taskId) => localRequest("DELETE", task(taskId)),
+    restoreTask: (taskId, options = {}) =>
+      localRequest("POST", `${board}/history/${encodeURIComponent(taskId)}/restore`, options),
 
     // Calls `listener` whenever this board's content changes, whoever changed
     // it. Returns a function that stops listening.

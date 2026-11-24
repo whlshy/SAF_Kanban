@@ -13,6 +13,9 @@ export const localToken = () => settings()?.token || ""
 const KNOWN_CODES = [
   "BOARD_NOT_FOUND",
   "TASK_NOT_FOUND",
+  "DELETED_TASK_NOT_FOUND",
+  "TASK_EXISTS",
+  "COLUMN_GONE",
   "UNKNOWN_COLUMN",
   "NO_COLUMNS",
   "COLUMN_NOT_EMPTY",

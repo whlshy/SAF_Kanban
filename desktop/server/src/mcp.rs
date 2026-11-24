@@ -162,7 +162,7 @@ fn tools() -> Vec<Value> {
         tool(
             "list_tasks",
             "List tasks",
-            "Lists a board's tasks in board order, optionally filtered. All filters must match.",
+            "Lists a board's tasks in board order, optionally filtered. All filters must match. With `limit`, returns the tasks most recently moved into their current column first.",
             true,
             json!({
                 "board": board,
@@ -170,6 +170,9 @@ fn tools() -> Vec<Value> {
                 "assignee": text("Only tasks assigned to this name. An empty string finds unassigned tasks."),
                 "priority": text("Only tasks with this priority."),
                 "query": text("Words that must all appear in the title, description, issue id or assignee (case-insensitive)."),
+                "since": text("Only tasks moved into their current column at or after this time (YYYY-MM-DD or ISO timestamp)."),
+                "until": text("Only tasks moved into their current column at or before this time (YYYY-MM-DD, inclusive, or ISO timestamp)."),
+                "limit": { "type": "integer", "minimum": 0, "description": "At most this many tasks, most recently moved into their current column first." },
             }),
             &["board"],
         ),
@@ -193,13 +196,14 @@ fn tools() -> Vec<Value> {
         tool(
             "update_task",
             "Update a task",
-            "Changes the given fields of a task and leaves the others as they are. To change its column or position use move_task.",
+            "Changes the given fields of a task and leaves the others as they are. Use `appendDescription` to add to the existing description without overwriting it. To change its column or position use move_task.",
             false,
             json!({
                 "board": board,
                 "task": task,
                 "title": text("New title."),
-                "description": text("New description; an empty string clears it."),
+                "description": text("New description; an empty string clears it. Do not combine with `appendDescription`."),
+                "appendDescription": text("Text to append to the existing description after a blank line. Do not combine with `description`."),
                 "priority": priority,
                 "assignee": text("New assignee; an empty string unassigns the task."),
                 "issueId": text("New issue id; an empty string clears it."),
@@ -273,7 +277,7 @@ fn tools() -> Vec<Value> {
 }
 
 /// A task as agents see it: `des` is spelled out.
-fn task_view(task: &Task) -> Value {
+pub(crate) fn task_view(task: &Task) -> Value {
     json!({
         "id": task.id,
         "title": task.title,
@@ -284,6 +288,7 @@ fn task_view(task: &Task) -> Value {
         "issueId": task.issue_id,
         "createdAt": task.created_at,
         "updatedAt": task.updated_at,
+        "movedAt": task.moved_at,
     })
 }
 
@@ -311,6 +316,18 @@ impl Arguments<'_> {
             None | Some(Value::Null) => Ok(None),
             Some(Value::String(text)) => Ok(Some(text.clone())),
             Some(_) => Err(format!("`{name}` must be a string.")),
+        }
+    }
+
+    fn count(&self, name: &str) -> Result<Option<usize>, String> {
+        match self.0.get(name) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::Number(number)) => number
+                .as_u64()
+                .and_then(|value| usize::try_from(value).ok())
+                .map(Some)
+                .ok_or_else(|| format!("`{name}` must be a non-negative integer.")),
+            Some(_) => Err(format!("`{name}` must be a non-negative integer.")),
         }
     }
 
@@ -372,6 +389,9 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 assignee: arguments.text("assignee")?,
                 priority: arguments.text("priority")?,
                 q: arguments.text("query")?,
+                since: arguments.text("since")?,
+                until: arguments.text("until")?,
+                limit: arguments.count("limit")?,
             };
             json!(store
                 .list_tasks(&board()?, &query)
@@ -385,6 +405,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
             let input = TaskInput {
                 title: Some(arguments.required("title")?),
                 des: arguments.text("description")?,
+                append_des: None,
                 column: arguments.text("column")?,
                 priority: arguments.text("priority")?,
                 assignee: arguments.text("assignee")?,
@@ -396,6 +417,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
             let input = TaskInput {
                 title: arguments.text("title")?,
                 des: arguments.text("description")?,
+                append_des: arguments.text("appendDescription")?,
                 column: None,
                 priority: arguments.text("priority")?,
                 assignee: arguments.text("assignee")?,

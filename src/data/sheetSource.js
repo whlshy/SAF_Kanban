@@ -61,7 +61,7 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     needsNetwork: true,
 
     loadColumns: async () => rowsToColumns(await readRows(sheetId, "columns!A:B")),
-    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:H")),
+    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:I")),
     loadUsers: async () => rowsToUsers(await readRows(sheetId, "users!A:B")),
 
     // Deleted tasks, newest first. `missing`: there is no history sheet (an
