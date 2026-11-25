@@ -2,361 +2,206 @@
 
 [繁體中文](README.md) | English
 
-SAF Kanban is a personal kanban board that stores its data in Google Sheets. There is nothing to install and no server to host: create your own Google Sheet and Apps Script, then use the online version.
+**A personal kanban board with no backend to host — your data stays completely in your hands.**
+Use it right in the browser (stored in your own Google Sheet), or install the Windows desktop app (stored as local files on your computer, with built-in AI agent support via Skill, CLI, and MCP).
 
-## Open the board
+**[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[Download Windows Desktop App](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Changelog](CHANGELOG.en.md)**
 
-[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/preview-dark.png">
+    <img src="docs/preview-light.png" alt="SAF Kanban board preview" width="900">
+  </picture>
+</p>
 
-See the [changelog](CHANGELOG.en.md) for what changed in each release.
+## Table of Contents
 
-## Desktop app (Windows)
+- [Web vs. Desktop App](#web-vs-desktop-app)
+- [Key Features](#key-features)
+- [Quick Setup (Google Sheet Web Version)](#quick-setup-google-sheet-web-version)
+- [Desktop App (Windows)](#desktop-app-windows)
+- [More Ways to Use It](#more-ways-to-use-it)
+- [Update the Apps Script](#update-the-apps-script)
+- [FAQ](#faq)
+- [Data and Privacy](#data-and-privacy)
+- [Development](#development)
 
-If you'd rather not use Google Sheets, or want AI agents to help manage your boards, install the desktop app: boards are files on your own computer and need no network, and Google Sheet boards still work. AI tools such as Claude Code, Codex and Gemini CLI can work on the boards through the bundled skill and command line, without SAF Kanban being open.
+---
 
-Download `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it. The installer isn't signed: when Windows warns you, choose "More info", then "Run anyway". How to use it and connect AI tools is in the [desktop app's guide](desktop/README.md) (Traditional Chinese).
+## Web vs. Desktop App
 
-## Features
+| | Web Version (Google Sheets) | Windows Desktop App |
+| --- | --- | --- |
+| Where data lives | Your own Google Sheet | Local JSON files on your computer (Google Sheet boards also work) |
+| Installation | None — open in browser (optional PWA install) | Single installer, no administrator rights needed |
+| Offline use | Read-only view of last loaded boards | **Full offline read & write** for local boards |
+| AI agent integration | — | Works with Claude Code, Codex, Gemini CLI, Cursor, etc. (Skill / CLI / MCP / HTTP API) |
+| Deleted task recovery | Recreate from history | Local boards can **restore in place** with original ID & column |
+| Updates | Reload prompt when the site updates | **In-app update check, verification, and install** (v0.5.0+) |
 
-- Create, edit and delete tasks
-- Custom board columns, as many as you need
-- Several boards at once, each connected to its own Google Sheet
-- Export and import board settings to move to another computer or keep a backup
-- Interface in Traditional Chinese and English: switch with the language button at the top right
-- Light and dark themes: switch with the sun or moon icon at the top right
-- Priority and assignee per task
-- Drag to reorder within a column and to move between columns; on phones, long-press a task to drag it
-- Each column scrolls on its own; on portrait phones each column fills the screen and you swipe between them
-- Links to Jira, GitHub or other issue trackers
-- Deleted tasks are kept in a `history` sheet, and you can browse and search them on the site, newest first
-- Search and filter the board's tasks by keyword, assignee and priority
-- Can be installed as an app; it opens without a connection and shows what was loaded last time
-- All data stays in your own Google Sheet
-- Desktop app for Windows: boards kept on your own computer, and AI agents can work on them (see [Desktop app](#desktop-app-windows))
+---
 
-## Quick setup (recommended)
+## Key Features
 
-Start from the template: no sheets to create and no code to edit.
+- **Boards & Tasks**
+  - Create, edit, and delete tasks with priority, assignee, and issue tracker links (Jira, GitHub Issues, etc.)
+  - Unlimited custom columns with within-column and cross-column drag-and-drop (long-press to drag on phones; swipe column-by-column on portrait screens)
+  - Automatically tracks creation time (`createdAt`) and last column entry time (`movedAt`), visible in hover tooltips, task details, and the edit dialog
+  - Live search and filters (keyword, assignee, priority) — dragging still works while filtering
+- **Multiple Boards, Backups & History**
+  - Switch between multiple boards with `?board=<ID>` URLs for bookmarking or side-by-side tabs
+  - Export and import board settings as JSON, with optional in-browser **AES-GCM password encryption** (PBKDF2-SHA256)
+  - Deleted tasks are kept in history with search and one-click recreate (or in-place restore on desktop local boards)
+- **Cross-Device & Desktop Experience**
+  - Traditional Chinese and English UI; light and dark themes
+  - Installable as a PWA with offline viewing of last loaded data
+  - Windows desktop app with system tray mode, autostart on sign-in, in-app updates, and AI agent tooling
 
-1. Open the [SAF Kanban template](https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy) and click **Make a copy** to save it to your Google Drive. The template already contains the sheets and the Apps Script.
-2. In your copy, click **Share** at the top right and set **General access** to **Anyone with the link** as a **Viewer**.
-3. Choose **Extensions → Apps Script**, deploy it as a web app as described in [step 4](#4-deploy-the-apps-script), and copy the deployment URL.
-4. Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/) and add a board (with no boards yet, click **Settings** in the middle of the page). Paste your copy's URL into **Sheet ID** and the deployment URL into **Apps Script Deployment ID**, then click **Create**.
+---
 
-URLs are turned into IDs automatically, so you don't need to cut them out yourself. If your copy has no Apps Script, or you'd rather set everything up yourself, follow steps 1–5 below.
+## Quick Setup (Google Sheet Web Version)
 
-## 1. Create the Google Sheet
+Starting from the template is the fastest way — no sheets to create and no code to edit:
 
-Create a new Google Sheet with four sheets named:
+1. Open the [SAF Kanban template](https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy) and click **Make a copy** to save it to your Google Drive (the sheets and Apps Script are already included).
+2. In your copy, click **Share** at the top right and set **General access** to **Anyone with the link → Viewer**.
+3. Open **Extensions → Apps Script** and deploy it as a web app:
+   - Click **Deploy → New deployment** → select type **Web app**
+   - Set **Execute as** to **Me** and **Who has access** to **Anyone** → click **Deploy** and authorize
+   - Copy the generated URL (`https://script.google.com/macros/s/.../exec`)
+4. Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/), click **Settings** (or **New board** in the top-left menu), paste your **Sheet URL** and **deployment URL**, and click **Create**.
 
-```text
-kanban
-columns
-users
-history
-```
+> Full URLs are automatically parsed into IDs — no manual extraction needed. Settings live in your browser's Local Storage. After connecting, try adding, dragging, and deleting a test task to verify read/write access.
 
-The names must match exactly, including case. If you don't create `history`, the Apps Script creates it the first time a task is deleted.
+<details>
+<summary><strong>Manual setup from scratch (and Google Sheet column specifications)</strong></summary>
 
-Header rows are not skipped, so don't add column headers to any sheet: data starts on the first row.
+### 1. Create four sheets
 
-### `kanban` sheet
+Create a new Google Sheet with four sheets named exactly as below (case-sensitive, **no header rows — data starts on row 1**):
 
-Stores the tasks, one task per row, with columns A:I in this order:
+- `kanban`: stores tasks in columns `A:I` (can start empty)
 
 | Column | Content | Example |
 | --- | --- | --- |
-| A | Task ID | `4836540b` |
+| A | Task ID (generated automatically) | `4836540b` |
 | B | Title | `Implement login page` |
 | C | Issue ID | `PROJECT-101` |
 | D | Description | `Create login form` |
-| E | Kanban Column | `Todo` |
+| E | Kanban Column (must match `columns` column A exactly) | `Todo` |
 | F | Priority | `high`, `medium`, `low` |
 | G | Assignee | `Alice` |
-| H | When it was created (filled in by the Apps Script, in the Sheet's time zone) | `2026-11-21 10:30:00` |
-| I | When it last moved into its current column (Apps Script v4+, updated on creation and cross-column moves) | `2026-11-24 14:20:00` |
+| H | Creation time (filled by Apps Script v3+) | `2026-11-21 10:30:00` |
+| I | Last moved into current column (Apps Script v4+, updated on cross-column moves) | `2026-11-24 14:20:00` |
 
-The `kanban` sheet can start empty. New tasks get a Task ID from the site automatically, and the Apps Script writes the creation time into column H (v3+) and when the task entered its current column into column I (v4+, updated when moved to another column). Don't fill in H or I yourself; tasks from older scripts leave them empty.
+- `columns`: list column names in order in column A (e.g. `Todo`, `In Progress`, `Testing`, `Done`).
+- `users`: list assignee names in column A (legacy format with user ID in A and name in B still works).
+- `history`: keeps deleted tasks (created automatically on first deletion if absent). Columns A–G match `kanban`; H is deletion time, I is creation time, J is column move time (v4+).
 
-### `columns` sheet
+### 2. Share and paste Apps Script
 
-List the board's column names in column A, in order:
+1. Set **Share → General access → Anyone with the link → Viewer** (nobody needs edit access; writes go through Apps Script).
+2. Open **Extensions → Apps Script**, replace the default code with [`apps-script/Code.gs`](apps-script/Code.gs), and save (leave `SPREADSHEET_ID` empty).
+3. Follow steps 3–4 of Quick Setup above to deploy and connect.
 
-| A |
-| --- |
-| Todo |
-| In Progress |
-| Testing |
-| Done |
-
-There is no limit on the number of columns: they share the page width evenly, and the board scrolls sideways once they no longer fit. A task's value in column E of `kanban` must match one of these names exactly.
-
-### `users` sheet
-
-Put the names of people tasks can be assigned to in column A. They appear in the assignee drop-down:
-
-| A |
-| --- |
-| Alice |
-| Bob |
-
-The older format (user ID in column A, name in column B) still works: when column B is filled, its name is used.
-
-### `history` sheet
-
-Keeps deleted tasks and can start empty. When a task is deleted, the Apps Script first copies its last state here, then removes it from `kanban`:
-
-| Column | Content | Example |
-| --- | --- | --- |
-| A–G | Same as the `kanban` sheet: Task ID, Title, Issue ID, Description, Kanban Column, Priority, Assignee | |
-| H | When it was deleted (in the Sheet's time zone) | `2026-11-04 15:30:00` |
-| I | When it was created, taken from column H of `kanban` | `2026-11-01 09:00:00` |
-| J | When it last moved into its column, taken from column I of `kanban` (v4+) | `2026-11-03 18:10:00` |
-
-This needs the [current Apps Script](#update-the-apps-script). Older scripts delete tasks without saving them here.
-
-In SAF Kanban, click the clock icon right of the language tag to see the current board's deleted tasks, most recently deleted first. You can search them by title, description, Issue ID, column or assignee. The **Recreate** icon on the right opens the new-task dialog filled with the task's old values; edit them if needed and click **OK** to create a new task in the board's first column. The `history` record is kept.
-
-## 2. Let SAF Kanban read the Sheet
-
-SAF Kanban reads your Google Sheet from the browser, so set:
-
-```text
-Share → General access → Anyone with the link → Viewer
-```
-
-Viewer access is enough. Writes go through the Apps Script from the next step, so nobody else needs edit access to the Sheet.
-
-## 3. Create the Apps Script
-
-In the Google Sheet menu, open:
-
-```text
-Extensions → Apps Script
-```
-
-Delete the default code, paste the full contents of [`apps-script/Code.gs`](apps-script/Code.gs) and save. On GitHub, the **Copy raw file** button at the top right of that file copies all of it at once.
-
-Leave `SPREADSHEET_ID` at the top of the script empty: the script then uses this Sheet. You only need to fill it in if the script wasn't created from the Sheet's **Extensions → Apps Script**; if you do, it must be the ID of **this same** Sheet.
-
-### Find the Sheet ID
-
-A Google Sheet URL looks like this:
-
-```text
-https://docs.google.com/spreadsheets/d/SHEET_ID/edit
-```
-
-The part between `/d/` and `/edit` is the Sheet ID. In step 5 you can paste the whole URL and SAF Kanban takes the Sheet ID from it.
-
-## 4. Deploy the Apps Script
-
-1. Click **Deploy → New deployment**.
-2. Select the type **Web app**.
-3. Set **Execute as** to **Me**.
-4. Set **Who has access** to **Anyone**.
-5. Click **Deploy** and authorize the script with your Google account.
-6. Copy the web app URL.
-
-The deployment URL looks like this:
-
-```text
-https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-```
-
-The part between `/s/` and `/exec` is the deployment ID. In step 5 you can paste the whole URL and SAF Kanban takes the deployment ID from it.
-
-Saving changes to the Apps Script does not update the live version. To publish them, go to:
-
-```text
-Deploy → Manage deployments → Edit → Version: New version → Deploy
-```
-
-## 5. Connect SAF Kanban
-
-Open [SAF Kanban](https://whlshy.github.io/SAF_Kanban/), click the gear icon at the top right, fill in the fields below and click **Confirm** to save them (the ✕ at the top right discards your changes):
+### 3. Board settings reference
 
 | Setting | Value |
 | --- | --- |
-| Title | Shown at the top left; optional |
-| Sheet ID | The Google Sheet's URL, or the `SHEET_ID` in it |
-| Apps Script Deployment ID | The web app URL from your deployment, or the `DEPLOYMENT_ID` in it |
-| User Name | Your name; not used yet, leave empty |
-| Issue Link | The base URL of your issues; a task's Issue ID is appended to it. Optional |
+| Title | Shown at the top left (optional) |
+| Sheet ID | Full Google Sheet URL or `SHEET_ID` |
+| Apps Script Deployment ID | Full deployed web app URL or `DEPLOYMENT_ID` (no Google Cloud API key needed) |
+| Issue Link | Base URL prepended to a task's Issue ID (e.g. Jira `https://your-company.atlassian.net/browse/`, GitHub `https://github.com/OWNER/REPO/issues/`) |
 
-The Apps Script Deployment ID comes from the Apps Script you deployed yourself; you don't need a Google Cloud API key. Older versions of the site called this field "Sheet API Key".
+> Note: `User Name` is currently unused and can be left empty. Older versions named these fields "Sheet API Key", "Jira Link", and "Jira ID" — renaming does not affect existing settings or data.
 
-Issue Link examples:
+</details>
 
-| Tracker | Issue Link |
-| --- | --- |
-| Jira | `https://your-company.atlassian.net/browse/` |
-| GitHub Issues | `https://github.com/OWNER/REPO/issues/` |
+---
 
-Older versions called the Issue Link "Jira Link" and a task's Issue ID "Jira ID". The rename doesn't affect your settings or data.
+## Desktop App (Windows)
 
-Settings are stored in this browser's Local Storage. After switching browsers or clearing site data, enter them again (or [import](#export-and-import-settings) them).
+If you'd rather keep boards offline on your own computer or let AI agents manage your tasks, install the Windows desktop app:
 
-### Use several boards
+1. Download the latest `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it.
+2. The installer isn't code-signed yet, so when Windows shows "Windows protected your PC", choose **More info → Run anyway**.
+3. Starting from `0.5.0`, future updates are detected automatically and can be **installed from inside the app**; any previously installed AI skill refreshes automatically on startup.
 
-Each board is connected to its own Google Sheet and Apps Script. To add a board, first create another Sheet and Apps Script with the [quick setup](#quick-setup-recommended) or steps 1–4, then:
+See the **[Desktop App Guide (desktop/README.en.md)](desktop/README.en.md)** for tray behavior, AI agent setup (Skill / CLI / MCP), backups, and the HTTP API reference.
 
-1. Click the board name at the top left to open the board menu.
-2. Choose **New board**, enter a title, paste the Sheet URL and the deployment URL, and click **Create**. If another board already has that name, a number is added, such as `Kanban (1)` or `Kanban (2)`.
-3. Switch boards from the same menu.
+---
 
-- The address includes `?board=<board ID>`, so you can bookmark a board or open boards in separate tabs.
-- To edit or delete a board, switch to it and click the gear icon. Deleting a board only removes its settings from this browser; the Google Sheet data is not deleted.
-- When upgrading from the single-board version, your existing settings become the first board automatically.
+## More Ways to Use It
 
-### Export and import settings
+### Multiple boards
+Click the board name at the top left → **New board** to manage separate boards (on desktop, local boards and Google Sheet boards work side by side). URLs include `?board=<ID>` for bookmarking or opening boards in separate tabs. Deleting a Google Sheet board only removes its browser settings — your Sheet data is untouched.
 
-Settings live only in the current browser. To move to another computer or browser, or to keep a backup, export them to a file and import it:
+### Export, import & password encryption
+Click the board name → **Export settings** to save selected boards as a JSON file, and **Import settings** in another browser (duplicate names are flagged before importing).
+- Exported files contain your Apps Script Deployment IDs — keep them private.
+- Check **Protect with a password** (at least 8 characters) to encrypt in your browser with Web Crypto (`PBKDF2-SHA256` 600,000 iterations + `AES-GCM`). Passwords never leave your device and cannot be recovered; requires HTTPS or `localhost`.
 
-1. Click the board name at the top left and choose **Export settings**. Check the boards to export (all are checked to start with) and click **Export**. This downloads a JSON file with their settings.
-2. In the other browser, click the board name and choose **Import settings**, then pick the file. With no boards yet, click **Import** in the middle of the page.
-3. Before importing, the boards are compared with your current ones by name: rename any duplicates, uncheck those you don't want, then click **Import**.
+### Search & filter
+Click the magnifier at the top right to filter by keyword (matches title, description, Issue ID, and assignee; space-separated words must all match, case-insensitive), assignee (including Unassigned), and priority. Column counts switch to `matching / total`, and drag-and-drop continues to work.
 
-The exported file contains the Apps Script Deployment IDs, so anyone who has it can write to your Sheets. Keep it private and don't share it publicly.
+### Deleted tasks
+Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards also offer **Restore** to bring the task back with its original ID, creation time, column, and position.
 
-#### Protect the file with a password
+### Install as an app (PWA) & offline viewing
+- Install via **Install app** in the top-left board menu on Chrome/Edge (desktop & Android), or **Share → Add to Home Screen** on iOS Safari.
+- Offline, the app still opens and displays the last loaded data (read-only until back online). When a new site version ships, click **Reload** on the top banner or reopen all tabs.
 
-When exporting, check **Protect with a password** and set a password (at least 8 characters, entered twice). The file's contents are then encrypted, and its name ends in `-encrypted.json`. Importing such a file asks for the same password first, then continues with the comparison step above.
+---
 
-- Encryption and decryption happen in your browser; the password is never uploaded or stored. It uses the browser's built-in Web Crypto: PBKDF2-SHA256 (600,000 iterations) turns the password into a key, and AES-GCM encrypts the file.
-- If you forget the password, the file can't be imported, and there's no way to recover it.
-- Encryption keeps the contents from being read directly, but a simple password can still be guessed, so pick one that's hard to guess.
-- Encryption needs the site to be opened over HTTPS (such as GitHub Pages) or on `localhost`.
+## Update the Apps Script
 
-### Search and filter
+When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working without new features (see [Apps Script versions](CHANGELOG.en.md#apps-script-versions)). The current version (v4) adds `history` archiving on deletion, Sheet ID verification before writing, localized error messages, and automatic creation (column H) and column-move (column I) timestamps.
 
-Click the magnifier at the top right to show the search bar above the columns:
+How to update (your deployment ID stays the same, so SAF Kanban settings need no changes):
 
-- The search box looks in the title, description, issue ID and assignee. Separate several words with spaces to require all of them; case doesn't matter.
-- The two dropdowns limit the board to one assignee (or "Unassigned") or one priority, on their own or together with the search.
-- While a filter is on, each column's number becomes "matching / total", such as `2 / 5`.
-- You can still drag while filtering. The task lands next to the visible task beside where you drop it, and the tasks the filter hides keep their order.
-- Click the magnifier again to close the bar and clear the filter. Switching boards or reloading the page clears it too.
+1. Open your Sheet's **Extensions → Apps Script**, replace all code with [`apps-script/Code.gs`](apps-script/Code.gs), and save.
+2. Go to **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy**.
 
-### Install as an app
-
-Once installed, SAF Kanban has its own icon and window, without the browser's address bar.
-
-- Chrome on Android: click the board name at the top left and choose "Install app", or use "Add to Home screen" → "Install" in Chrome's menu.
-- Chrome or Edge on a computer: install from the same board-name menu, or with the install icon at the right of the address bar.
-- Safari on iPhone or iPad: tap "Share" → "Add to Home Screen".
-
-"Install app" isn't in the menu when the browser can't install the site or it is already installed.
-
-Without a connection:
-
-- The app still opens. A notice at the top says you're offline, and each board shows what was loaded last time.
-- Tasks can't be added, edited, moved or deleted until you're back online.
-- "Deleted tasks" shows its last content offline only if you opened it while online before.
-
-When the site is updated, "A new version is available" appears at the top; click "Reload" to switch to it. If you don't, closing every tab (or the app) and opening it again switches to it as well.
-
-### Update the Apps Script
-
-When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working but don't get the new features. The [changelog](CHANGELOG.en.md#apps-script-versions) lists what each script version adds. The current script:
-
-- Saves deleted tasks to the `history` sheet.
-- Checks that it's connected to the Sheet set for the board, and refuses to write otherwise so data never lands in the wrong Sheet.
-- Lets error messages follow the interface language.
-- Records when each new task was created (column H of `kanban`) and when it last moved into its current column (column I), shown in the tooltip and task details.
-
-To update:
-
-1. Open the Sheet's **Extensions → Apps Script** and replace all the code with `apps-script/Code.gs`. If you had filled in `SPREADSHEET_ID`, you can keep it or clear it.
-2. Save, then go to **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy**.
-
-Updated this way, the deployment ID stays the same and nothing changes in your SAF Kanban settings.
-
-## 6. Try it out
-
-Once set up, try these in order:
-
-1. Click `＋` at the top right to add a task.
-2. Edit its title, description, priority and assignee.
-3. Drag it to reorder within a column.
-4. Drag it to another column.
-5. Reload the page and check that columns and order are still right.
-6. Delete the task and check that its row is gone from the `kanban` sheet.
+---
 
 ## FAQ
 
-### The columns don't show up
+- **Columns or tasks don't show up**: Check that sheets are named lowercase `columns` and `kanban`, data starts on row 1 (no header row), and `kanban` column E matches `columns` column A exactly.
+- **403 errors or can't read data**: Verify the Sheet is shared as **Anyone with the link → Viewer**.
+- **CORS error or write failures when adding/moving tasks**: Usually means the Apps Script didn't return JSON. Open `https://script.google.com/macros/s/DEPLOYMENT_ID/exec` in an **incognito window**:
+  - Seeing `{"status":"error","code":"UNKNOWN_ACTION", ...}` means the deployment works — double-check the Deployment ID in settings and `SPREADSHEET_ID` in the script (leave empty or match the same Sheet).
+  - Seeing a Google sign-in or "You need access" page means access isn't set to **Anyone** (some corporate Google Workspace accounts block "Anyone"; use a personal Google account instead).
+- **Script changes don't take effect, or `undefined is not valid JSON`**: Saving alone doesn't update the live web app — publish a new version via **Deploy → Manage deployments → Edit → Version: New version → Deploy**.
+- **Issue links don't open**: Make sure Issue Link includes the trailing path (e.g. `/browse/` for Jira, `/issues/` for GitHub).
 
-Check that the sheet is named `columns` in lowercase and that the data starts at A1 with no header row.
+---
 
-### Tasks don't show up
+## Data and Privacy
 
-Check that column E of `kanban` matches a name in column A of `columns` exactly.
+- **Web version (Google Sheets)**: All task data lives in your own Google Sheet. Because the browser reads it directly, the Sheet must be viewable by anyone with the link — avoid storing passwords or secrets. Treat your Apps Script Deployment ID as sensitive. Offline caches stay only in your browser and are cleared when site data is cleared.
+- **Desktop app (local boards)**: Boards stay entirely on your computer and are never uploaded to external servers (see [Desktop security](desktop/README.en.md#security)).
 
-### 403 errors, or the data can't be read
-
-Check that the Google Sheet is shared with **Anyone with the link** as a viewer.
-
-### A CORS error, or tasks can't be added or moved
-
-`has been blocked by CORS policy` in the browser console (F12) usually isn't a cross-origin setting: it means the Apps Script didn't return normal JSON. Check in order:
-
-1. The script's `SPREADSHEET_ID` is this Sheet's ID, or empty.
-2. The deployment's access is **Anyone**, not **Only myself** or **Anyone with Google account**.
-3. The Apps Script Deployment ID in SAF Kanban's settings belongs to this script.
-4. After changing the script or the deployment, you published it with **Manage deployments → Edit → Version: New version → Deploy**.
-
-To check, open the deployment URL `https://script.google.com/macros/s/DEPLOYMENT_ID/exec` directly in an **incognito window**:
-
-- JSON such as `{"status":"error","code":"UNKNOWN_ACTION", ...}` (older scripts reply with a Chinese message about a missing action) means the deployment works.
-- A "You need access" page or a Google sign-in page means the access isn't set to **Anyone**.
-- Company Google Workspace accounts may not offer **Anyone** at all. In that case, create the Sheet and Apps Script with a personal Google account.
-
-### The Apps Script returns `undefined is not valid JSON`
-
-Usually the live deployment is still an old version. Create a new version in **Manage deployments** instead of only saving the code.
-
-### Changes to the Apps Script have no effect
-
-Publish them again:
-
-```text
-Deploy → Manage deployments → Edit → Version: New version → Deploy
-```
-
-### Issue links don't open
-
-Clicking a task's Issue ID opens the Issue Link followed by the Issue ID. Check that the Issue Link ends correctly, for example with `/browse/` for Jira or `/issues/` for GitHub:
-
-```text
-https://your-company.atlassian.net/browse/
-https://github.com/OWNER/REPO/issues/
-```
+---
 
 ## Development
 
+Requires Node.js 22; building the desktop app also requires Rust.
+
 ```bash
 npm install
-npm start        # dev server at http://localhost:1001
-npm test         # unit tests (Node's built-in test runner)
-npm run build    # build into dist/
+npm start            # dev server at http://localhost:1001
+npm run lint         # ESLint check on src/
+npm test             # frontend unit tests (Node's built-in test runner)
+npm run build        # production web build into dist/
 ```
 
-The desktop app is in [`desktop/`](desktop/README.md), written in Rust (Tauri):
+The desktop app lives in [`desktop/`](desktop/README.en.md) (Rust + Tauri):
 
 ```bash
-npm run local        # build the desktop UI and start the local server
-npm run test:server  # tests of the server and the command line
-npm run build:app    # the desktop app and its installer (the Windows installer is built by GitHub Actions)
+npm run local        # build desktop UI and run local server
+npm run test:server  # Rust server and CLI tests
+cargo clippy --manifest-path desktop/Cargo.toml --all-targets -p saf-kanban-server -- -D warnings
+npm run build:app    # build desktop app and installer (Windows release builds run on GitHub Actions)
 ```
 
-On every push to `main`, [GitHub Actions](.github/workflows/deploy.yml) runs the tests, builds the site and publishes it to GitHub Pages; pull requests only run the tests and the build. The build isn't committed; the repository's Settings → Pages → Source has to be "GitHub Actions".
-
-## Data and privacy
-
-- Your tasks are stored in your own Google Sheet.
-- The Sheet has to be viewable by anyone with the link, so don't store passwords, tokens or other sensitive data in it.
-- The Apps Script writes to the Sheet with the permissions of the Google account that created it.
-- Treat the Apps Script Deployment ID as sensitive and don't share it publicly.
-- With the current Apps Script, deleted tasks are kept in the `history` sheet; older scripts delete them without keeping a copy.
-- To show boards offline, the browser keeps what each board loaded last, on this device only; clearing the site's data removes it.
+Pushing to `main` triggers [GitHub Actions](.github/workflows/deploy.yml) to run lint, tests, clippy, build, and deploy to GitHub Pages (set repository **Settings → Pages → Source** to **GitHub Actions**).

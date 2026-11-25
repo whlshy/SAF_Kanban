@@ -2,361 +2,206 @@
 
 繁體中文 | [English](README.en.md)
 
-SAF Kanban 是一個使用 Google Sheet 儲存資料的個人看板。你不需要安裝程式或自行架設網站，只要建立自己的 Google Sheet 與 Apps Script，就能直接使用線上版本。
+**不用自架伺服器、資料完全掌握在自己手裡的個人看板。**
+可以直接在瀏覽器使用（資料存在你自己的 Google Sheet），也可以安裝 Windows 桌面版（資料存成電腦本機檔案，並支援 AI Agent 透過 Skill / CLI / MCP 直接操作）。
 
-## 開啟 Kanban
+**[線上開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[下載 Windows 桌面版](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[版本紀錄](CHANGELOG.md)**
 
-[開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/preview-dark.png">
+    <img src="docs/preview-light.png" alt="SAF Kanban 看板預覽" width="900">
+  </picture>
+</p>
 
-每次更新的內容請見[版本紀錄](CHANGELOG.md)。
+## 目錄
 
-## 桌面版（Windows）
+- [該用網頁版還是桌面版？](#該用網頁版還是桌面版)
+- [主要功能](#主要功能)
+- [快速開始（Google Sheet 網頁版）](#快速開始google-sheet-網頁版)
+- [桌面版（Windows）](#桌面版windows)
+- [進階用法](#進階用法)
+- [更新 Apps Script](#更新-apps-script)
+- [常見問題](#常見問題)
+- [資料與隱私](#資料與隱私)
+- [開發](#開發)
 
-不想用 Google Sheet，或想讓 AI agent 幫忙管理看板，可以安裝桌面版：看板存成自己電腦上的檔案，不需要網路；也能照常連接 Google Sheet 看板。Claude Code、Codex、Gemini CLI 等 AI 工具可以透過內附的 skill 和命令列直接操作看板，不必開著 SAF Kanban。
+---
 
-到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載 `SAF-Kanban_<版本>_x64-setup.exe` 安裝。安裝檔沒有簽章，Windows 跳出警告時按「其他資訊」→「仍要執行」。使用方式與 AI 連線設定見[桌面版說明](desktop/README.md)。
+## 該用網頁版還是桌面版？
 
-## 功能
+| 比較項目 | 網頁版（Google Sheet） | Windows 桌面版 |
+| --- | --- | --- |
+| 資料存放 | 你自己的 Google Sheet | 電腦本機 JSON 檔案（也同時支援連 Google Sheet） |
+| 需要安裝嗎 | 不用，開網頁即可（也可安裝成 PWA） | 下載單一安裝檔，免系統管理員權限 |
+| 離線使用 | 可唯讀檢視上次載入內容 | 本機看板**完全離線讀寫** |
+| AI Agent 整合 | — | 支援 Claude Code、Codex、Gemini CLI、Cursor 等（Skill / CLI / MCP / HTTP API） |
+| 刪除復原 | 從歷史紀錄重新建立 | 本機看板可直接**原樣復原**到原欄位與原位置 |
+| 更新方式 | 網站更新後自動提示重新整理 | 0.5.0 起支援 **App 內一鍵檢查、驗證並安裝更新** |
 
-- 建立、編輯與刪除 Task
-- 自訂看板欄位，欄位數量不限
-- 同時使用多個看板，各自連到不同的 Google Sheet
-- 匯出、匯入看板設定，方便換電腦或備份
-- 介面支援繁體中文與 English，點右上角的語言按鈕切換
-- 淺色與深色主題，點右上角的太陽或月亮圖示切換
-- 設定 Priority 與 Assignee
-- 同欄及跨欄拖曳排序；手機上長按 Task 再拖曳
-- 每個欄位獨立捲動；手機直式時每個欄位佔滿寬度，左右滑動切換
-- 連結 Jira、GitHub 等 Issue
-- 刪除的 Task 會保留在 `history` 工作表，並可在網站上由新到舊查看、搜尋
-- 依關鍵字、負責人、優先順序搜尋與篩選看板上的 Task
-- 可以安裝成應用程式；沒有網路時也能打開，查看上次載入的內容
-- 所有資料儲存在你自己的 Google Sheet
-- Windows 桌面版：看板存在自己的電腦，並可讓 AI agent 操作（見[桌面版](#桌面版windows)）
+---
 
-## 快速建立（推薦）
+## 主要功能
 
-用範本建立，不需要自己建工作表，也不用修改程式：
+- **看板與任務管理**
+  - 新增、編輯、刪除 Task，設定 Priority、Assignee 與 Issue 連結（Jira、GitHub Issues 等）
+  - 自訂欄位不限數量，支援同欄與跨欄拖曳排序（手機上長按拖曳，直式單欄左右滑動）
+  - 自動記錄任務建立時間（`createdAt`）與最後移入目前欄位的時間（`movedAt`），停駐提示框、描述與編輯視窗皆可查看
+  - 即時搜尋與篩選（關鍵字、負責人、優先順序），篩選狀態下仍可拖曳排序
+- **多看板、備份與歷史紀錄**
+  - 同時管理多個看板，網址帶 `?board=<ID>` 可加書籤或多分頁並開
+  - 一鍵匯出／匯入設定檔，並支援瀏覽器端 **AES-GCM 密碼加密**（PBKDF2-SHA256）
+  - 刪除的任務保留於歷史紀錄，支援搜尋、重新建立（桌面版支援直接原樣復原）
+- **跨裝置與桌面體驗**
+  - 繁體中文 / English 切換、淺色 / 深色主題
+  - 可安裝成 PWA 應用程式，離線可開啟檢視上次內容
+  - Windows 桌面版支援系統匣常駐、開機自動啟動、App 內自動更新與 AI Agent 整合
 
-1. 開啟 [SAF Kanban 範本](https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy)，按「建立副本」，存到自己的 Google 雲端硬碟。範本已包含工作表與 Apps Script。
-2. 在副本點右上角「共用」，「一般存取權」改成「知道連結的任何人」，角色選「檢視者」。
-3. 選「擴充功能 → Apps Script」，依照[第 4 步](#4-部署-apps-script)部署成網頁應用程式，並複製部署後的網址。
-4. 開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，新增看板（還沒有看板時點畫面中間的「設定」）。在 Sheet ID 貼上副本的網址，在 Apps Script 部署 ID 貼上部署網址，按「建立」。
+---
 
-網址會自動轉成 ID，不需要自己擷取。如果複製出來的副本沒有 Apps Script，或想自己從頭建立，請依照以下第 1～5 步。
+## 快速開始（Google Sheet 網頁版）
 
-## 1. 建立 Google Sheet
+用範本建立最快，不需手動建工作表或貼程式碼：
 
-建立一份新的 Google Sheet，並將四個工作表命名為：
+1. 開啟 [SAF Kanban 範本](https://docs.google.com/spreadsheets/d/1-gsXi8JZQrIwAiK6q2koaPp0resipV-G_0YFYOja7yc/copy)，按「**建立副本**」存到自己的 Google 雲端硬碟（已內含工作表與 Apps Script）。
+2. 在副本右上角點「**共用**」，將「一般存取權」設為「**知道連結的任何人 → 檢視者**」。
+3. 點上方選單「**擴充功能 → Apps Script**」，部署成網頁應用程式：
+   - 點「**部署 → 新增部署作業**」→ 類型選「**網頁應用程式**」
+   - 執行身分選「**我**」、存取權限選「**所有人**」→ 按「**部署**」並完成授權
+   - 複製產生的網址（`https://script.google.com/macros/s/.../exec`）
+4. 開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，點畫面中間的「**設定**」（或左上角選單「新增看板」），直接貼上 **Sheet 網址** 與 **部署網址**，按「**建立**」即可使用。
 
-```text
-kanban
-columns
-users
-history
-```
+> 網址會自動擷取成對應的 ID，不需要自己手動切字串。設定保存在目前瀏覽器的 Local Storage，建議設定好後先試著新增、拖曳與刪除一張測試卡確認讀寫正常。
 
-名稱必須完全相同，包含英文大小寫。`history` 如果沒有建立，第一次刪除 Task 時 Apps Script 也會自動建立。
+<details>
+<summary><strong>想自己從頭建立（或查看 Google Sheet 四張工作表的欄位規格）</strong></summary>
 
-目前程式不會略過標題列，因此工作表都不要加入欄位標題，資料直接從第一列開始。
+### 1. 建立四張工作表
 
-### `kanban` 工作表
+新建一份 Google Sheet，建立以下四張工作表（名稱大小寫必須完全一致，**不要加標題列，資料直接從第 1 列開始**）：
 
-這張表用來儲存 Task，每一列代表一個 Task，欄位順序固定為 A:I：
+- `kanban`：儲存任務，欄位固定為 `A:I`（可先留空）
 
 | 欄位 | 內容 | 範例 |
 | --- | --- | --- |
-| A | Task ID | `4836540b` |
+| A | Task ID（系統自動產生） | `4836540b` |
 | B | Title | `Implement login page` |
 | C | Issue ID | `PROJECT-101` |
 | D | Description | `Create login form` |
-| E | Kanban Column | `Todo` |
+| E | Kanban Column（須與 `columns` A 欄完全一致） | `Todo` |
 | F | Priority | `high`、`medium`、`low` |
 | G | Assignee | `王小明` |
-| H | 建立時間（Apps Script 自動填入，依 Sheet 設定的時區） | `2026-11-21 10:30:00` |
-| I | 移至此欄的時間（Apps Script v4 起自動填入，新增與跨欄移動時更新） | `2026-11-24 14:20:00` |
+| H | 建立時間（Apps Script v3 起自動填入） | `2026-11-21 10:30:00` |
+| I | 移至此欄時間（Apps Script v4 起自動填入，跨欄時更新） | `2026-11-24 14:20:00` |
 
-`kanban` 工作表可以先保持空白。新增 Task 時，網站會自動產生 Task ID，Apps Script 會在 H 欄寫入建立時間（v3 起）、在 I 欄寫入移至此欄的時間（v4 起，跨欄移動時更新）；H、I 欄不需要手動填，用舊版 Script 建立的 Task 這些欄位是空的，畫面上就不顯示對應時間。
+- `columns`：A 欄依序填寫看板欄位名稱（例如 `Todo`、`In Progress`、`Testing`、`Done`），數量不限。
+- `users`：A 欄填寫可指派的負責人名稱（相容舊格式：若 B 欄有值會改取 B 欄）。
+- `history`：保留已刪除的任務（沒建時第一次刪除會自動建立）。A～G 欄同 `kanban`，H 欄為刪除時間，I 欄為建立時間，J 欄為移至此欄時間（v4 起）。
 
-### `columns` 工作表
+### 2. 開放讀取權限並貼上 Apps Script
 
-將看板欄位名稱依序放在 A 欄：
+1. 將 Sheet 設為「**共用 → 知道連結的任何人 → 檢視者**」（不需開放編輯，寫入由 Apps Script 負責）。
+2. 開啟「**擴充功能 → Apps Script**」，刪除預設程式碼，完整貼上 [`apps-script/Code.gs`](apps-script/Code.gs) 並儲存（頂部 `SPREADSHEET_ID` 留空即可）。
+3. 依照上方快速開始第 3～4 步完成部署與連接。
 
-| A |
-| --- |
-| Todo |
-| In Progress |
-| Testing |
-| Done |
-
-欄位數量不限，畫面會依欄位數平均分配寬度；欄位太多放不下時，看板可以左右捲動。卡片在 `kanban` 工作表 E 欄的值必須與這裡的名稱完全相同。
-
-### `users` 工作表
-
-將可指派的使用者名稱放在 A 欄，會顯示在負責人的下拉選單中：
-
-| A |
-| --- |
-| 王小明 |
-| 陳小華 |
-
-舊格式（A 欄 User ID、B 欄名稱）仍然可以使用：有填 B 欄時會使用 B 欄的名稱。
-
-### `history` 工作表
-
-這張表用來保存刪除的 Task，可以先保持空白。刪除 Task 時，Apps Script 會先把它最後的狀態複製到這裡，再從 `kanban` 移除：
-
-| 欄位 | 內容 | 範例 |
-| --- | --- | --- |
-| A～G | 與 `kanban` 工作表相同：Task ID、Title、Issue ID、Description、Kanban Column、Priority、Assignee | |
-| H | 刪除時間（依 Sheet 設定的時區） | `2026-11-04 15:30:00` |
-| I | 建立時間，從 `kanban` 的 H 欄帶過來 | `2026-11-01 09:00:00` |
-| J | 移至此欄的時間，從 `kanban` 的 I 欄帶過來（v4 起） | `2026-11-03 18:10:00` |
-
-需要使用[新版 Apps Script](#更新-apps-script)，舊版 Script 刪除時不會保存到這裡。
-
-在 SAF Kanban 點右上角語言標籤右邊的時鐘圖示，就能查看目前看板已刪除的 Task。最新刪除的排在最前面，可以用標題、描述、Issue ID、欄位或負責人搜尋。按右側的重新建立圖示，會打開新增任務的視窗並填好原本的內容，修改後按「確定」，就會在看板的第一個欄位建立一個新的 Task；`history` 裡的紀錄會保留。
-
-## 2. 開放 Sheet 讀取權限
-
-SAF Kanban 會從瀏覽器讀取你的 Google Sheet，因此需要設定：
-
-```text
-共用 → 一般存取權 → 知道連結的任何人 → 檢視者
-```
-
-只需提供檢視權限。資料寫入會由下一步建立的 Apps Script 執行，不需要開放其他人編輯 Sheet。
-
-## 3. 建立 Apps Script
-
-在 Google Sheet 上方選單開啟：
-
-```text
-擴充功能 → Apps Script
-```
-
-刪除預設程式，貼上 [`apps-script/Code.gs`](apps-script/Code.gs) 的完整內容並儲存。在 GitHub 打開這個檔案後，可以用右上角的「Copy raw file」按鈕一次複製全部程式。
-
-程式最上方的 `SPREADSHEET_ID` 保持空白即可，會自動使用這份 Sheet。只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID；如果有填，必須是**同一份** Sheet 的 ID。
-
-### 找到 Sheet ID
-
-Google Sheet 網址格式如下：
-
-```text
-https://docs.google.com/spreadsheets/d/SHEET_ID/edit
-```
-
-`/d/` 與 `/edit` 中間的字串就是 Sheet ID。第 5 步可以直接貼上整個網址，SAF Kanban 會自動取出 Sheet ID。
-
-## 4. 部署 Apps Script
-
-1. 點選「部署」→「新增部署作業」。
-2. 類型選擇「網頁應用程式」。
-3. 執行身分選擇「我」。
-4. 存取權限選擇「所有人」。
-5. 按下部署並完成 Google 權限授權。
-6. 複製產生的網頁應用程式 URL。
-
-部署 URL 格式如下：
-
-```text
-https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-```
-
-`/s/` 與 `/exec` 中間的字串就是部署 ID。第 5 步可以直接貼上整個網址，SAF Kanban 會自動取出部署 ID。
-
-如果日後修改 Apps Script，只有按儲存不會更新線上版本。請進入：
-
-```text
-部署 → 管理部署 → 編輯 → 版本：新版本 → 部署
-```
-
-## 5. 連接 SAF Kanban
-
-開啟 [SAF Kanban](https://whlshy.github.io/SAF_Kanban/)，點選右上角齒輪，填入下列欄位後按「確認」儲存（按右上角 ✕ 會放棄修改）：
+### 3. 設定欄位說明
 
 | 設定 | 填入內容 |
 | --- | --- |
-| 看板名稱 | 顯示在左上角，可留空 |
-| Sheet ID | Google Sheet 的網址，或其中的 `SHEET_ID` |
-| Apps Script 部署 ID | 部署後的網頁應用程式網址，或其中的 `DEPLOYMENT_ID` |
-| User Name | 你的名稱，目前未使用，可留空 |
-| Issue Link | Issue 的基底網址，任務的 Issue ID 會接在後面，可留空 |
+| 看板名稱 | 顯示在左上角（可留空） |
+| Sheet ID | Google Sheet 完整網址或 `SHEET_ID` |
+| Apps Script 部署 ID | 部署後的網頁應用程式完整網址或 `DEPLOYMENT_ID`（不需申請 Google Cloud API Key） |
+| Issue Link | Issue 基底網址，點擊任務 Issue ID 時會接在後面（例如 Jira `https://your-company.atlassian.net/browse/`、GitHub `https://github.com/OWNER/REPO/issues/`） |
 
-「Apps Script 部署 ID」是你自己部署的 Apps Script 網址中的 ID，不需要申請 Google Cloud API Key。舊版介面把這個欄位叫做「Sheet API Key」。
+> 附註：`User Name` 欄位目前保留未使用可留空；舊版名稱「Sheet API Key」「Jira Link」「Jira ID」對應新版的「Apps Script 部署 ID」「Issue Link」「Issue ID」，不影響既有資料。
 
-Issue Link 範例：
+</details>
 
-| 系統 | Issue Link |
-| --- | --- |
-| Jira | `https://your-company.atlassian.net/browse/` |
-| GitHub Issues | `https://github.com/OWNER/REPO/issues/` |
+---
 
-舊版介面把 Issue Link 叫做「Jira Link」，任務的 Issue ID 叫做「Jira ID」，設定和資料都不受改名影響。
+## 桌面版（Windows）
 
-設定會儲存在目前瀏覽器的 Local Storage。更換瀏覽器或清除網站資料後，需要重新輸入。
+不想依賴 Google Sheet 與網路，或想讓 AI Agent 直接管理看板，可以安裝 Windows 桌面版：
 
-### 使用多個看板
+1. 到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載最新的 `SAF-Kanban_<版本>_x64-setup.exe` 執行安裝。
+2. 安裝檔目前未加程式碼簽章，Windows 跳出「Windows 已保護您的電腦」時點「**其他資訊 → 仍要執行**」。
+3. 安裝 `0.5.0` 以上版本後，未來出新版會自動偵測並可在 **App 內一鍵更新**；先前已安裝的 AI Skill 也會在啟動時自動同步為最新版。
 
-每個看板各自連到一份 Google Sheet 與一個 Apps Script。要新增看板時，先依照[快速建立](#快速建立推薦)或第 1～4 步再建立一份 Sheet 與 Apps Script，然後：
+完整的系統匣操作、AI Agent 連線（Skill / CLI / MCP）、資料備份與 HTTP API 說明，請見 **[桌面版說明（desktop/README.md）](desktop/README.md)**。
 
-1. 點左上角看板名稱，開啟下拉選單。
-2. 選「新增看板」，填入看板名稱，貼上 Sheet 網址與部署網址，按「建立」。名稱和其他看板重複時，會自動加上編號，例如 `Kanban (1)`、`Kanban (2)`。
-3. 之後從同一個下拉選單切換看板。
+---
 
-- 網址會帶上 `?board=<看板 ID>`，可以加入書籤，或開多個分頁各看一個看板。
-- 要修改或刪除看板，先切換到該看板，再點右上角齒輪。刪除看板只會移除瀏覽器裡的設定，不會刪除 Google Sheet 的資料。
-- 從單一看板版本升級時，原本的設定會自動成為第一個看板，不需要重新設定。
+## 進階用法
 
-### 匯出與匯入設定
+### 多個看板
+點左上角看板名稱 →「**新增看板**」，即可為不同專案建立各自獨立的看板（桌面版可混用本機看板與 Google Sheet 看板）。網址會自動帶上 `?board=<ID>`，方便加書籤或開多個分頁同時看。刪除 Google Sheet 看板只會移除瀏覽器設定，不會刪除 Sheet 本身資料。
 
-設定只存在目前的瀏覽器。要換電腦、換瀏覽器或備份時，可以把設定匯出成檔案再匯入：
-
-1. 點左上角看板名稱，選「匯出設定」，勾選要匯出的看板（預設全部勾選），按「匯出」，會下載一個包含這些看板設定的 JSON 檔。
-2. 在另一個瀏覽器點看板名稱選「匯入設定」，選擇剛剛的檔案。還沒有任何看板時，直接點畫面中間的「匯入」。
-3. 匯入前會用看板名稱和目前的看板比對：名稱重複的需要先改名，不想匯入的取消勾選，再按「匯入」。
-
-匯出的檔案包含 Apps Script 部署 ID，拿到檔案的人就能寫入你的 Sheet，請妥善保管，不要公開分享。
-
-#### 用密碼加密
-
-匯出時勾選「用密碼加密」並設定密碼（至少 8 個字元，輸入兩次），檔案內容就會加密成亂碼，檔名結尾是 `-encrypted.json`。匯入這種檔案時，會先要求輸入同一組密碼，再進入上面的比對步驟。
-
-- 加密和解密都在瀏覽器裡完成，密碼不會上傳，也不會被儲存。使用瀏覽器內建的 Web Crypto：PBKDF2-SHA256（60 萬次）把密碼轉成金鑰，再用 AES-GCM 加密。
-- 忘記密碼就無法匯入這個檔案，沒有任何方法能救回。
-- 加密能防止別人直接看到內容，但密碼太簡單仍可能被猜到，請用不容易猜的密碼。
-- 加密需要用 HTTPS（例如 GitHub Pages）或 `localhost` 開啟網站。
+### 匯出、匯入與密碼加密
+點左上角看板名稱 →「**匯出設定**」可將勾選的看板匯出成 JSON 檔（在另一個瀏覽器選「**匯入設定**」即可還原，重複名稱會在匯入前提示改名）。
+- 匯出檔內含 Apps Script 部署 ID，請勿公開分享。
+- 匯出時可勾選「**用密碼加密**」（至少 8 字元，在瀏覽器內以 Web Crypto `PBKDF2-SHA256` 60 萬次 + `AES-GCM` 加密，密碼不會上傳也無法救回；需透過 HTTPS 或 `localhost` 開啟）。
 
 ### 搜尋與篩選
+點右上角放大鏡開啟搜尋列，可同時依關鍵字（比對標題、描述、Issue ID、負責人，空白分隔多詞且不分大小寫）、負責人（含「未指派」）與優先順序篩選。篩選期間欄位數字會顯示 `符合數 / 總數`，且仍可直接拖曳排序。
 
-點右上角的放大鏡，欄位上方會出現搜尋列：
+### 已刪除的任務
+點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）還提供「復原」按鈕，直接以原 ID 與建立時間放回原本欄位與位置。
 
-- 搜尋框會比對標題、描述、Issue ID 和負責人。用空白隔開多個詞時，要全部符合才會顯示；不分大小寫。
-- 兩個下拉選單可以只看某位負責人（或「未指派」）、某個優先順序的 Task，也可以和搜尋一起用。
-- 篩選中，每個欄位的數字會變成「符合數 / 總數」，例如 `2 / 5`。
-- 篩選中一樣可以拖曳。Task 會放在你放開位置旁邊那張看得到的 Task 旁，被篩掉的 Task 順序不變。
-- 再點一次放大鏡會關閉搜尋列並清除篩選。切換看板、重新整理頁面後也會清除。
+### 安裝成應用程式（PWA）與離線使用
+- 支援 Chrome / Edge（電腦與 Android）從左上角選單點「安裝應用程式」，以及 iOS Safari 的「分享 → 加入主畫面」。
+- 離線時仍可開啟檢視上次載入的看板內容（唯讀，恢復連線後即可編輯）；網站有新版時上方會出現提示，按「重新整理」或重開所有分頁即可套用。
 
-### 安裝成應用程式
+---
 
-安裝後 SAF Kanban 會有自己的圖示和視窗，不顯示瀏覽器的網址列。
+## 更新 Apps Script
 
-- Android 的 Chrome：點左上角看板名稱，選「安裝應用程式」；或用 Chrome 選單的「加到主畫面」→「安裝」。
-- 電腦的 Chrome、Edge：同樣從看板名稱的選單安裝，或點網址列右側的安裝圖示。
-- iPhone、iPad 的 Safari：點「分享」→「加入主畫面」。
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊版 Script 仍可相容運作，但不會有新功能（各版差異見[版本紀錄](CHANGELOG.md#apps-script-版本)）。目前最新版（v4）提供：刪除保留到 `history`、寫入前檢查是否為對應 Sheet、多語錯誤訊息、以及記錄任務建立時間（H 欄）與移入欄位時間（I 欄）。
 
-瀏覽器不支援安裝，或已經安裝時，選單裡不會有「安裝應用程式」。
+更新步驟（部署 ID 不會改變，SAF Kanban 設定不需修改）：
 
-沒有網路時：
+1. 打開 Google Sheet 的「**擴充功能 → Apps Script**」，用 [`apps-script/Code.gs`](apps-script/Code.gs) 完整覆蓋原本程式碼並儲存。
+2. 執行：**部署 → 管理部署 → 編輯（鉛筆）→ 版本：新版本 → 部署**。
 
-- 一樣可以打開，畫面上方會提示目前離線，並顯示每個看板上次載入的內容。
-- 不能新增、修改、移動或刪除 Task；恢復連線後就可以。
-- 「已刪除的任務」要在有網路時開過，離線時才看得到上次的內容。
-
-網站更新時，畫面上方會出現「有新版本可以使用」，按「重新整理」就會換成新版。沒有按的話，把所有分頁（或應用程式）關掉再開，也會換成新版。
-
-### 更新 Apps Script
-
-[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊的 Script 仍可繼續使用，但不會有新功能。各版 Script 的差異請見[版本紀錄](CHANGELOG.md#apps-script-版本)。目前新版 Script 提供：
-
-- 刪除 Task 時保存到 `history` 工作表。
-- 確認 Script 連到的就是看板設定的 Sheet，不一致時拒絕寫入，避免寫到別份 Sheet。
-- 錯誤訊息會依照介面語言顯示。
-- 新增 Task 時記錄建立時間（`kanban` 的 H 欄），跨欄移動時記錄移至此欄的時間（`kanban` 的 I 欄），顯示在提示框和任務描述裡。
-
-更新方式：
-
-1. 打開 Sheet 的「擴充功能 → Apps Script」，用 `apps-script/Code.gs` 的內容取代全部程式。原本 `SPREADSHEET_ID` 有填的話，可以保留，也可以清空。
-2. 儲存後進入「部署 → 管理部署 → 編輯（鉛筆）→ 版本：新版本 → 部署」。
-
-照這個方式更新，部署 ID 不會改變，SAF Kanban 的設定不用修改。
-
-## 6. 測試 Kanban
-
-完成設定後，建議依序測試：
-
-1. 點右上角 `＋` 新增 Task。
-2. 編輯標題、描述、優先順序與負責人。
-3. 在同一個欄位內拖曳調整順序。
-4. 將 Task 拖曳到其他欄位。
-5. 重新整理頁面，確認欄位及順序仍然正確。
-6. 刪除 Task，確認 `kanban` 工作表中的對應列已移除。
+---
 
 ## 常見問題
 
-### 畫面沒有顯示欄位
+- **畫面沒有顯示欄位或 Task**：確認工作表名稱為全小寫 `columns`、`kanban`，資料從第 1 列開始（沒有標題列），且 `kanban` E 欄的值與 `columns` A 欄完全相同。
+- **顯示 403 或無法讀取資料**：確認 Google Sheet 已設為「知道連結的任何人 → 檢視者」。
+- **新增／移動出現 CORS 錯誤或寫入失敗**：通常是 Apps Script 未回傳正常 JSON。請用**無痕視窗**開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec` 驗證：
+  - 看到 `{"status":"error","code":"UNKNOWN_ACTION", ...}` 表示部署正常，請檢查設定裡的部署 ID 與 Script 的 `SPREADSHEET_ID`（留空或填同一份 Sheet ID）。
+  - 看到 Google 登入頁或「需要存取權」，表示存取權限不是「所有人」（公司 Google Workspace 帳號可能限制無法開放「所有人」，需改用個人 Google 帳號）。
+- **修改 Apps Script 後沒生效，或回傳 `undefined is not valid JSON`**：只按儲存不會更新線上版本，請到 **部署 → 管理部署 → 編輯 → 版本：新版本 → 部署** 重新發佈。
+- **Issue 連結無法開啟**：確認 Issue Link 結尾路徑正確（例如 Jira 結尾需有 `/browse/`，GitHub 需有 `/issues/`）。
 
-確認工作表名稱是小寫 `columns`，而且資料從 A1 開始，中間沒有標題列。
-
-### 畫面沒有顯示 Task
-
-確認 `kanban` E 欄的值與 `columns` A 欄完全相同。
-
-### 顯示 403 或無法讀取資料
-
-確認 Google Sheet 已設成「知道連結的任何人皆可檢視」。
-
-### 新增或移動 Task 時出現 CORS 錯誤、寫入失敗
-
-F12 Console 出現 `has been blocked by CORS policy`，通常不是跨網域設定的問題，而是 Apps Script 沒有回傳正常的 JSON。請依序確認：
-
-1. Apps Script 的 `SPREADSHEET_ID` 是這份 Sheet 的 ID，或留空。
-2. 部署的存取權限是「所有人」，不是「僅限自己」或「擁有 Google 帳戶的任何人」。
-3. SAF Kanban 設定裡的 Apps Script 部署 ID 是這份 Script 的部署 ID。
-4. 修改 Script 或部署設定後，有到「管理部署 → 編輯 → 版本：新版本 → 部署」。
-
-確認方式：用**無痕視窗**直接開啟部署網址 `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`。
-
-- 看到 `{"status":"error","code":"UNKNOWN_ACTION", ...}`（舊版 Script 是 `...缺少 action...`）這類 JSON，表示部署正常。
-- 看到「需要存取權」或 Google 登入頁，表示存取權限不是「所有人」。
-- 如果是公司的 Google Workspace 帳號，存取權限可能沒有「所有人」可選，需要改用個人 Google 帳號建立 Sheet 與 Apps Script。
-
-### Apps Script 回傳 `undefined is not valid JSON`
-
-通常表示線上部署仍是舊版本。請到「管理部署」建立新版本，而不是只儲存程式碼。
-
-### 修改 Apps Script 後沒有生效
-
-重新執行：
-
-```text
-部署 → 管理部署 → 編輯 → 版本：新版本 → 部署
-```
-
-### Issue 連結無法開啟
-
-點任務上的 Issue ID 時，會開啟「Issue Link + Issue ID」。確認 Issue Link 的結尾正確，例如 Jira 要包含 `/browse/`，GitHub 要包含 `/issues/`：
-
-```text
-https://your-company.atlassian.net/browse/
-https://github.com/OWNER/REPO/issues/
-```
-
-## 開發
-
-```bash
-npm install
-npm start        # 開發伺服器，http://localhost:1001
-npm test         # 單元測試（Node 內建的測試工具）
-npm run build    # 建置到 dist/
-```
-
-桌面版的程式在 [`desktop/`](desktop/README.md)，用 Rust（Tauri）寫：
-
-```bash
-npm run local        # 建置桌面版畫面並啟動本機伺服器
-npm run test:server  # 伺服器和命令列的測試
-npm run build:app    # 桌面版程式和安裝檔（Windows 安裝檔由 GitHub Actions 建置）
-```
-
-推送到 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會跑測試、建置，並發布到 GitHub Pages；Pull Request 只跑測試和建置。建置結果不放進版本庫；repo 的 Settings → Pages → Source 要設成「GitHub Actions」。
+---
 
 ## 資料與隱私
 
-- Task 資料會保存在你自己的 Google Sheet。
-- Sheet 必須開放知道連結者檢視，請勿存放密碼、Token 或其他敏感資料。
-- Apps Script 會以建立者的 Google 帳號權限寫入指定 Sheet。
-- Apps Script Deployment ID 應視為敏感資訊，不要任意公開分享。
-- 使用新版 Apps Script 時，刪除的 Task 會保存在 `history` 工作表；舊版 Script 會直接刪除，不會保留。
-- 為了離線時能顯示看板，瀏覽器會保留每個看板上次載入的內容，只存在這台裝置上；清除網站資料就會刪除。
+- **網頁版（Google Sheet）**：資料全部保存在你自己的 Google Sheet；因為瀏覽器需要讀取，Sheet 須設為知道連結可檢視，請勿存放密碼或機密。Apps Script 部署 ID 等同寫入權限，請妥善保管。離線快取僅存在目前裝置的瀏覽器內，清除網站資料即移除。
+- **桌面版（本機看板）**：資料完全保存在你的電腦資料夾中，不會上傳到任何外部伺服器（詳見[桌面版安全說明](desktop/README.md#安全性)）。
+
+---
+
+## 開發
+
+需要 Node.js 22；開發桌面版另需 Rust。
+
+```bash
+npm install
+npm start            # 開發伺服器，http://localhost:1001
+npm run lint         # 前端 ESLint 檢查
+npm test             # 前端單元測試（Node 內建測試工具）
+npm run build        # 建置網頁版到 dist/
+```
+
+桌面版程式碼在 [`desktop/`](desktop/README.md)（Rust + Tauri）：
+
+```bash
+npm run local        # 建置桌面版畫面並啟動本機伺服器
+npm run test:server  # 執行 Rust 伺服器與 CLI 測試
+cargo clippy --manifest-path desktop/Cargo.toml --all-targets -p saf-kanban-server -- -D warnings
+npm run build:app    # 建置桌面版程式與安裝檔（正式安裝檔由 GitHub Actions 建置）
+```
+
+推送至 `main` 後，[GitHub Actions](.github/workflows/deploy.yml) 會自動執行 lint、測試、clippy、建置並發佈至 GitHub Pages（repo 的 Settings → Pages → Source 需設為「GitHub Actions」）。
