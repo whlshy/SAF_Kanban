@@ -64,7 +64,7 @@
 
 | 路徑 | 對應 AI 工具 |
 | --- | --- |
-| `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Gemini CLI、GitHub Copilot、Cursor 等 |
+| `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Cursor、Gemini CLI、GitHub Copilot 等 |
 | `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code（若設了 `CLAUDE_CONFIG_DIR` 則改寫至該目錄） |
 | `~/.gemini/config/skills/saf-kanban/SKILL.md` | Google Antigravity（App、IDE、CLI 共用全域位置） |
 

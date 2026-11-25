@@ -64,7 +64,7 @@ Supports three standard global locations (install individually or all at once in
 
 | Path | AI tools that read it |
 | --- | --- |
-| `~/.agents/skills/saf-kanban/SKILL.md` | Codex, Gemini CLI, GitHub Copilot, Cursor, etc. |
+| `~/.agents/skills/saf-kanban/SKILL.md` | Codex, Cursor, Gemini CLI, GitHub Copilot, etc. |
 | `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code (or `$CLAUDE_CONFIG_DIR/skills/saf-kanban/SKILL.md` when set) |
 | `~/.gemini/config/skills/saf-kanban/SKILL.md` | Google Antigravity (App, IDE, and CLI global skills folder) |
 

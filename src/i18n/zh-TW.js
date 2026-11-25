@@ -222,7 +222,7 @@ export default {
   "connection.skill.installOne.ok": "重新安裝",
   "connection.skill.installed": "已安裝。如果 AI 工具正在執行卻沒有出現這個 skill，重新啟動它即可。",
   "connection.skill.copy": "複製 SKILL.md",
-  "connection.skill.place.agents": "Codex、Gemini CLI、GitHub Copilot、Cursor 等",
+  "connection.skill.place.agents": "Codex、Cursor、Gemini CLI、GitHub Copilot 等",
   "connection.skill.place.claude": "Claude Code",
   "connection.skill.place.antigravity": "Antigravity",
   "connection.skill.state.none": "未安裝",

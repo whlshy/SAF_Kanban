@@ -233,7 +233,7 @@ export default {
   "connection.skill.installOne.ok": "Reinstall",
   "connection.skill.installed": "Installed. If an AI tool is running and doesn't show the skill, restart it.",
   "connection.skill.copy": "Copy SKILL.md",
-  "connection.skill.place.agents": "Codex, Gemini CLI, GitHub Copilot, Cursor and others",
+  "connection.skill.place.agents": "Codex, Cursor, Gemini CLI, GitHub Copilot and others",
   "connection.skill.place.claude": "Claude Code",
   "connection.skill.place.antigravity": "Antigravity",
   "connection.skill.state.none": "Not installed",
