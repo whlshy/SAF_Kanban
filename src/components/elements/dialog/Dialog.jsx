@@ -4,6 +4,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Box } fr
 import { styled } from '@mui/material/styles'
 import CloseIcon from '@mui/icons-material/Close'
 import usePhone from '@/lib/usePhone'
+import { useTheme } from '@/store/theme'
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialogContent-root': {
@@ -43,10 +44,14 @@ export default function AppDialog({
 }) {
   // On phones dialogs fill the screen, except small pickers opened with compact.
   const fill = usePhone() && !compact
+  const { isDark } = useTheme()
   const [footerSlot, setFooterSlot] = useState(null)
 
   return (
     <BootstrapDialog
+      // Mirror `.dark` on the portaled dialog root so Tailwind tokens inside
+      // dialog content (outside `#root`) match the active theme.
+      className={isDark ? 'dark' : undefined}
       // persistent: a click outside doesn't close it (forms with a confirm button).
       onClose={(event, reason) => (persistent && reason === 'backdropClick' ? undefined : closeDialog())}
       open={open}

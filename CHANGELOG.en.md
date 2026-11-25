@@ -14,6 +14,16 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.21.1 and desktop app 0.6.1 — 2026-11-25
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+
+### Improved
+
+- **Pause toast auto-dismiss on hover**: hovering over a toast pauses its auto-dismiss timer, with at least a 1-second grace period after the pointer leaves so longer messages and action buttons are easy to read and click.
+- **Moved "Check for updates" into the board menu**: moved the desktop app's manual update trigger from the footer to the bottom of the top-left board switcher menu (matching the web app's "Install app" slot), keeping the footer clean.
+- **Full dark mode for MUI components**: synced MUI `ThemeProvider` with the app theme so all dialogs (edit task, task description view, board settings, AI / API connection, confirm dialogs), dropdown menus, selects, and alerts render consistently in dark mode.
+
 ## 1.21.0 and desktop app / CLI 0.6.0 — 2026-11-25
 
 Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be installed or upgraded with the one-line install script.

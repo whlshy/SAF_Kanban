@@ -1,6 +1,6 @@
 import React from 'react'
 import { AppBar, Badge, Box, Toolbar, Typography, Button, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Divider, List, ListItemButton } from '@mui/material'
-import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon, SmartToyOutlined as ConnectionIcon } from '@mui/icons-material'
+import { Add as AddIcon, Settings as SettingsIcon, ArrowDropDown as ArrowDropDownIcon, Check as CheckIcon, FileDownloadOutlined as ExportIcon, FileUploadOutlined as ImportIcon, LightModeOutlined as LightModeIcon, DarkModeOutlined as DarkModeIcon, HistoryOutlined as HistoryIcon, Search as SearchIcon, InstallMobileOutlined as InstallIcon, SmartToyOutlined as ConnectionIcon, SystemUpdateAltOutlined as UpdateIcon } from '@mui/icons-material'
 import { useAtom } from 'jotai';
 import { EMPTY_FILTER, isFilterActive } from '@/lib/filter';
 import { filterAtom } from '@/store/filter';
@@ -18,7 +18,8 @@ import { PHONE_QUERY } from '@/lib/usePhone';
 import { useOpenSettings } from './SettingDialog'
 import { useOpenNewBoard } from './NewBoardDialog'
 import { useOpenConnection } from './ConnectionDialog'
-import { localAvailable } from '@/data/localApi';
+import { localAvailable, localCanUpdate } from '@/data/localApi';
+import { checkForDesktopUpdate } from '@/desktopUpdate';
 
 function Header() {
   const { boards, currentBoard, switchBoard } = useBoards();
@@ -35,6 +36,7 @@ function Header() {
   const { isDark, toggleTheme } = useTheme();
   const [filter, setFilter] = useAtom(filterAtom);
   const install = useInstallPrompt();
+  const canUpdate = localCanUpdate();
   const filtering = isFilterActive(filter);
 
   const displayTitle = boardTitle(currentBoard);
@@ -78,7 +80,7 @@ function Header() {
             buttons keep their size, so nothing wraps. */}
         <Toolbar sx={{ px: { xs: 1.5, sm: 3 } }}>
           <Logo sx={{ mr: 1 }} />
-          {boards.length > 0 ? (
+          {(boards.length > 0 || canUpdate) ? (
             <Button
               color="inherit"
               disableFocusRipple
@@ -107,12 +109,12 @@ function Header() {
                 onClick={() => (setMenuAnchor(null), switchBoard(board.id))}
               >
                 <ListItemIcon>
-                  {board.id === currentBoard?.id && <CheckIcon fontSize="small" />}
+                  {board.id === currentBoard?.id && <CheckIcon fontSize="small" sx={isDark ? { color: '#58a6ff' } : undefined} />}
                 </ListItemIcon>
                 <ListItemText>{boardTitle(board)}</ListItemText>
               </MenuItem>
             ))}
-            <Divider />
+            {boards.length > 0 && <Divider />}
             <MenuItem onClick={handleAddBoard}>
               <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
               <ListItemText>{t("board.new")}</ListItemText>
@@ -132,6 +134,14 @@ function Header() {
               <MenuItem onClick={() => (setMenuAnchor(null), install())}>
                 <ListItemIcon><InstallIcon fontSize="small" /></ListItemIcon>
                 <ListItemText>{t("pwa.install")}</ListItemText>
+              </MenuItem>
+            )}
+            {/* Installed desktop app only: manually check for updates. */}
+            {canUpdate && <Divider />}
+            {canUpdate && (
+              <MenuItem onClick={() => (setMenuAnchor(null), checkForDesktopUpdate())}>
+                <ListItemIcon><UpdateIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>{t("desktopUpdate.check")}</ListItemText>
               </MenuItem>
             )}
           </Menu>

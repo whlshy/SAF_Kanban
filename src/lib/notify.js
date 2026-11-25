@@ -5,29 +5,74 @@ import { atom, getDefaultStore } from 'jotai'
 // listeners, PWA hooks) without hooks or context.
 
 const DEFAULT_DURATION_SEC = 3
+const DEFAULT_MIN_RESUME_MS = 1000
 
 export const toastsAtom = atom([])
 
+// Per-toast auto-dismiss state: { timer, remainingMs, startedAt, paused }
 const timers = new Map()
+const hoveredKeys = new Set()
 let nextId = 1
 
 function clearTimer(key) {
-  const timer = timers.get(key)
-  if (timer !== undefined) {
-    clearTimeout(timer)
-    timers.delete(key)
+  const state = timers.get(key)
+  if (state?.timer !== undefined && state?.timer !== null) {
+    clearTimeout(state.timer)
   }
+  timers.delete(key)
+}
+
+function schedule(key, delayMs) {
+  const timer = setTimeout(() => destroy(key), delayMs)
+  // Don't keep Node test processes alive waiting on a toast timer.
+  timer.unref?.()
+  timers.set(key, {
+    timer,
+    remainingMs: delayMs,
+    startedAt: Date.now(),
+    paused: false,
+  })
+}
+
+function pause(key) {
+  if (key === undefined || key === null) return
+  hoveredKeys.add(key)
+  const state = timers.get(key)
+  if (!state || state.paused) return
+  if (state.timer !== null && state.timer !== undefined) {
+    clearTimeout(state.timer)
+  }
+  const elapsed = Date.now() - state.startedAt
+  timers.set(key, {
+    timer: null,
+    remainingMs: Math.max(0, state.remainingMs - elapsed),
+    startedAt: 0,
+    paused: true,
+  })
+}
+
+function resume(key, minResumeMs = DEFAULT_MIN_RESUME_MS) {
+  if (key === undefined || key === null) return
+  hoveredKeys.delete(key)
+  const state = timers.get(key)
+  if (!state || !state.paused) return
+  const delayMs = Math.max(state.remainingMs, minResumeMs)
+  schedule(key, delayMs)
 }
 
 function destroy(key) {
   const store = getDefaultStore()
   if (key === undefined || key === null) {
-    for (const timer of timers.values()) clearTimeout(timer)
+    for (const state of timers.values()) {
+      if (state.timer !== null && state.timer !== undefined) clearTimeout(state.timer)
+    }
     timers.clear()
+    hoveredKeys.clear()
     store.set(toastsAtom, [])
     return
   }
   clearTimer(key)
+  hoveredKeys.delete(key)
   store.set(toastsAtom, (prev) => prev.filter((item) => item.key !== key))
 }
 
@@ -54,10 +99,17 @@ function open(options) {
   })
 
   if (typeof duration === "number" && duration > 0) {
-    const timer = setTimeout(() => destroy(key), duration * 1000)
-    // Don't keep Node test processes alive waiting on a toast timer.
-    timer.unref?.()
-    timers.set(key, timer)
+    const delayMs = duration * 1000
+    if (hoveredKeys.has(key)) {
+      timers.set(key, {
+        timer: null,
+        remainingMs: delayMs,
+        startedAt: 0,
+        paused: true,
+      })
+    } else {
+      schedule(key, delayMs)
+    }
   }
 
   return () => destroy(key)
@@ -66,6 +118,8 @@ function open(options) {
 export const message = {
   open,
   destroy,
+  pause,
+  resume,
   success: (content, duration = DEFAULT_DURATION_SEC) => open({ type: "success", content, duration }),
   error: (content, duration = DEFAULT_DURATION_SEC) => open({ type: "error", content, duration }),
   info: (content, duration = DEFAULT_DURATION_SEC) => open({ type: "info", content, duration }),

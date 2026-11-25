@@ -18,7 +18,7 @@ export function DescriptionView({ task, jiraLink }) {
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
     <span key="assignee">{task.assignee || t("task.unassigned")}</span>,
     task.issueId && (jiraLink
-      ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline-offset-2 hover:underline">{task.issueId}</a>
+      ? <a key="issue" href={`${jiraLink}${task.issueId}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-[#58a6ff] underline-offset-2 hover:underline">{task.issueId}</a>
       : <span key="issue">{task.issueId}</span>),
     created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
     moved && <span key="moved" data-slot="task-moved">{t("task.movedAt", { time: moved.full })}</span>,
@@ -26,7 +26,7 @@ export function DescriptionView({ task, jiraLink }) {
 
   return (
     <DialogContent sx={{ pt: 0 }}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         {parts.map((part, i) => (
           <React.Fragment key={i}>
             {i > 0 && <span aria-hidden="true">·</span>}
@@ -34,7 +34,7 @@ export function DescriptionView({ task, jiraLink }) {
           </React.Fragment>
         ))}
       </div>
-      <hr className="my-4 border-gray-200" />
+      <hr className="my-4 border-border dark:border-white/15" />
       <div className="whitespace-pre-wrap break-words text-sm">{task.des}</div>
     </DialogContent>
   )

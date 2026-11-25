@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DialogContent, TextField, Button as MuiButton, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
+import { Box, DialogContent, TextField, Button as MuiButton, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
 import { useAlertStore } from '@/store'
 import { useT } from '@/i18n'
 import { DialogFooter } from '@/components/elements/dialog/Dialog'
@@ -77,7 +77,7 @@ export default function EditTask({
             onChange={(e) => setData(d => ({ ...d, assignee: e.target.value }))}
             disabled={loading}
             displayEmpty
-            renderValue={(value) => value || <span style={{ color: 'rgba(0, 0, 0, 0.38)' }}>{t("task.unassigned")}</span>}
+            renderValue={(value) => value || <Box component="span" sx={{ color: 'text.disabled' }}>{t("task.unassigned")}</Box>}
           >
             {/* Lets a task go back to nobody, e.g. back in Todo waiting for someone to pick it up. */}
             <MenuItem value="">

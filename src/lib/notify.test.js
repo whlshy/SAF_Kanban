@@ -50,3 +50,32 @@ test('auto-dismisses after duration seconds', async () => {
   await new Promise((resolve) => setTimeout(resolve, 60))
   assert.equal(current().length, 0)
 })
+
+test('pauses auto-dismiss while hovered and keeps at least the resume grace period on leave', async () => {
+  message.open({ key: 'hover', type: 'info', content: 'Stay', duration: 0.04 })
+  message.pause('hover')
+
+  await new Promise((resolve) => setTimeout(resolve, 70))
+  assert.equal(current().length, 1, 'toast must stay open while paused')
+
+  // Resume with a 50ms minimum grace period (default is 1000ms in UI).
+  message.resume('hover', 50)
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(current().length, 1, 'toast must remain during grace period')
+
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  assert.equal(current().length, 0, 'toast dismisses after grace period elapses')
+})
+
+test('keeps a hovered toast paused when updated in place with a finite duration', async () => {
+  message.open({ key: 'upd', type: 'loading', content: 'Checking...', duration: 0 })
+  message.pause('upd')
+  message.open({ key: 'upd', type: 'success', content: 'Up to date', duration: 0.03 })
+
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  assert.equal(current().length, 1, 'updated toast stays open while pointer is still hovering')
+
+  message.resume('upd', 30)
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  assert.equal(current().length, 0)
+})
