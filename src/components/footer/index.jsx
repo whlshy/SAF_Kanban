@@ -1,6 +1,8 @@
 import React from 'react'
 import { useAtomValue } from 'jotai'
 import { langAtom, useT } from '@/i18n'
+import { localCanUpdate, localServerVersion } from '@/data/localApi'
+import { checkForDesktopUpdate } from '@/desktopUpdate'
 
 const CHANGELOG_URL = {
   "zh-TW": "https://github.com/whlshy/SAF_Kanban/blob/main/CHANGELOG.md",
@@ -10,11 +12,13 @@ const CHANGELOG_URL = {
 function index() {
   const lang = useAtomValue(langAtom)
   const t = useT()
+  const desktopVersion = localServerVersion()
+  const canUpdate = localCanUpdate()
 
   return (
     <footer>
       <div className='footer-content footer-info flex aic'>
-        <div className='flex rowTitle'>
+        <div className='flex rowTitle items-center flex-wrap justify-center'>
           <a
             href="https://github.com/whlshy/SAF_Kanban"
             target="_blank"
@@ -32,7 +36,18 @@ function index() {
             className='reset-link underline-offset-2 hover:underline ml-1'
           >
             v{__APP_VERSION__}
+            {desktopVersion ? ` (Desktop v${desktopVersion})` : ""}
           </a>
+          {canUpdate && (
+            <button
+              type="button"
+              onClick={() => checkForDesktopUpdate()}
+              className="ml-2 cursor-pointer underline-offset-2 hover:underline"
+              style={{ background: "none", border: 0, padding: 0, color: "inherit", font: "inherit" }}
+            >
+              {t("desktopUpdate.check")}
+            </button>
+          )}
           . WHL. All rights reserved.
         </div>
       </div>

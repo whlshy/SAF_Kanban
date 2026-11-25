@@ -13,11 +13,15 @@
 // another program starts it with pipes, which is how `mcp` is used.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod updater;
+
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use saf_kanban_server::{bridge, default_data_dir, Options, Server, UiFiles, DEFAULT_PORT};
+use saf_kanban_server::updater::UpdateHandle;
+use saf_kanban_server::{bridge, default_data_dir, skill, Options, Server, UiFiles, DEFAULT_PORT};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::webview::NewWindowResponse;
@@ -66,8 +70,10 @@ fn args() -> Args {
 
 /// The few words shown outside the web UI, in the system's language.
 struct Text {
+    chinese: bool,
     open: &'static str,
     autostart: &'static str,
+    check_update: &'static str,
     quit: &'static str,
     failed: &'static str,
 }
@@ -76,15 +82,19 @@ fn text() -> Text {
     let chinese = sys_locale::get_locale().is_some_and(|locale| locale.starts_with("zh"));
     if chinese {
         Text {
+            chinese: true,
             open: "開啟 SAF Kanban",
             autostart: "開機時自動啟動",
+            check_update: "檢查更新",
             quit: "結束",
             failed: "SAF Kanban 無法啟動",
         }
     } else {
         Text {
+            chinese: false,
             open: "Open SAF Kanban",
             autostart: "Start when I sign in",
+            check_update: "Check for updates",
             quit: "Quit",
             failed: "SAF Kanban couldn't start",
         }
@@ -111,11 +121,16 @@ fn built_in_ui(app: &AppHandle) -> UiFiles {
     })
 }
 
-async fn start_server(args: &Args, ui: UiFiles) -> std::io::Result<Server> {
+async fn start_server(
+    args: &Args,
+    ui: UiFiles,
+    updater: Option<Arc<UpdateHandle>>,
+) -> std::io::Result<Server> {
     let options = |port| Options {
         data_dir: args.data_dir.clone(),
         port,
         ui: Some(ui.clone()),
+        updater: updater.clone(),
     };
     if let Some(port) = args.port {
         return Server::bind(options(port)).await;
@@ -202,7 +217,10 @@ fn open_failure(app: &App, error: &std::io::Error) -> tauri::Result<()> {
 }
 
 /// The icon in the notification area, with its menu.
-fn add_tray(app: &App) -> tauri::Result<()> {
+fn add_tray(
+    app: &App,
+    updater: Option<(Arc<UpdateHandle>, updater::TauriUpdater)>,
+) -> tauri::Result<()> {
     let text = text();
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
 
@@ -216,15 +234,16 @@ fn add_tray(app: &App) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let quit = MenuItem::with_id(app, "quit", text.quit, true, None::<&str>)?;
-    let menu = Menu::with_items(
-        app,
-        &[
-            &open,
-            &autostart,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let (menu, update_handle) = if let Some((handle, backend)) = updater {
+        let check = MenuItem::with_id(app, "check_update", text.check_update, true, None::<&str>)?;
+        backend.set_tray_item(check.clone(), text.chinese);
+        let menu = Menu::with_items(app, &[&open, &autostart, &check, &separator, &quit])?;
+        (menu, Some(handle))
+    } else {
+        let menu = Menu::with_items(app, &[&open, &autostart, &separator, &quit])?;
+        (menu, None)
+    };
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("SAF Kanban")
@@ -242,6 +261,12 @@ fn add_tray(app: &App) -> tauri::Result<()> {
                 };
                 // Show what is actually set, whether or not that worked.
                 let _ = autostart.set_checked(manager.is_enabled().unwrap_or(false));
+            }
+            "check_update" => {
+                show_window(app);
+                if let Some(handle) = &update_handle {
+                    handle.check(false);
+                }
             }
             "quit" => app.exit(0),
             _ => {}
@@ -265,6 +290,9 @@ fn add_tray(app: &App) -> tauri::Result<()> {
 
 /// Whether there is an icon in the notification area to bring the window back.
 struct InTray(bool);
+/// Set right before an update installer quits the app so closing the window
+/// isn't intercepted by the tray hide handler.
+struct InstallingUpdate(Arc<AtomicBool>);
 
 fn main() {
     let args = args();
@@ -287,14 +315,29 @@ fn main() {
                 .build(),
         )
         .setup(move |app| {
+            // Keep any previously installed AI agent skill in sync after an
+            // update without installing it where the user hasn't asked for it.
+            let skill_content = skill::skill_md(&skill::cli_path(), &args.data_dir);
+            let _ = skill::update_installed(&skill_content);
+
+            let installing = Arc::new(AtomicBool::new(false));
+            app.manage(InstallingUpdate(installing.clone()));
+
+            let updater_pair = if updater::is_configured(app) {
+                updater::TauriUpdater::start(app, installing.clone()).ok()
+            } else {
+                None
+            };
+            let updater_handle = updater_pair.as_ref().map(|(handle, _)| handle.clone());
+
             let ui = built_in_ui(app.handle());
-            match tauri::async_runtime::block_on(start_server(&args, ui)) {
+            match tauri::async_runtime::block_on(start_server(&args, ui, updater_handle)) {
                 Ok(server) => {
                     let port = server.address.port();
                     tauri::async_runtime::spawn(server.run(std::future::pending()));
                     open_ui(app, port, args.hidden)?;
                     // Without the icon, closing the window has to quit.
-                    app.manage(InTray(add_tray(app).is_ok()));
+                    app.manage(InTray(add_tray(app, updater_pair).is_ok()));
                 }
                 Err(error) => {
                     open_failure(app, &error)?;
@@ -305,7 +348,10 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.state::<InTray>().0 {
+                let installing = window
+                    .try_state::<InstallingUpdate>()
+                    .is_some_and(|flag| flag.0.load(Ordering::SeqCst));
+                if !installing && window.state::<InTray>().0 {
                     api.prevent_close();
                     let _ = window.hide();
                 }

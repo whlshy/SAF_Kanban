@@ -13,6 +13,20 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.20.0 and desktop app 0.5.0 — 2026-11-25
+
+Download the desktop app from [Releases](https://github.com/whlshy/SAF_Kanban/releases). Starting from 0.5.0, future desktop releases can be installed from inside the app.
+
+### Added
+
+- In-app updates for the installed Windows desktop app: automatically checks for new releases on startup and every 6 hours, showing a notice with "Update now" to download, verify the signature, install via Windows NSIS `passive` mode, and restart; manual "Check for updates" is also available in the footer and the system tray menu.
+- Automatic AI skill refresh on desktop startup: if you previously installed the skill at `~/.agents/skills/saf-kanban/SKILL.md` or `~/.claude/skills/saf-kanban/SKILL.md`, the desktop app keeps it up to date automatically on startup without creating files where you haven't installed it.
+- Read-only creation time and column move time shown inside the edit task dialog (matching the task details view).
+
+### Fixed
+
+- Guarded the task card hover tooltip against empty content: no empty tooltip opens if title, creation time, and move time are all missing, and missing timestamps never render blank lines.
+
 ## 1.19.0 and desktop app 0.4.0 — 2026-11-24
 
 Download the desktop app from [Releases](https://github.com/whlshy/SAF_Kanban/releases).

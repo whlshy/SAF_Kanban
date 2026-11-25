@@ -50,6 +50,7 @@ use crate::error::{ApiError, ApiResult};
 use crate::mcp;
 use crate::model::{Board, BoardInfo, DeletedTask, Task};
 use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInput, TaskQuery};
+use crate::updater::{UpdateHandle, UpdateState};
 
 pub struct AppState {
     pub store: Store,
@@ -59,6 +60,8 @@ pub struct AppState {
     pub port: u16,
     /// The built web UI, if it should be served.
     pub ui: Option<crate::UiFiles>,
+    /// In-app updater handle when running inside the installed desktop app.
+    pub updater: Option<Arc<UpdateHandle>>,
 }
 
 type Shared = Arc<AppState>;
@@ -87,6 +90,9 @@ pub fn router(state: Shared) -> Router {
         .route("/connection", get(connection))
         .route("/skill", get(skill).post(install_skill))
         .route("/token", post(new_token))
+        .route("/update", get(update_status))
+        .route("/update/check", post(check_update))
+        .route("/update/install", post(install_update))
         .fallback(|| async {
             ApiError::invalid("UNKNOWN_ENDPOINT", "No such API endpoint.")
                 .into_response_with(StatusCode::NOT_FOUND)
@@ -187,8 +193,56 @@ fn current_token(state: &AppState) -> String {
 
 // ---- server ----
 
-async fn info() -> Json<Value> {
-    Json(json!({ "app": "saf-kanban", "version": env!("CARGO_PKG_VERSION"), "api": 1 }))
+async fn info(State(state): State<Shared>) -> Json<Value> {
+    Json(json!({
+        "app": "saf-kanban",
+        "version": env!("CARGO_PKG_VERSION"),
+        "api": 1,
+        "canUpdate": state.updater.is_some(),
+    }))
+}
+
+fn require_updater(state: &AppState) -> ApiResult<&Arc<UpdateHandle>> {
+    state.updater.as_ref().ok_or_else(|| {
+        ApiError::invalid(
+            "UPDATER_UNAVAILABLE",
+            "In-app updates are only available in the installed desktop app.",
+        )
+    })
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct CheckUpdateInput {
+    silent: bool,
+}
+
+async fn update_status(State(state): State<Shared>) -> ApiResult<Json<UpdateState>> {
+    Ok(Json(require_updater(&state)?.state()))
+}
+
+async fn check_update(State(state): State<Shared>, body: Bytes) -> ApiResult<Json<UpdateState>> {
+    let updater = require_updater(&state)?;
+    let input: CheckUpdateInput = if body.iter().all(u8::is_ascii_whitespace) {
+        CheckUpdateInput::default()
+    } else {
+        serde_json::from_slice(&body).map_err(|error| {
+            ApiError::invalid(
+                "INVALID_JSON",
+                format!("The request body isn't valid: {error}"),
+            )
+        })?
+    };
+    updater.check(input.silent);
+    Ok(Json(updater.state()))
+}
+
+async fn install_update(State(state): State<Shared>) -> ApiResult<(StatusCode, Json<UpdateState>)> {
+    let updater = require_updater(&state)?;
+    updater
+        .install()
+        .map_err(|(code, message)| ApiError::invalid(code, message))?;
+    Ok((StatusCode::ACCEPTED, Json(updater.state())))
 }
 
 /// What a person needs to connect another program: shown in the UI's
@@ -456,7 +510,11 @@ async fn serve_ui(State(state): State<Shared>, uri: Uri) -> Response {
     let page = ui("index.html").and_then(|bytes| String::from_utf8(bytes).ok());
     match page {
         Some(page) => {
-            let settings = json!({ "token": current_token(&state), "serverVersion": env!("CARGO_PKG_VERSION") });
+            let settings = json!({
+                "token": current_token(&state),
+                "serverVersion": env!("CARGO_PKG_VERSION"),
+                "canUpdate": state.updater.is_some(),
+            });
             let script = format!("<script>window.__SAF_KANBAN_LOCAL__={settings};</script></head>");
             (
                 [

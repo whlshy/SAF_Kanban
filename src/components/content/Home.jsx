@@ -176,11 +176,18 @@ function EmptyBoards() {
 
 export { PRIORITIES };
 
+const taskTimes = (task) => {
+  const createdRaw = String(task?.createdAt ?? "").trim();
+  const movedRaw = String(task?.movedAt ?? "").trim();
+  const created = createdAtParts(createdRaw);
+  const moved = movedRaw && movedRaw !== createdRaw ? createdAtParts(movedRaw) : null;
+  return { created, moved };
+};
+
 // Read-only view of a task: an article-style info line, then the full description.
 function DescriptionView({ task, jiraLink }) {
   const t = useT();
-  const created = createdAtParts(task.createdAt);
-  const moved = task.movedAt && task.movedAt !== task.createdAt ? createdAtParts(task.movedAt) : null;
+  const { created, moved } = taskTimes(task);
   const parts = [
     task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
@@ -236,8 +243,8 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   const { setDialog: setDefaultDialog } = useDialogStore();
   const t = useT();
   // Only tasks made since creation/move times were kept have them.
-  const created = createdAtParts(task.createdAt);
-  const moved = task.movedAt && task.movedAt !== task.createdAt ? createdAtParts(task.movedAt) : null;
+  const title = String(task.title ?? "").trim();
+  const { created, moved } = taskTimes(task);
   const jiraLink = useBoards().currentBoard?.jiraLink || "";
 
   // Resting the mouse on the card shows its whole title and, when known, when
@@ -246,13 +253,14 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
   // a drag, and not while the card is pressed, so it never trails a dragged card.
   const [hint, setHint] = useState(false);
   const pressed = React.useRef(false);
-  const hintContent = (
+  const hasHint = Boolean(title || created || moved);
+  const hintContent = hasHint ? (
     <div data-slot="task-hint">
-      <div>{task.title}</div>
+      {title && <div>{task.title}</div>}
       {created && <div data-slot="task-created" style={{ opacity: 0.85 }}>{t("task.createdAt", { time: created.full })}</div>}
       {moved && <div data-slot="task-moved" style={{ opacity: 0.85 }}>{t("task.movedAt", { time: moved.full })}</div>}
     </div>
-  );
+  ) : "";
 
   // Clicking the description shows all of it read-only, instead of editing the task.
   const openDescription = (e) => {
@@ -268,8 +276,8 @@ function TaskCard({ task, asHandle, disabled, locked, ...props }) {
     <Tooltip
       title={hintContent}
       placement="top"
-      open={hint && !!asHandle}
-      onOpen={() => !pressed.current && setHint(true)}
+      open={hint && hasHint && !!asHandle}
+      onOpen={() => hasHint && !pressed.current && setHint(true)}
       onClose={() => setHint(false)}
       enterDelay={500}
       enterNextDelay={500}
@@ -590,6 +598,11 @@ const EditTask = ({
   const [loading, setLoading] = useState(false);
   const { setAlert } = useAlertStore();
   const t = useT();
+  const { created, moved } = taskTimes(task);
+  const timeParts = [
+    created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
+    moved && <span key="moved" data-slot="task-moved">{t("task.movedAt", { time: moved.full })}</span>,
+  ].filter(Boolean);
 
   const handleCallback = (tf) => {
     setLoading(false);
@@ -662,6 +675,16 @@ const EditTask = ({
             ))}
           </Select>
         </FormControl>
+        {task?.id && timeParts.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {timeParts.map((part, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span aria-hidden="true">·</span>}
+                {part}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
       </DialogContent>
       <DialogFooter>
         {task?.id &&

@@ -9,6 +9,10 @@ export const localAvailable = () => !!settings()?.token
 
 export const localToken = () => settings()?.token || ""
 
+export const localCanUpdate = () => !!settings()?.canUpdate
+
+export const localServerVersion = () => settings()?.serverVersion || ""
+
 // Error codes with a translated message; anything else shows the server's own text.
 const KNOWN_CODES = [
   "BOARD_NOT_FOUND",

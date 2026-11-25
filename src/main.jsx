@@ -8,6 +8,7 @@ import { message } from 'antd'
 import { BrowserRouter } from "react-router-dom"
 import { t } from '@/i18n'
 import { startPwa } from '@/pwa'
+import { startDesktopUpdater } from '@/desktopUpdate'
 
 const isProd = import.meta.env.MODE === 'production'
 
@@ -39,6 +40,7 @@ const Index = () => {
 }
 
 startPwa()
+startDesktopUpdater()
 
 const rootElement = document.getElementById('root')
 ReactDOM.createRoot(rootElement).render(<Index />)

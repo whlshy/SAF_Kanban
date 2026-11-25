@@ -22,6 +22,7 @@ fn main() -> std::io::Result<()> {
         data_dir: default_data_dir(),
         port: DEFAULT_PORT,
         ui: None,
+        updater: None,
     };
     let mut bridge = false;
     let mut args = std::env::args().skip(1).peekable();

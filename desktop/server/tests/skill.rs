@@ -67,6 +67,21 @@ async fn the_app_shows_and_installs_the_skill() {
             place("claude", &claude, false, false)
         ]
     );
+    // Nothing is installed yet, so auto-updating installed skills creates nothing.
+    assert!(saf_kanban_server::skill::update_installed(content).is_empty());
+    assert!(!shared.exists() && !claude.exists());
+
+    // If only one location was installed earlier and is outdated, only that one is refreshed.
+    std::fs::create_dir_all(claude.parent().unwrap()).unwrap();
+    std::fs::write(&claude, "outdated").unwrap();
+    assert_eq!(
+        saf_kanban_server::skill::update_installed(content),
+        vec![claude.clone()]
+    );
+    assert_eq!(std::fs::read_to_string(&claude).unwrap(), content);
+    assert!(!shared.exists());
+    // Already up to date -> nothing rewritten.
+    assert!(saf_kanban_server::skill::update_installed(content).is_empty());
 
     let (status, installed) = app.call(Method::POST, "/api/skill", Value::Null).await;
     assert_eq!(status, StatusCode::OK);

@@ -37,5 +37,16 @@
     "externalBin": [
       "binaries/saf-kanban-cli"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhDMUI2NUM1NjMxQTYxRDAKUldUUVlScGp4V1Viak9PZEJzTjZkTTZaRE52VytaODg2YngvMHRoU1lqT0creUpQYjJvajhYd2EK",
+      "endpoints": [
+        "https://github.com/whlshy/SAF_Kanban/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
