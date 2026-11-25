@@ -45,7 +45,7 @@ export default function ToastHost() {
         <div
           key={toast.key}
           role={toast.type === "error" ? "alert" : "status"}
-          className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-popover px-3.5 py-2 text-sm text-popover-foreground shadow-lg dark:bg-[#1f242c]"
+          className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-popover px-3.5 py-2 text-sm text-popover-foreground shadow-lg dark:border-[#4b5563] dark:bg-[#2d333b] dark:shadow-[0_8px_24px_rgba(0,0,0,0.55)]"
         >
           <ToastIcon type={toast.type} />
           <div className="min-w-0 break-words leading-snug">{toast.content}</div>
