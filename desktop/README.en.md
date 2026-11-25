@@ -60,12 +60,13 @@ Install the skill (either way):
 - Open **AI / API → Skill (recommended) → Install the skill** in the app
 - Or run `saf-kanban-cli skill --install`
 
-By default, it writes to both standard locations:
+Supports three standard global locations (install individually or all at once in the UI):
 
 | Path | AI tools that read it |
 | --- | --- |
-| `~/.agents/skills/saf-kanban/SKILL.md` | Codex, Gemini CLI, GitHub Copilot, Cursor, etc. |
+| `~/.agents/skills/saf-kanban/SKILL.md` | Codex, Cursor, Gemini CLI, GitHub Copilot, etc. |
 | `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code (or `$CLAUDE_CONFIG_DIR/skills/saf-kanban/SKILL.md` when set) |
+| `~/.gemini/config/skills/saf-kanban/SKILL.md` | Google Antigravity (App, IDE, and CLI global skills folder) |
 
 - For other agents, run `saf-kanban-cli skill --into <skills folder>` or save the output of `saf-kanban-cli skill`.
 - Updating the desktop app refreshes installed skills automatically on startup; if you move the app binary to another path, reinstall once (**AI / API** will show "Update needed").
@@ -180,7 +181,7 @@ Base URL: `http://127.0.0.1:41952/api` (JSON request/response, requires `Authori
 | `POST /boards/{board}/history/{task}/restore` | Restore in place (optional `column`, `beforeId`, `afterId`) |
 | `GET /events` | Real-time change stream (SSE; also accepts `?token=<TOKEN>`) |
 | `GET /connection` | API/MCP URLs, data directory, and executable paths |
-| `GET /skill` / `POST /skill/install` | Get `SKILL.md` & install status / install or update skill |
+| `GET /skill` / `POST /skill` | Get `SKILL.md` & install status / install or update skill (optional `{"agents": "antigravity"|"claude"|"agents"}`) |
 | `POST /token` | Rotate and return a new API token |
 | `GET /update` / `POST /update/check` / `POST /update/install` | Query / check / install desktop updates (installed app only) |
 

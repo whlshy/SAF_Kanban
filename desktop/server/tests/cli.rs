@@ -339,7 +339,7 @@ fn the_skill_points_at_this_command_line_and_installs_for_ai_agents() {
             .to_string()
     };
 
-    // Where most agents look, and where Claude Code does.
+    // Where most agents, Claude Code, and Antigravity look.
     let printed = install(&["skill", "--install"], None);
     let shared = home
         .join(".agents")
@@ -351,7 +351,13 @@ fn the_skill_points_at_this_command_line_and_installs_for_ai_agents() {
         .join("skills")
         .join("saf-kanban")
         .join("SKILL.md");
-    for file in [&shared, &claude] {
+    let antigravity = home
+        .join(".gemini")
+        .join("config")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
+    for file in [&shared, &claude, &antigravity] {
         assert!(printed.contains(&file.display().to_string()), "{printed}");
         assert_eq!(read(file), skill);
     }

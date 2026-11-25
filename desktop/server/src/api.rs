@@ -282,9 +282,34 @@ async fn skill(State(state): State<Shared>) -> Json<Value> {
     Json(json!({ "content": content, "places": places }))
 }
 
-/// Installs the skill everywhere it goes.
-async fn install_skill(State(state): State<Shared>) -> ApiResult<Json<Value>> {
-    let files = crate::skill::install(&skill_content(&state)).map_err(ApiError::storage)?;
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct InstallSkillInput {
+    agents: Option<String>,
+}
+
+/// Installs the skill everywhere it goes, or for a single named target when
+/// `{"agents": "<target>"}` is provided.
+async fn install_skill(State(state): State<Shared>, body: Bytes) -> ApiResult<Json<Value>> {
+    let input: InstallSkillInput = if body.is_empty() {
+        InstallSkillInput::default()
+    } else {
+        serde_json::from_slice(&body)
+            .map_err(|_| ApiError::invalid("INVALID_JSON", "The request body isn't valid JSON."))?
+    };
+    let content = skill_content(&state);
+    let files = if let Some(target) = input.agents.filter(|value| !value.trim().is_empty()) {
+        let Some(file) = crate::skill::install_for(&target, &content).map_err(ApiError::storage)?
+        else {
+            return Err(ApiError::invalid(
+                "UNKNOWN_SKILL_TARGET",
+                format!("Unknown skill target `{target}`."),
+            ));
+        };
+        vec![file]
+    } else {
+        crate::skill::install(&content).map_err(ApiError::storage)?
+    };
     Ok(Json(json!({ "files": files })))
 }
 
