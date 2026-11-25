@@ -10,10 +10,11 @@ const retry = (failureCount, error) => !error?.status && failureCount < 3
 
 // The data source of a board, rebuilt only when the settings it reads change.
 export function useBoardSource(board) {
+  const hasBoard = Boolean(board)
   const { id, type, sheetId, scriptId } = board || {}
   return React.useMemo(
-    () => createBoardSource(board && { id, type, sheetId, scriptId }),
-    [!!board, id, type, sheetId, scriptId]
+    () => createBoardSource(hasBoard ? { id, type, sheetId, scriptId } : null),
+    [hasBoard, id, type, sheetId, scriptId]
   )
 }
 

@@ -13,6 +13,16 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.20.1 and desktop app 0.5.1 — 2026-11-25
+
+Desktop app 0.5.0 can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+
+### Changed
+
+- Frontend cleanup: replaced `antd` with a lightweight Jotai-backed toast host (theme-aware in light and dark modes, supporting stacking, in-place key updates, and rendering above dialogs), and removed `zustand`, `axios`, `stylus`, and unused legacy components, reducing bundle size by ~18%.
+- Fixed confirm dialogs not invoking the cancel callback when dismissed via Cancel.
+- Modularized large frontend and Rust server files (board view, import/export, desktop `store` and `cli`), and added ESLint, `cargo clippy`, and updated GitHub Actions in CI.
+
 ## 1.20.0 and desktop app 0.5.0 — 2026-11-25
 
 Download the desktop app from [Releases](https://github.com/whlshy/SAF_Kanban/releases). Starting from 0.5.0, future desktop releases can be installed from inside the app.

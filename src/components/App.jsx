@@ -1,5 +1,5 @@
 import React from "react";
-import Snackbar from "./elements/snackbar/Snackbar"
+import ToastHost from "./elements/ToastHost"
 import Header from './header'
 import Main from "./Main"
 import Alert from "./elements/alert/Alert"
@@ -14,7 +14,7 @@ const App = () => {
       <Header />
       <Main />
       <Alert />
-      <Snackbar />
+      <ToastHost />
       <Dialog {...dialog_props} />
     </>
   );

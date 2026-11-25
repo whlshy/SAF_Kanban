@@ -20,7 +20,7 @@ import { useOpenNewBoard } from './NewBoardDialog'
 import { useOpenConnection } from './ConnectionDialog'
 import { localAvailable } from '@/data/localApi';
 
-function index() {
+function Header() {
   const { boards, currentBoard, switchBoard } = useBoards();
   const { setDialog: setDefaultDialog } = useDialogStore()
   const [, setDialog] = useAtom(dialogAtom);
@@ -218,7 +218,7 @@ function index() {
   )
 }
 
-export default index;
+export default Header;
 
 const titleSx = { minWidth: 0, fontSize: { xs: '1.1rem', sm: '1.25rem' } };
 // Without the logo (phones) the title starts at the toolbar's edge again.

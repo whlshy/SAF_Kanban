@@ -13,6 +13,16 @@
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
 
+## 1.20.1 與桌面版 0.5.1 — 2026-11-25
+
+桌面版 0.5.0 可直接在應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。
+
+### 變更
+
+- 前端架構瘦身：以自製零依賴的 Jotai 通知元件（支援深／淺色主題、多則堆疊與同 key 原地更新，浮層顯示於對話框之上）取代 `antd`，並移除 `zustand`、`axios`、`stylus` 與未使用的舊元件，打包體積縮小約 18%。
+- 修正確認對話框按「取消」時未觸發取消回呼的小問題。
+- 整理程式碼模組結構（拆分看板主頁、匯入匯出、桌面端 `store` 與 `cli`），並於 CI 加入前端 ESLint、Rust `cargo clippy` 與新版 GitHub Actions。
+
 ## 1.20.0 與桌面版 0.5.0 — 2026-11-25
 
 桌面版到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。安裝 0.5.0 之後，未來新版可以直接在應用程式內更新。

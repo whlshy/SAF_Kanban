@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, DialogContent, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 
 import { DialogFooter } from '@/components/elements/dialog/Dialog'
 import { localAvailable } from '@/data/localApi'

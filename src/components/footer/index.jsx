@@ -9,7 +9,7 @@ const CHANGELOG_URL = {
   en: "https://github.com/whlshy/SAF_Kanban/blob/main/CHANGELOG.en.md",
 }
 
-function index() {
+function Footer() {
   const lang = useAtomValue(langAtom)
   const t = useT()
   const desktopVersion = localServerVersion()
@@ -17,7 +17,7 @@ function index() {
 
   return (
     <footer>
-      <div className='footer-content footer-info flex aic'>
+      <div className='footer-content footer-info flex items-center'>
         <div className='flex rowTitle items-center flex-wrap justify-center'>
           <a
             href="https://github.com/whlshy/SAF_Kanban"
@@ -56,4 +56,4 @@ function index() {
   )
 }
 
-export default index
+export default Footer

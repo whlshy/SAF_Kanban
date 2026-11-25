@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Button, CircularProgress, DialogContent, IconButton, InputAdornment, Link, TextField, Tooltip, Typography } from '@mui/material'
 import { Search as SearchIcon, Replay as ReplayIcon, RestoreFromTrash as RestoreIcon } from '@mui/icons-material'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 
 import { useBoardSource } from '@/data/useBoardData'
 import { dialogAtom, PriorityBadge } from '@/components/content/Home'

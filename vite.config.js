@@ -86,14 +86,7 @@ export default defineConfig(({
         '@': '/src', // 簡化導入
         Config: path.resolve(__dirname, configFileName), // 根據環境選擇配置文件
       },
-      extensions: ['.js', '.jsx', '.tsx', '.styl'], // 自定義擴展名
-    },
-    css: {
-      preprocessorOptions: {
-        stylus: {
-          // Stylus 的配置選項（如有需要）
-        },
-      },
+      extensions: ['.js', '.jsx', '.tsx'], // 自定義擴展名
     },
     define: {
       __APP_VERSION__: JSON.stringify(version),

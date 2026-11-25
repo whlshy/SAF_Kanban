@@ -4,7 +4,7 @@ import useAlertStore from '../../../store/alert'
 import { useT } from '@/i18n'
 
 function Alert() {
-  const { open, closeAlert, title, content, handleAgree, handleDisagree } = useAlertStore(state => state)
+  const { open, closeAlert, title, content, handleAgree, handleDisagree } = useAlertStore()
   const t = useT()
 
   return (
@@ -21,7 +21,7 @@ function Alert() {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={(handleDisagree, closeAlert)}>{t("common.cancel")}</Button>
+        <Button onClick={() => { handleDisagree?.(); closeAlert() }}>{t("common.cancel")}</Button>
         <Button onClick={() => handleAgree(closeAlert)} autoFocus>
           {t("common.confirm")}
         </Button>
