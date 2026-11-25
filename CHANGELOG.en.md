@@ -8,10 +8,26 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 | Version | Released with | Changes |
 | --- | --- | --- |
+| v5 | 1.21.0 | Adds `doPost` JSON endpoint, `action=read` (fetches columns, tasks, users, and history in one call), `action=restore`, and atomic description appending (`appendDes`) in `upsert` for CLI access to Google Sheet boards |
 | v4 | 1.19.0 | Records when each task last moved into its current column in column I of `kanban` (on creation and cross-column moves); deleting a task keeps it in column J of `history` |
 | v3 | 1.18.0 | Records when each new task was created in column H of `kanban`; deleting a task keeps that time in column I of `history` |
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
+
+## 1.21.0 and desktop app / CLI 0.6.0 — 2026-11-25
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be installed or upgraded with the one-line install script.
+
+### Added
+
+- **Standalone cross-platform CLI & one-line installer**: releases now include standalone `saf-kanban-cli` archives for Windows x64, macOS (Apple Silicon / Intel), and Linux x64 with `SHA256SUMS.txt` verification, installable without the desktop GUI (`irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex` on Windows; `curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh` on macOS/Linux).
+- **Google Sheet board support in CLI (needs Apps Script v5)**:
+  - `boards`, `board`, `tasks`, `task`, `add`, `edit` (with atomic `--append-description`), `move`, `delete`, `deleted`, and `restore` all work transparently on Google Sheet boards.
+  - `new-board <name> --script <URL|ID> [--sheet <URL|ID>]`, `edit-board`, `delete-board`, `import`, and `export` mirror desktop & web UI behavior, including full compatibility with plain and PBKDF2-SHA256 + AES-GCM encrypted export files.
+  - Added `--version` / `-V` and `skill --install --target <agents|claude|antigravity>`.
+- **Shared Google Sheet board list between Desktop app and CLI**: the desktop app now stores its Google Sheet board list in `<data dir>/sheets.json` (automatically migrating existing `localStorage` entries on first launch), keeping changes made in either the UI or CLI synchronized within a second.
+- **Optional PATH checkbox in the Windows desktop installer**: interactive installs offer a checkbox to add `saf-kanban-cli` to user `PATH` (cleaned up on uninstall; skipped during silent installs and passive in-app updates).
+- **Apps Script v5**: adds `doPost`, `action=read`, `action=restore`, and `appendDes` while staying fully backwards-compatible with `doGet` web clients.
 
 ## Desktop app 0.5.2 — 2026-11-25
 

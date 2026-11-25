@@ -3,9 +3,9 @@
 繁體中文 | [English](README.en.md)
 
 **不用自架伺服器、資料完全掌握在自己手裡的個人看板。**
-可以直接在瀏覽器使用（資料存在你自己的 Google Sheet），也可以安裝 Windows 桌面版（資料存成電腦本機檔案，並支援 AI Agent 透過 Skill / CLI / MCP 直接操作）。
+可以直接在瀏覽器使用（資料存在你自己的 Google Sheet），也可以安裝 Windows 桌面版（本機離線讀寫），或直接一行指令安裝純 CLI 版（Windows / macOS / Linux），讓 AI Agent 透過 Skill / CLI / MCP 直接操作本機與 Google Sheet 看板。
 
-**[線上開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[下載 Windows 桌面版](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[版本紀錄](CHANGELOG.md)**
+**[線上開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[下載桌面版與純 CLI](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[版本紀錄](CHANGELOG.md)**
 
 <p align="center">
   <picture>
@@ -16,10 +16,10 @@
 
 ## 目錄
 
-- [該用網頁版還是桌面版？](#該用網頁版還是桌面版)
+- [該用網頁版、桌面版還是純 CLI？](#該用網頁版桌面版還是純-cli)
 - [主要功能](#主要功能)
 - [快速開始（Google Sheet 網頁版）](#快速開始google-sheet-網頁版)
-- [桌面版（Windows）](#桌面版windows)
+- [桌面版與純 CLI](#桌面版與純-cli)
 - [進階用法](#進階用法)
 - [更新 Apps Script](#更新-apps-script)
 - [常見問題](#常見問題)
@@ -28,16 +28,16 @@
 
 ---
 
-## 該用網頁版還是桌面版？
+## 該用網頁版、桌面版還是純 CLI？
 
-| 比較項目 | 網頁版（Google Sheet） | Windows 桌面版 |
-| --- | --- | --- |
-| 資料存放 | 你自己的 Google Sheet | 電腦本機 JSON 檔案（也同時支援連 Google Sheet） |
-| 需要安裝嗎 | 不用，開網頁即可（也可安裝成 PWA） | 下載單一安裝檔，免系統管理員權限 |
-| 離線使用 | 可唯讀檢視上次載入內容 | 本機看板**完全離線讀寫** |
-| AI Agent 整合 | — | 支援 Claude Code、Codex、Gemini CLI、Cursor 等（Skill / CLI / MCP / HTTP API） |
-| 刪除復原 | 從歷史紀錄重新建立 | 本機看板可直接**原樣復原**到原欄位與原位置 |
-| 更新方式 | 網站更新後自動提示重新整理 | 0.5.0 起支援 **App 內一鍵檢查、驗證並安裝更新** |
+| 比較項目 | 網頁版（Google Sheet） | Windows 桌面版 | 純 CLI（Windows / macOS / Linux） |
+| --- | --- | --- | --- |
+| 資料存放 | 你自己的 Google Sheet | 本機 JSON 檔案＋共用 Google Sheet 清單 | 與桌面版共用同一份本機檔案與 Google Sheet 清單 |
+| 需要安裝嗎 | 不用，開網頁即可（也可安裝成 PWA） | 單一安裝檔（內含 GUI 與 CLI），免管理員權限 | 一行指令安裝單一執行檔，免裝桌面 App |
+| 離線使用 | 可唯讀檢視上次載入內容 | 本機看板**完全離線讀寫** | 本機看板**完全離線讀寫**（Sheet 看板需網路） |
+| AI Agent 整合 | 可搭配純 CLI 操作（需 Apps Script v5） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI / MCP / HTTP API） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI） |
+| 刪除復原 | 從歷史紀錄重新建立 | 本機看板可直接**原樣復原**到原欄位與原位置 | 本機與 Google Sheet（v5）看板皆可**原樣復原** |
+| 更新方式 | 網站更新後自動提示重新整理 | 0.5.0 起支援 **App 內一鍵檢查、驗證並安裝更新** | 重跑同一行安裝指令即可升級 |
 
 ---
 
@@ -119,33 +119,48 @@
 
 ---
 
-## 桌面版（Windows）
+## 桌面版與純 CLI
 
-不想依賴 Google Sheet 與網路，或想讓 AI Agent 直接管理看板，可以安裝 Windows 桌面版：
+### Windows 桌面版（含介面與 CLI）
 
-1. 到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載最新的 `SAF-Kanban_<版本>_x64-setup.exe` 執行安裝。
+不想依賴 Google Sheet 與網路，或想同時使用本機桌面視窗與 AI Agent，可以安裝 Windows 桌面版：
+
+1. 到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載最新的 `SAF-Kanban_<版本>_x64-setup.exe` 執行安裝（安裝時可勾選將 `saf-kanban-cli` 加入使用者 `PATH`）。
 2. 安裝檔目前未加程式碼簽章，Windows 跳出「Windows 已保護您的電腦」時點「**其他資訊 → 仍要執行**」。
 3. 安裝 `0.5.0` 以上版本後，未來出新版會自動偵測並可在 **App 內一鍵更新**；先前已安裝的 AI Skill 也會在啟動時自動同步為最新版。
 
-完整的系統匣操作、AI Agent 連線（Skill / CLI / MCP）、資料備份與 HTTP API 說明，請見 **[桌面版說明（desktop/README.md）](desktop/README.md)**。
+### 純 CLI 版（Windows / macOS / Linux，免安裝桌面版）
+
+若只需要在終端機或透過 AI Agent（Claude Code、Codex、Cursor、Antigravity 等）管理本機與 Google Sheet 看板，可用一行指令直接安裝：
+
+- **Windows（PowerShell）**：
+  ```powershell
+  irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex
+  ```
+- **macOS / Linux**：
+  ```bash
+  curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
+  ```
+
+裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
 
 ---
 
 ## 進階用法
 
 ### 多個看板
-點左上角看板名稱 →「**新增看板**」，即可為不同專案建立各自獨立的看板（桌面版可混用本機看板與 Google Sheet 看板）。網址會自動帶上 `?board=<ID>`，方便加書籤或開多個分頁同時看。刪除 Google Sheet 看板只會移除瀏覽器設定，不會刪除 Sheet 本身資料。
+點左上角看板名稱 →「**新增看板**」，即可為不同專案建立各自獨立的看板（桌面版可混用本機看板與 Google Sheet 看板，並與 CLI 共用同一份清單）。網址會自動帶上 `?board=<ID>`，方便加書籤或開多個分頁同時看。刪除 Google Sheet 看板只會移除本機／瀏覽器設定，不會刪除 Sheet 本身資料。
 
 ### 匯出、匯入與密碼加密
-點左上角看板名稱 →「**匯出設定**」可將勾選的看板匯出成 JSON 檔（在另一個瀏覽器選「**匯入設定**」即可還原，重複名稱會在匯入前提示改名）。
+點左上角看板名稱 →「**匯出設定**」可將勾選的看板匯出成 JSON 檔（在另一個瀏覽器、桌面版或 CLI `saf-kanban-cli import` 皆可還原）。
 - 匯出檔內含 Apps Script 部署 ID，請勿公開分享。
-- 匯出時可勾選「**用密碼加密**」（至少 8 字元，在瀏覽器內以 Web Crypto `PBKDF2-SHA256` 60 萬次 + `AES-GCM` 加密，密碼不會上傳也無法救回；需透過 HTTPS 或 `localhost` 開啟）。
+- 匯出時可勾選「**用密碼加密**」（至少 8 字元，以 `PBKDF2-SHA256` 60 萬次 + `AES-GCM` 加密，密碼不會上傳也無法救回；瀏覽器端需透過 HTTPS 或 `localhost` 開啟）。
 
 ### 搜尋與篩選
 點右上角放大鏡開啟搜尋列，可同時依關鍵字（比對標題、描述、Issue ID、負責人，空白分隔多詞且不分大小寫）、負責人（含「未指派」）與優先順序篩選。篩選期間欄位數字會顯示 `符合數 / 總數`，且仍可直接拖曳排序。
 
 ### 已刪除的任務
-點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）還提供「復原」按鈕，直接以原 ID 與建立時間放回原本欄位與位置。
+點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）與 CLI（本機及 Apps Script v5 Google Sheet）皆支援直接原樣復原。
 
 ### 安裝成應用程式（PWA）與離線使用
 - 支援 Chrome / Edge（電腦與 Android）從左上角選單點「安裝應用程式」，以及 iOS Safari 的「分享 → 加入主畫面」。
@@ -155,7 +170,7 @@
 
 ## 更新 Apps Script
 
-[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊版 Script 仍可相容運作，但不會有新功能（各版差異見[版本紀錄](CHANGELOG.md#apps-script-版本)）。目前最新版（v4）提供：刪除保留到 `history`、寫入前檢查是否為對應 Sheet、多語錯誤訊息、以及記錄任務建立時間（H 欄）與移入欄位時間（I 欄）。
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊版 Script 仍可相容運作，但不會有新功能（各版差異見[版本紀錄](CHANGELOG.md#apps-script-版本)）。目前最新版（v5）提供：CLI 專用的 `doPost`、`action=read`、`action=restore` 與原子追加描述（`appendDes`），並包含既有 v4 功能（刪除保留到 `history`、寫入前檢查是否為對應 Sheet、多語錯誤訊息、建立時間 H 欄與移入欄位時間 I 欄）。
 
 更新步驟（部署 ID 不會改變，SAF Kanban 設定不需修改）：
 

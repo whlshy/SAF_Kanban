@@ -12,7 +12,12 @@
 //! others (see [`Store::notice_outside_changes`]) to show them right away.
 
 mod boards;
+mod sheets;
 mod tasks;
+
+pub use sheets::{
+    normalize_script_id, normalize_sheet_id, unique_title, SheetBoardPatch, DEFAULT_SHEET_BOARD_ID,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -136,6 +141,8 @@ pub struct Store {
     /// How each board file looked after this process last saw or wrote it;
     /// `None` until [`Store::notice_outside_changes`] first runs.
     seen: Mutex<Option<HashMap<String, Stamp>>>,
+    /// How `sheets.json` looked after this process last saw or wrote it.
+    seen_sheets: Mutex<Option<Option<Stamp>>>,
 }
 
 /// When a file was last changed, and its size.
@@ -177,7 +184,7 @@ fn now() -> String {
 /// timestamp formatted like [`now`]. With `end_of_day`, an omitted time or
 /// sub-second part fills to the end of that unit so `--until 2026-11-24`
 /// includes the whole day.
-fn parse_time_bound(raw: &str, end_of_day: bool) -> ApiResult<String> {
+pub(crate) fn parse_time_bound(raw: &str, end_of_day: bool) -> ApiResult<String> {
     let invalid = || {
         ApiError::invalid(
             "INVALID_TIME",
@@ -347,6 +354,7 @@ impl Store {
             lock: RwLock::new(()),
             changes,
             seen: Mutex::new(None),
+            seen_sheets: Mutex::new(None),
         })
     }
 
@@ -429,10 +437,20 @@ impl Store {
         }
     }
 
-    /// Announces the board files that other programs added, changed or
-    /// removed since the last call, so open windows show the change. The first
-    /// call only takes note of how things are. The app calls this every
-    /// second or so.
+    pub(super) fn remember_sheets(&self) {
+        let mut seen = self
+            .seen_sheets
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if seen.is_some() {
+            *seen = Some(stamp(&self.sheets_path()));
+        }
+    }
+
+    /// Announces the board files (and `sheets.json`) that other programs added,
+    /// changed or removed since the last call, so open windows show the change.
+    /// The first call only takes note of how things are. The app calls this
+    /// every second or so.
     pub fn notice_outside_changes(&self) {
         let (changed, list_changed) = {
             // This process's own writes hold the write lock until `remember`.
@@ -443,12 +461,18 @@ impl Store {
             let Some(now) = self.scan() else {
                 return;
             };
+            let sheets_now = stamp(&self.sheets_path());
             let mut seen = self
                 .seen
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut seen_sheets = self
+                .seen_sheets
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             let Some(before) = seen.as_ref() else {
                 *seen = Some(now);
+                *seen_sheets = Some(sheets_now);
                 return;
             };
             let changed: Vec<String> = now
@@ -457,8 +481,13 @@ impl Store {
                 .map(|(id, _)| id.clone())
                 .collect();
             let removed = before.keys().any(|id| !now.contains_key(id));
+            let sheets_changed = seen_sheets.as_ref().is_some_and(|prev| *prev != sheets_now);
             *seen = Some(now);
-            (changed.clone(), removed || !changed.is_empty())
+            *seen_sheets = Some(sheets_now);
+            (
+                changed.clone(),
+                removed || !changed.is_empty() || sheets_changed,
+            )
         };
         for id in &changed {
             self.announce("board", Some(id));
@@ -514,17 +543,13 @@ impl Store {
         Ok(board)
     }
 
-    fn write(&self, board: &Board) -> ApiResult<()> {
-        let path = self.path(&board.id);
-        let temporary = path.with_extension("json.tmp");
-        let text = serde_json::to_string_pretty(board).map_err(ApiError::storage)?;
-        fs::write(&temporary, text).map_err(ApiError::storage)?;
+    pub(super) fn rename_replacing(from: &Path, to: &Path) -> ApiResult<()> {
         // On Windows another program (an antivirus scanner, a sync tool) may
         // have the file open for a moment; try again before giving up.
         let mut tries = 0;
         loop {
-            match fs::rename(&temporary, &path) {
-                Ok(()) => break,
+            match fs::rename(from, to) {
+                Ok(()) => return Ok(()),
                 Err(error)
                     if error.kind() == std::io::ErrorKind::PermissionDenied && tries < 20 =>
                 {
@@ -534,6 +559,14 @@ impl Store {
                 Err(error) => return Err(ApiError::storage(error)),
             }
         }
+    }
+
+    fn write(&self, board: &Board) -> ApiResult<()> {
+        let path = self.path(&board.id);
+        let temporary = path.with_extension("json.tmp");
+        let text = serde_json::to_string_pretty(board).map_err(ApiError::storage)?;
+        fs::write(&temporary, text).map_err(ApiError::storage)?;
+        Self::rename_replacing(&temporary, &path)?;
         self.remember(&board.id);
         Ok(())
     }

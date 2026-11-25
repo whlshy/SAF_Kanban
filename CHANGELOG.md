@@ -8,10 +8,26 @@
 
 | 版本 | 隨網站版本推出 | 內容 |
 | --- | --- | --- |
+| v5 | 1.21.0 | 新增 `doPost` JSON 介面、`action=read`（一次讀取欄位、任務、負責人與歷史紀錄）、`action=restore` 原樣復原，以及 `upsert` 內原子追加描述（`appendDes`），供 CLI 操作 Google Sheet 看板使用 |
 | v4 | 1.19.0 | 在 `kanban` 的 I 欄記錄任務最後一次移進目前欄位的時間（新增與跨欄移動時更新）；刪除時一併存到 `history` 的 J 欄 |
 | v3 | 1.18.0 | 新增的 Task 在 `kanban` 的 H 欄記錄建立時間；刪除時把建立時間存到 `history` 的 I 欄 |
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
+
+## 1.21.0 與桌面版／CLI 0.6.0 — 2026-11-25
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載；純 CLI 版可透過一鍵安裝腳本直接安裝或升級。
+
+### 新增
+
+- **獨立純 CLI 版與跨平台一鍵安裝**：同步釋出 Windows x64、macOS（Apple Silicon / Intel）與 Linux x64 獨立執行檔與 `SHA256SUMS.txt` 校驗檔，無需安裝桌面版即可直接以一行指令安裝／升級（PowerShell `irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex`、macOS/Linux `curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh`）。
+- **CLI 支援操作 Google Sheet 看板（需要新版 Apps Script v5）**：
+  - `boards`、`board`、`tasks`、`task`、`add`、`edit`（支援 `--append-description` 原子追加）、`move`、`delete`、`deleted`、`restore` 全面透明支援 Google Sheet 看板。
+  - `new-board <名稱> --script <網址或ID> [--sheet <網址或ID>]`、`edit-board`、`delete-board`、`import`、`export` 指令邏輯完全對齊桌面版與網頁版，並完整相容明文與 PBKDF2-SHA256 + AES-GCM 密碼加密的匯出檔。
+  - 補齊 `--version` / `-V` 與 `skill --install --target <agents|claude|antigravity>`。
+- **桌面版與 CLI 共用 Google Sheet 看板清單**：桌面版將 Google Sheet 看板清單同步存放於 `<data dir>/sheets.json`（並於升級首次啟動自動從 `localStorage` 無感遷移），兩邊新增、修改、匯入或刪除皆於 1 秒內雙向即時同步。
+- **Windows 桌面版安裝精靈新增可勾選選項**：互動安裝時可勾選是否將 `saf-kanban-cli` 加入使用者 `PATH`，解除安裝時會自動清除（靜默安裝與 App 內自動更新不中斷）。
+- **Apps Script v5**：新增 `doPost`、`action=read`、`action=restore` 與 `appendDes`，完整向後相容舊版網頁端 `doGet` 呼叫。
 
 ## 桌面版 0.5.2 — 2026-11-25
 

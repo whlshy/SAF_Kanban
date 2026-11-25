@@ -3,9 +3,9 @@
 [繁體中文](README.md) | English
 
 **A personal kanban board with no backend to host — your data stays completely in your hands.**
-Use it right in the browser (stored in your own Google Sheet), or install the Windows desktop app (stored as local files on your computer, with built-in AI agent support via Skill, CLI, and MCP).
+Use it right in the browser (stored in your own Google Sheet), install the Windows desktop app (local offline files), or install the standalone CLI with one command (Windows / macOS / Linux) so AI agents can manage both local and Google Sheet boards via Skill, CLI, or MCP.
 
-**[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[Download Windows Desktop App](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Changelog](CHANGELOG.en.md)**
+**[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[Download Desktop App & CLI](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Changelog](CHANGELOG.en.md)**
 
 <p align="center">
   <picture>
@@ -16,10 +16,10 @@ Use it right in the browser (stored in your own Google Sheet), or install the Wi
 
 ## Table of Contents
 
-- [Web vs. Desktop App](#web-vs-desktop-app)
+- [Web, Desktop App, or Standalone CLI?](#web-desktop-app-or-standalone-cli)
 - [Key Features](#key-features)
 - [Quick Setup (Google Sheet Web Version)](#quick-setup-google-sheet-web-version)
-- [Desktop App (Windows)](#desktop-app-windows)
+- [Desktop App & Standalone CLI](#desktop-app--standalone-cli)
 - [More Ways to Use It](#more-ways-to-use-it)
 - [Update the Apps Script](#update-the-apps-script)
 - [FAQ](#faq)
@@ -28,16 +28,16 @@ Use it right in the browser (stored in your own Google Sheet), or install the Wi
 
 ---
 
-## Web vs. Desktop App
+## Web, Desktop App, or Standalone CLI?
 
-| | Web Version (Google Sheets) | Windows Desktop App |
-| --- | --- | --- |
-| Where data lives | Your own Google Sheet | Local JSON files on your computer (Google Sheet boards also work) |
-| Installation | None — open in browser (optional PWA install) | Single installer, no administrator rights needed |
-| Offline use | Read-only view of last loaded boards | **Full offline read & write** for local boards |
-| AI agent integration | — | Works with Claude Code, Codex, Gemini CLI, Cursor, etc. (Skill / CLI / MCP / HTTP API) |
-| Deleted task recovery | Recreate from history | Local boards can **restore in place** with original ID & column |
-| Updates | Reload prompt when the site updates | **In-app update check, verification, and install** (v0.5.0+) |
+| | Web Version (Google Sheets) | Windows Desktop App | Standalone CLI (Windows / macOS / Linux) |
+| --- | --- | --- | --- |
+| Where data lives | Your own Google Sheet | Local JSON files + shared Google Sheet list | Shares the exact same local files & Google Sheet list as desktop |
+| Installation | None — open in browser (optional PWA install) | Single installer (GUI + CLI), no admin rights needed | One-line command, single binary, no GUI app needed |
+| Offline use | Read-only view of last loaded boards | **Full offline read & write** for local boards | **Full offline read & write** for local boards (Sheets require network) |
+| AI agent integration | Pair with standalone CLI (needs Apps Script v5) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI / MCP / HTTP API) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI) |
+| Deleted task recovery | Recreate from history | Local boards can **restore in place** with original ID & column | Both local & Google Sheet (v5) boards can **restore in place** |
+| Updates | Reload prompt when the site updates | **In-app update check, verification, and install** (v0.5.0+) | Re-run the same install command to upgrade |
 
 ---
 
@@ -119,33 +119,48 @@ Create a new Google Sheet with four sheets named exactly as below (case-sensitiv
 
 ---
 
-## Desktop App (Windows)
+## Desktop App & Standalone CLI
 
-If you'd rather keep boards offline on your own computer or let AI agents manage your tasks, install the Windows desktop app:
+### Windows Desktop App (GUI + CLI)
 
-1. Download the latest `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it.
+If you'd rather keep boards offline on your own computer or combine a desktop window with AI agent tooling, install the Windows desktop app:
+
+1. Download the latest `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it (check the option on the welcome screen to add `saf-kanban-cli` to your user `PATH`).
 2. The installer isn't code-signed yet, so when Windows shows "Windows protected your PC", choose **More info → Run anyway**.
 3. Starting from `0.5.0`, future updates are detected automatically and can be **installed from inside the app**; any previously installed AI skill refreshes automatically on startup.
 
-See the **[Desktop App Guide (desktop/README.en.md)](desktop/README.en.md)** for tray behavior, AI agent setup (Skill / CLI / MCP), backups, and the HTTP API reference.
+### Standalone CLI (Windows / macOS / Linux, no desktop app needed)
+
+If you only need terminal or AI agent access (Claude Code, Codex, Cursor, Antigravity, etc.) for local or Google Sheet boards, install the single binary with one command:
+
+- **Windows (PowerShell)**:
+  ```powershell
+  irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex
+  ```
+- **macOS / Linux**:
+  ```bash
+  curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
+  ```
+
+Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
 
 ---
 
 ## More Ways to Use It
 
 ### Multiple boards
-Click the board name at the top left → **New board** to manage separate boards (on desktop, local boards and Google Sheet boards work side by side). URLs include `?board=<ID>` for bookmarking or opening boards in separate tabs. Deleting a Google Sheet board only removes its browser settings — your Sheet data is untouched.
+Click the board name at the top left → **New board** to manage separate boards (on desktop, local boards and Google Sheet boards work side by side and share the same board list with the CLI). URLs include `?board=<ID>` for bookmarking or opening boards in separate tabs. Deleting a Google Sheet board only removes its local/browser settings — your Sheet data is untouched.
 
 ### Export, import & password encryption
-Click the board name → **Export settings** to save selected boards as a JSON file, and **Import settings** in another browser (duplicate names are flagged before importing).
+Click the board name → **Export settings** to save selected boards as a JSON file, and restore them in another browser, the desktop app, or the CLI (`saf-kanban-cli import`).
 - Exported files contain your Apps Script Deployment IDs — keep them private.
-- Check **Protect with a password** (at least 8 characters) to encrypt in your browser with Web Crypto (`PBKDF2-SHA256` 600,000 iterations + `AES-GCM`). Passwords never leave your device and cannot be recovered; requires HTTPS or `localhost`.
+- Check **Protect with a password** (at least 8 characters) to encrypt with `PBKDF2-SHA256` (600,000 iterations) + `AES-GCM`. Passwords never leave your device and cannot be recovered; browser encryption requires HTTPS or `localhost`.
 
 ### Search & filter
 Click the magnifier at the top right to filter by keyword (matches title, description, Issue ID, and assignee; space-separated words must all match, case-insensitive), assignee (including Unassigned), and priority. Column counts switch to `matching / total`, and drag-and-drop continues to work.
 
 ### Deleted tasks
-Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards also offer **Restore** to bring the task back with its original ID, creation time, column, and position.
+Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards and the CLI (both local boards and Apps Script v5 Google Sheet boards) support full in-place **Restore**.
 
 ### Install as an app (PWA) & offline viewing
 - Install via **Install app** in the top-left board menu on Chrome/Edge (desktop & Android), or **Share → Add to Home Screen** on iOS Safari.
@@ -155,7 +170,7 @@ Click the clock icon at the top right to browse and search deleted tasks (newest
 
 ## Update the Apps Script
 
-When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working without new features (see [Apps Script versions](CHANGELOG.en.md#apps-script-versions)). The current version (v4) adds `history` archiving on deletion, Sheet ID verification before writing, localized error messages, and automatic creation (column H) and column-move (column I) timestamps.
+When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working without new features (see [Apps Script versions](CHANGELOG.en.md#apps-script-versions)). The current version (v5) adds `doPost`, `action=read`, `action=restore`, and atomic description appending (`appendDes`) for CLI access, on top of v4 (`history` archiving on deletion, Sheet ID verification, localized error codes, and creation/move timestamps in columns H and I).
 
 How to update (your deployment ID stays the same, so SAF Kanban settings need no changes):
 

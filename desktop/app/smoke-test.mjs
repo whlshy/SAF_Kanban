@@ -112,6 +112,10 @@ try {
   // ---- the command line, while the app runs ----
   check('the command line is installed next to the app', existsSync(cli), cli)
   check('the app shows where the command line is', connection.cli?.toLowerCase() === cli.toLowerCase(), connection.cli)
+  const ver = await run(['--version'])
+  check('command line: prints its version', ver.code === 0 && ver.stdout.includes('saf-kanban-cli'), JSON.stringify(ver))
+  const sheetsRes = await api('/api/sheets')
+  check('the API exposes shared Google Sheet settings', sheetsRes.ok && Array.isArray(await sheetsRes.json()))
   const listed = await run(['boards'])
   check('command line: sees the board made through mcp', listed.code === 0 && listed.stdout.includes('Smoke test'), JSON.stringify(listed))
 

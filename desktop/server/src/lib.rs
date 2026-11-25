@@ -10,8 +10,10 @@ pub mod cli;
 pub mod error;
 pub mod mcp;
 pub mod model;
+pub mod sheet;
 pub mod skill;
 pub mod store;
+pub mod transfer;
 pub mod updater;
 
 use std::net::{Ipv4Addr, SocketAddr};

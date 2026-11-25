@@ -16,11 +16,12 @@ pub(super) struct Args {
     pub options: Vec<(String, String)>,
     pub json: bool,
     pub install: bool,
+    pub sheets: bool,
     pub data_dir: PathBuf,
 }
 
 /// Options that are given alone, without a value.
-const FLAGS: [&str; 3] = ["json", "install", "help"];
+const FLAGS: [&str; 5] = ["json", "install", "help", "version", "sheets"];
 
 pub(super) fn parse(raw: Vec<String>) -> Result<Args, Failure> {
     let mut words = Vec::new();
@@ -34,6 +35,10 @@ pub(super) fn parse(raw: Vec<String>) -> Result<Args, Failure> {
         }
         if arg == "-h" {
             flags.push("help".to_string());
+            continue;
+        }
+        if arg == "-V" {
+            flags.push("version".to_string());
             continue;
         }
         let Some(option) = arg.strip_prefix("--") else {
@@ -57,6 +62,9 @@ pub(super) fn parse(raw: Vec<String>) -> Result<Args, Failure> {
         options.push((name, value));
     }
 
+    if flags.iter().any(|flag| flag == "version") {
+        return Err(Failure::Version);
+    }
     if flags.iter().any(|flag| flag == "help") || words.first().is_some_and(|word| word == "help") {
         return Err(Failure::Help);
     }
@@ -78,6 +86,7 @@ pub(super) fn parse(raw: Vec<String>) -> Result<Args, Failure> {
         options,
         json: flags.iter().any(|flag| flag == "json"),
         install: flags.iter().any(|flag| flag == "install"),
+        sheets: flags.iter().any(|flag| flag == "sheets"),
         data_dir,
     })
 }

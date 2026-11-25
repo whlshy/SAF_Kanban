@@ -466,7 +466,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
         "create_board" => {
             let input = NewBoard {
                 title: arguments.required("title")?,
-                issue_link: String::new(),
+                issue_link: arguments.text("issueLink")?.unwrap_or_default(),
                 columns: arguments.names("columns")?,
                 users: arguments.names("users")?.unwrap_or_default(),
                 ..NewBoard::default()
@@ -488,7 +488,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
             };
             let patch = BoardPatch {
                 title: arguments.text("title")?,
-                issue_link: None,
+                issue_link: arguments.text("issueLink")?,
                 columns: arguments.names("columns")?,
                 users: arguments.names("users")?,
                 renames,
