@@ -1,9 +1,8 @@
-import React, { cloneElement, createContext, useContext, useState, Fragment } from 'react'
+import React, { cloneElement, createContext, useContext, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Box } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Box } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import CloseIcon from '@mui/icons-material/Close'
-import RwdWrapper from '../wrapper/RwdWrapper'
 import usePhone from '@/lib/usePhone'
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
@@ -15,7 +14,7 @@ const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialogActions-root': {
     padding: theme.spacing(1.5, 4),
   },
-}));
+}))
 
 // The footer is a slot under the scrolling content. Content components put
 // their buttons in <DialogFooter>, which renders them there through a portal,
@@ -27,33 +26,24 @@ export function DialogFooter({ children }) {
   return slot ? createPortal(children, slot) : null
 }
 
-function Index(props) {
-  const { isRwdWidth } = props
-
-  return !!isRwdWidth ? (
-    <RwdWrapper onlyProps={true} noDrawer={true}>
-      <CustomDialog {...props} />
-    </RwdWrapper>
-  ) :
-    <CustomDialog {...props} />
-}
-
-export default Index
-
-const CustomDialog = (props) => {
-  const { content_width,
-    open, title, content, actions, body, closeDialog, disableScrollLock, fullWidth, fullHeight, maxWidth, fullScreen, isRwdWidth, compact, persistent, contentProps = {} } = props
+export default function AppDialog({
+  open,
+  title,
+  content,
+  actions,
+  body,
+  closeDialog,
+  disableScrollLock,
+  fullWidth,
+  maxWidth,
+  fullScreen,
+  compact,
+  persistent,
+  contentProps = {},
+}) {
   // On phones dialogs fill the screen, except small pickers opened with compact.
   const fill = usePhone() && !compact
   const [footerSlot, setFooterSlot] = useState(null)
-
-  const p = isRwdWidth ? {
-    sx: {
-      width: "100%",
-      maxWidth: `${content_width} !important`,
-      height: fullHeight ? "100%" : "auto",
-    }
-  } : { fullWidth, maxWidth, fullScreen: fullScreen || fill }
 
   return (
     <BootstrapDialog
@@ -67,10 +57,9 @@ const CustomDialog = (props) => {
         '& .MuiDialogContent-root .MuiDialogContent-root': { px: 0 },
         '& .MuiDialogActions-root': { px: 2 },
       } : undefined}
-      {...(!!isRwdWidth ? {} : p)}
-      PaperProps={{
-        ...(!!isRwdWidth ? p : {})
-      }}
+      fullWidth={fullWidth}
+      maxWidth={maxWidth}
+      fullScreen={fullScreen || fill}
     >
       {/* A long title wraps instead of pushing the close button out of the
           dialog (DialogTitle is flex: 0 0 auto by default, so it never shrank). */}
@@ -89,11 +78,11 @@ const CustomDialog = (props) => {
         </IconButton>
       </Box>
       {
-        !!body ? cloneElement(body, { closeDialog }) :
+        body ? cloneElement(body, { closeDialog }) :
           <>
             <FooterSlot.Provider value={footerSlot}>
               <DialogContent dividers sx={{ ...contentProps }}>
-                {!!content && cloneElement(content, { closeDialog })}
+                {content && cloneElement(content, { closeDialog })}
               </DialogContent>
             </FooterSlot.Provider>
             {/* Footer slot: hidden until a DialogFooter fills it. Left items
@@ -103,7 +92,7 @@ const CustomDialog = (props) => {
               disableSpacing
               sx={{ flexWrap: 'wrap', gap: 1, '&:empty': { display: 'none' } }}
             />
-            {!!actions &&
+            {actions &&
               <DialogActions>
                 {cloneElement(actions, { closeDialog })}
               </DialogActions>
@@ -113,22 +102,3 @@ const CustomDialog = (props) => {
     </BootstrapDialog>
   )
 }
-
-const DialogWrapper = ({
-  dialogProps = {},
-  children,
-}) => {
-  const [open, setOpen] = useState(false)
-  return (
-    <Fragment>
-      <Index
-        {...dialogProps}
-        open={open}
-        handleClose={() => setOpen(false)}
-      />
-      {children && cloneElement(children, { onClick: () => setOpen(true) })}
-    </Fragment>
-  )
-}
-
-export { DialogWrapper }

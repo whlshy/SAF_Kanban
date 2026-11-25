@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Button, DialogContent, TextField, Typography } from '@mui/material'
 import { FileDownloadOutlined as ExportIcon, ContentCopy as CopyIcon } from '@mui/icons-material'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 
 import { useAlertStore, useDialogStore } from '@/store';
 import { boardPlaceholderTitle, boardTitle, normalizeBoardField, useBoards } from '@/store/boards';

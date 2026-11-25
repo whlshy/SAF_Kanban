@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { DialogContent, TextField, Button as MuiButton, Tooltip, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { message } from 'antd';
+import { message } from '@/lib/notify';
 import {
   Kanban,
   KanbanBoard,
@@ -28,7 +28,6 @@ import useOnline from '@/lib/useOnline';
 import { filterAtom } from '@/store/filter';
 import FilterBar from './FilterBar';
 import { useDialogStore, useAlertStore } from '@/store';
-import { Checkbox } from 'antd';
 import AppDialog, { DialogFooter } from '@/components/elements/dialog/Dialog';
 
 const dialogAtom = atom({ open: false })

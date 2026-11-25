@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Button, DialogContent, IconButton, Link, Tab, Tabs, Typography } from '@mui/material'
 import { ContentCopy as CopyIcon, VisibilityOffOutlined as HideIcon, VisibilityOutlined as ShowIcon } from '@mui/icons-material'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 
 import { DialogFooter } from '@/components/elements/dialog/Dialog'
 import { localRequest, localToken, setLocalToken } from '@/data/localApi'

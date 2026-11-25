@@ -1,6 +1,6 @@
 import React, { useSyncExternalStore } from 'react'
 import { registerSW } from 'virtual:pwa-register'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 import { t } from '@/i18n'
 
 // Installing the site as an app, and picking up new versions of it.
@@ -59,10 +59,18 @@ export function startPwa() {
         content: (
           <span>
             {t("pwa.updateReady")}
-            <button type="button" onClick={() => update(true)} style={{ marginLeft: 12, color: "#1677ff", fontWeight: 500 }}>
+            <button
+              type="button"
+              onClick={() => update(true)}
+              className="ml-3 font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
               {t("pwa.reload")}
             </button>
-            <button type="button" onClick={() => message.destroy(UPDATE_KEY)} style={{ marginLeft: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+            <button
+              type="button"
+              onClick={() => message.destroy(UPDATE_KEY)}
+              className="ml-3 text-muted-foreground hover:text-foreground"
+            >
               {t("pwa.later")}
             </button>
           </span>

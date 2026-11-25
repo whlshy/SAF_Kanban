@@ -17,7 +17,7 @@ function index() {
 
   return (
     <footer>
-      <div className='footer-content footer-info flex aic'>
+      <div className='footer-content footer-info flex items-center'>
         <div className='flex rowTitle items-center flex-wrap justify-center'>
           <a
             href="https://github.com/whlshy/SAF_Kanban"

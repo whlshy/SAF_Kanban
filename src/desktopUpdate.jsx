@@ -1,5 +1,5 @@
 import React from 'react'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 import { localCanUpdate, localRequest, onLocalChange } from '@/data/localApi'
 import { t } from '@/i18n'
 
@@ -53,7 +53,7 @@ function showState(state) {
           <button
             type="button"
             onClick={() => installDesktopUpdate()}
-            style={{ marginLeft: 12, color: "#1677ff", fontWeight: 500 }}
+            className="ml-3 font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
             {t("desktopUpdate.install")}
           </button>
@@ -62,7 +62,7 @@ function showState(state) {
               href={state.releaseUrl}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ marginLeft: 12, color: "#1677ff" }}
+              className="ml-3 text-blue-600 hover:underline dark:text-blue-400"
             >
               {t("desktopUpdate.notes")}
             </a>
@@ -73,7 +73,7 @@ function showState(state) {
               dismissedVersion = state.version
               message.destroy(UPDATE_KEY)
             }}
-            style={{ marginLeft: 12, color: "rgba(0, 0, 0, 0.45)" }}
+            className="ml-3 text-muted-foreground hover:text-foreground"
           >
             {t("pwa.later")}
           </button>
@@ -119,7 +119,7 @@ function showState(state) {
           <button
             type="button"
             onClick={() => checkForDesktopUpdate()}
-            style={{ marginLeft: 12, color: "#1677ff", fontWeight: 500 }}
+            className="ml-3 font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
             {t("history.retry")}
           </button>

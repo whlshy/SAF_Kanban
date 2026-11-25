@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Button, Checkbox, Chip, DialogContent, FormControlLabel, TextField, Typography } from '@mui/material'
-import { message } from 'antd'
+import { message } from '@/lib/notify'
 
 import { useDialogStore } from '@/store';
 import { BOARD_FIELDS, boardTitle, useBoards } from '@/store/boards';
