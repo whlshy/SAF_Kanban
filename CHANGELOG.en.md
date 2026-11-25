@@ -13,6 +13,15 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## Desktop app 0.5.2 — 2026-11-25
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases). The website is unchanged.
+
+### Added
+
+- Added **Google Antigravity** global skill support (`~/.gemini/config/skills/saf-kanban/SKILL.md` for Antigravity App, IDE, and CLI, also auto-refreshed on desktop startup).
+- Updated **AI / API → Skill (recommended)** with per-target install/update buttons (`Codex, Cursor, Gemini CLI, GitHub Copilot and others`, `Claude Code`, `Antigravity`) alongside an **Install all / Update all** button; `POST /api/skill` now accepts an optional `{"agents": "..."}` target.
+
 ## 1.20.1 and desktop app 0.5.1 — 2026-11-25
 
 Desktop app 0.5.0 can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
