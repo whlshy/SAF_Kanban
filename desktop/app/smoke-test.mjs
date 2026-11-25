@@ -82,7 +82,13 @@ try {
 
   const token = JSON.parse(readFileSync(join(dataDir, 'config.json'), 'utf8')).token
   const api = (path) => fetch(base + path, { headers: { Authorization: `Bearer ${token}` } })
-  check('the API answers with the token', (await api('/api/info')).ok)
+  const infoRes = await api('/api/info')
+  check('the API answers with the token', infoRes.ok)
+  const info = infoRes.ok ? await infoRes.json() : null
+  check('the installed app exposes the in-app updater', info?.canUpdate === true, JSON.stringify(info))
+  const updateRes = await api('/api/update')
+  const updateState = updateRes.ok ? await updateRes.json() : null
+  check('the updater status endpoint responds', updateRes.ok && typeof updateState?.currentVersion === 'string', JSON.stringify(updateState))
   check('the API refuses without it', (await fetch(base + '/api/info')).status === 401)
 
   const connection = await (await api('/api/connection')).json()
