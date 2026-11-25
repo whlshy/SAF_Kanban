@@ -1,222 +1,190 @@
-# SAF Kanban 桌面版
+# SAF Kanban 桌面版（Windows）
 
-讓 SAF Kanban 完全在自己的電腦上執行：看板存成電腦上的檔案，不需要 Google Sheet 和網路，並提供 API 讓其他程式（例如 AI agent）讀寫看板。
+繁體中文 | [English](README.en.md)
 
-目前進度：
+讓 SAF Kanban 完全在自己的電腦上執行：看板存成本機 JSON 檔案、不需 Google Sheet 與網路即可完整讀寫，並內建 CLI、AI Agent Skill、MCP 與 HTTP API，讓 AI 工具與腳本都能直接操作看板。
 
-- [x] 本機伺服器（[`server/`](server/)，Rust）：看板檔案、HTTP API、提供看板畫面
-- [x] MCP 介面，讓 AI agent 直接操作看板；畫面右上角的「AI / API 連線」
-- [x] Windows 安裝檔（[`app/`](app/)，Tauri）
-- [x] 把 Google Sheet 看板複製成本機看板、匯出與匯入看板
-- [x] 命令列工具和 AI agent 的 skill；不開 SAF Kanban 也能讓 AI 操作看板
+👉 **[下載 Windows 安裝檔](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[返回主文件](../README.md)** ｜ **[版本紀錄](../CHANGELOG.md)**
 
-## 安裝（Windows）
+## 目錄
 
-到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載 `SAF-Kanban_<版本>_x64-setup.exe` 後執行。
+- [安裝與日常使用](#安裝與日常使用)
+- [讓 AI Agent 使用](#讓-ai-agent-使用)
+  - [Skill 與命令列（建議）](#skill-與命令列建議)
+  - [MCP](#mcp)
+- [資料位置、匯出入與備份](#資料位置匯出入與備份)
+- [安全性](#安全性)
+- [API](#api)
+- [從原始碼建置、測試與發佈](#從原始碼建置測試與發佈)
 
-- 安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」：按「其他資訊」→「仍要執行」。
+---
+
+## 安裝與日常使用
+
+到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載最新的 `SAF-Kanban_<版本>_x64-setup.exe` 後執行：
+
+- 安裝檔目前未加程式碼簽章，Windows 顯示「Windows 已保護您的電腦」時點「**其他資訊 → 仍要執行**」。
 - 只安裝給目前的使用者，不需要系統管理員權限。
-- 畫面用 Windows 內建的 WebView2 顯示（Windows 11 和更新過的 Windows 10 都有）。電腦上沒有的話，安裝時會自動下載，只有那一次需要網路。
+- 畫面使用 Windows 內建 WebView2（Windows 11 與已更新的 Windows 10 皆內建；若缺少會在安裝時自動下載一次）。
 
-使用上和網頁版一樣，另外：
+日常使用與網頁版一致，桌面版另提供以下行為：
 
-- **關閉視窗不會結束程式**，它會留在右下角的通知區域，AI agent 和其他程式才能繼續使用看板。點圖示可以叫回視窗；在圖示上按右鍵選「結束」才會真的關掉。
-- 右鍵選單的「開機時自動啟動」打勾後，登入 Windows 時會在背景啟動，不會跳出視窗。
-- 再開一次程式只會叫回原本的視窗，不會開出第二個。
-- **App 內檢查與安裝更新**：安裝版啟動後會在背景檢查是否有新版本（離線時靜默略過）；有新版本時畫面上方會跳出提示，點「立即更新」即可下載驗證並自動覆蓋安裝與重啟，看板資料不受影響。也可以從系統匣右鍵選單或頁尾的「檢查更新」手動觸發。更新重啟後，先前已經安裝過的 AI Skill 會自動更新成最新版。
-- 看板裡連到其他網站的連結會用電腦預設的瀏覽器開啟。
-- 預設使用連接埠 41952。被其他程式佔用時會改用別的連接埠，「AI / API 連線」裡顯示的位址會跟著變；用位址連線的 AI 工具要改設定，用「啟動程式」方式的不用。
+- **系統匣常駐**：關閉視窗不會結束程式，會留在右下角通知區域，讓 AI Agent 與其他程式能繼續使用；左鍵點圖示可叫回視窗，右鍵選「結束」才會完全關閉。
+- **開機自動啟動**：系統匣右鍵選單勾選「開機時自動啟動」後，登入 Windows 會在背景啟動（不跳出視窗）。重複執行程式只會叫回原視窗。
+- **App 內檢查與自動更新（`0.5.0+`）**：啟動 5 秒後與每 6 小時自動檢查新版本（離線時靜默略過）；有新版時上方會出現通知，點「**立即更新**」會下載、驗證 minisign 簽章並以 Windows NSIS `passive` 模式自動覆寫安裝與重啟，資料不受影響。也可從系統匣右鍵選單或頁尾的「檢查更新」手動觸發。
+- **自動同步 AI Skill**：更新桌面版並啟動時，會自動將先前已安裝過的 AI Skill 更新到最新版（未安裝過的位置不會自動建立）。
+- **外部連結與連接埠**：看板中的外部連結會用系統預設瀏覽器開啟。本機伺服器預設監聽 `41952`；若被佔用會自動改用空埠，可在右上角「AI / API 連線」查看實際位址。
+- **Google Sheet 看板**：在桌面版也能照常使用（需網路；讀取用 API 金鑰需允許 `http://127.0.0.1:41952/*` 來源）。
 
-Google Sheet 看板在桌面版裡也能用，但需要網路；另外讀取用的 API 金鑰必須允許 `http://127.0.0.1:41952/*` 這個來源（由專案維護者在 Google Cloud Console 設定）。
+---
 
-## 從原始碼執行
+## 讓 AI Agent 使用
 
-需要 Node.js 22 和 Rust。在專案根目錄：
+點畫面右上角的機器人圖示（「**AI / API 連線**」）可直接查看各種連線方式的路徑、位址與可複製的設定。
 
-```bash
-npm install
-npm run local      # 只有伺服器，用瀏覽器開啟
-npm run build:app  # 桌面版程式和安裝檔（在 Windows 上）
-```
-
-`npm run local` 啟動後會印出網址和 API 權杖：
-
-```text
-SAF Kanban local server
-  Address:   http://127.0.0.1:41952
-  MCP:       http://127.0.0.1:41952/mcp
-  API token: <權杖>
-  Data:      <資料夾>
-```
-
-用瀏覽器開啟那個網址就是看板畫面。伺服器可以加參數：`--port`、`--data-dir`（資料夾）、`--ui-dir`（畫面檔案的資料夾；不給就只提供 API）。
-
-桌面版程式（`saf-kanban`）的畫面檔案已經包在程式裡，可以加的參數是 `--port`、`--data-dir` 和 `--hidden`（啟動時不顯示視窗）。
-
-安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時，先改 [`Cargo.toml`](Cargo.toml) 的版本並合併到 `main`，再到 GitHub 的 Actions →「Desktop app」→「Run workflow」，選 `main` 並勾選「Publish a release」；也可以推一個 `desktop-v<版本>` 的標籤。兩種方式都會建立附上安裝檔與 `latest.json`（由 `TAURI_SIGNING_PRIVATE_KEY` Secret 簽章）的 Release（版本已經發布過的話會失敗，不會覆蓋）。
-
-## 資料
-
-資料夾預設在 Windows 的 `%APPDATA%\SAF Kanban`，其他系統在 `~/.local/share/saf-kanban`。
-
-| 路徑 | 內容 |
-| --- | --- |
-| `boards/<看板 ID>.json` | 一個看板一個檔案：欄位、負責人、任務、已刪除的任務 |
-| `trash/` | 刪除的看板檔案會移到這裡，不會直接消失 |
-| `config.json` | API 權杖 |
-| `boards.lock` | 讓同時使用資料夾的程式輪流寫入 |
-| `server.json` | 伺服器目前使用的連接埠，給 `mcp` 橋接模式找到它 |
-
-- 備份全部看板就是複製整個資料夾。
-- 單一看板可以在「設定」按「匯出看板」存成一個檔案（設定、任務和已刪除的任務），之後在看板選單選「匯入設定或看板」還原成一個新的看板；也可以拿到另一台電腦匯入。檔案沒有加密，裡面不含 API 權杖。
-- Google Sheet 看板的「設定」裡有「複製成本機看板」：把 Sheet 目前的欄位、任務和負責人複製成一個本機看板。Sheet 只會被讀取，不會被更動；已刪除的任務紀錄不會複製。
-- 伺服器每次都重新讀檔，所以還原備份、或其他程式改了檔案，不用重新啟動。
-- 寫入時先寫到暫存檔再取代原檔，中途當機不會留下寫到一半的看板。
-
-## 安全
-
-- 只接受這台電腦的連線（`127.0.0.1`）。
-- 每個 API 請求都要帶權杖：`Authorization: Bearer <權杖>`。
-- 請求的 Host 必須是 `127.0.0.1` 或 `localhost`，擋掉其他網站把自己的網域指到本機的手法（DNS rebinding）。
-- 瀏覽器從其他網站的頁面發出的請求（帶有別人的 Origin）一律拒絕。
-- 命令列和 `mcp` 模式直接讀寫資料夾裡的檔案，不經過網路，所以不需要權杖：能執行它們的程式，本來就能讀寫你的檔案。
-- 權杖等同看板的讀寫權限，不要貼到公開的地方。外洩時可以在「AI / API 連線」按「重新產生權杖」，舊的會立刻失效。
-
-## 讓 AI agent 使用
-
-畫面右上角的機器人圖示（AI / API 連線）會列出下面每種方式需要的路徑、位址和可以直接複製的設定。
-
-| 方式 | 適用 | SAF Kanban 要開著嗎 | 權杖 |
+| 方式 | 適用工具 | SAF Kanban 要開著嗎 | 需要權杖嗎 |
 | --- | --- | --- | --- |
-| Skill + 命令列（建議） | Claude Code、Codex、Gemini CLI、GitHub Copilot、Cursor 等支援 Agent Skills 的 AI；不支援的 AI 只要能執行指令，也能直接用命令列 | 不用 | 不用 |
-| MCP，啟動程式（stdio） | Claude Desktop 等由工具自己啟動程式的 | 不用 | 不用 |
-| MCP，網址（HTTP） | Claude Code、Cursor 等可以填 MCP 網址的工具 | 要 | 要 |
-| HTTP API | 自己寫的程式、腳本 | 要 | 要 |
+| **Skill + 命令列（建議）** | Claude Code、Codex、Gemini CLI、GitHub Copilot、Cursor 等支援 Agent Skills 的工具；其餘只要能跑指令的 AI 也能直接用 CLI | 不用 | 不用 |
+| **MCP（stdio 啟動程式）** | Claude Desktop 等由工具自行啟動程式的用戶端 | 不用 | 不用 |
+| **MCP（HTTP 網址）** | Claude Code、Cursor 等可填 MCP 網址的工具 | 要 | 要 |
+| **HTTP API** | 自寫腳本或其他程式整合 | 要 | 要 |
 
-不用開著的方式會直接讀寫資料夾裡的看板檔案。SAF Kanban 開著的時候也可以照常使用：同一時間只會有一個程式在寫檔案（`boards.lock`），不會互相蓋掉；畫面會在一秒內顯示其他程式做的修改。
+> 不需開著的方式會直接讀寫資料夾中的看板檔案，並透過 `boards.lock` 檔案鎖避免同時寫入衝突；SAF Kanban 開著時，畫面會在一秒內自動顯示外部工具做的變更。
 
-### Skill + 命令列
+### Skill 與命令列（建議）
 
-安裝版在 `saf-kanban.exe` 旁邊附了命令列工具 `saf-kanban-cli.exe`（預設在 `%LOCALAPPDATA%\SAF Kanban\`）。Skill 是一份 `SKILL.md`，教 AI 怎麼用這個工具；裡面寫好了工具的完整路徑，所以不用改 PATH。
+安裝版會在 `saf-kanban.exe` 旁邊附帶命令列工具 `saf-kanban-cli.exe`（預設在 `%LOCALAPPDATA%\SAF Kanban\`）。`SKILL.md` 已寫好工具完整路徑，不需要手動改 `PATH`。
 
 安裝 skill（擇一）：
 
-- 「AI / API 連線」→「Skill（建議）」→「安裝 skill」。
-- 執行 `saf-kanban-cli skill --install`。
+- 在畫面點「**AI / API 連線 → Skill（建議）→ 安裝 skill**」
+- 或在終端機執行 `saf-kanban-cli skill --install`
 
-兩種做法都會寫到兩個地方：
+預設會寫入兩個共用位置：
 
-| 位置 | 會讀它的 AI |
+| 路徑 | 對應 AI 工具 |
 | --- | --- |
-| `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Gemini CLI、GitHub Copilot、Cursor 等（Agent Skills 的共用位置） |
-| `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code（有設定 `CLAUDE_CONFIG_DIR` 時改寫到那個資料夾） |
+| `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Gemini CLI、GitHub Copilot、Cursor 等 |
+| `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code（若設了 `CLAUDE_CONFIG_DIR` 則改寫至該目錄） |
 
-- 其他 AI 工具：執行 `saf-kanban-cli skill --into <它的 skills 資料夾>`，或把 `saf-kanban-cli skill` 印出的內容存成那個資料夾裡的 `saf-kanban/SKILL.md`。
-- 不支援 skill 的 AI，只要能執行指令，請它先執行 `saf-kanban-cli --help` 就能使用。
-- 程式換了位置之後要重新安裝一次，「AI / API 連線」裡會顯示「需要更新」。
+- 其他工具可執行 `saf-kanban-cli skill --into <skills 資料夾>`，或手動儲存 `saf-kanban-cli skill` 印出的內容。
+- 桌面版升級啟動時會自動更新已安裝的 skill；若你手動搬動了安裝位置，請再安裝一次（「AI / API 連線」會顯示「需要更新」）。
 
-命令列也可以自己用：
+命令列也可以直接手動或給腳本使用：
 
 ```text
 saf-kanban-cli boards                     列出看板
 saf-kanban-cli board <看板> [--column C] [--limit N]
-                                          欄位和每個欄位裡的任務、負責人
+                                          欄位、任務與負責人
 saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--search 關鍵字]
                      [--since 時間] [--until 時間] [--limit N]
-saf-kanban-cli task <看板> <任務>         一個任務的完整內容
+saf-kanban-cli task <看板> <任務>         查看單一任務完整內容
 saf-kanban-cli add <看板> <標題> [--column C] [--priority P] [--assignee A] [--issue ID]
                    [--description 描述 | --description-file 檔案]
 saf-kanban-cli edit <看板> <任務> [--title T] [--priority P] [--assignee A] [--issue ID]
                     [--description 描述 | --description-file 檔案 |
                      --append-description 描述 | --append-description-file 檔案]
 saf-kanban-cli move <看板> <任務>... <欄位> [--before 任務 | --after 任務]
-saf-kanban-cli delete <看板> <任務>       刪除任務（會留在已刪除的任務裡）
-saf-kanban-cli deleted <看板>             已刪除的任務
+saf-kanban-cli delete <看板> <任務>       刪除任務（保留在歷史紀錄）
+saf-kanban-cli deleted <看板>             列出已刪除的任務
 saf-kanban-cli restore <看板> <任務> [--column C] [--before 任務 | --after 任務]
-                                          復原已刪除的任務（同一個 ID 和內容，放回原位）
+                                          原樣復原已刪除的任務
 saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B]
 saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
-saf-kanban-cli skill [--install | --into 資料夾]   印出 skill，或安裝
+saf-kanban-cli skill [--install | --into 資料夾]   印出或安裝 skill
 ```
 
-- `<看板>` 可以是看板 ID 或名稱；`<任務>` 是任務 ID（輸出裡方括號中的那段）。`move` 可以一次指定多個任務 ID。
-- 每個指令都可以加 `--json` 改成輸出 JSON，加 `--data-dir <資料夾>` 指定其他資料夾。
-- `--description -` 與 `--append-description -` 從標準輸入讀內容（自動處理 UTF-8 BOM 與 UTF-16）；也可以用 `--description-file`、`--append-description-file` 直接讀檔（PowerShell 建議改用讀檔）。
-- `--append-description` 會在檔案鎖內空一行接在原本的描述後面，不覆蓋原內容。
-- `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）依任務最後一次移進目前欄位的時間（`movedAt`）篩選；`--limit N` 依 `movedAt` 列出最近的 N 張任務。
-- 失敗時錯誤訊息印在標準錯誤，結束碼是 1（打錯指令是 2）。
+- `<看板>` 可填 ID 或名稱；`<任務>` 為方括號內的任務 ID。`move` 可一次指定多個任務 ID（原子寫入）。
+- 所有指令皆支援 `--json`（輸出 JSON）與 `--data-dir <資料夾>`。
+- `--description -`／`--append-description -` 從標準輸入讀取（自動處理 UTF-8 BOM 與 UTF-16）；PowerShell 建議改用 `--description-file`／`--append-description-file`。
+- `--append-description` 會在檔案鎖內空一行接在原本描述後面，不覆蓋原內容。
+- `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）依 `movedAt` 篩選；`--limit N` 依 `movedAt` 取最近移入的 N 張。
+- 失敗時錯誤輸出到 stderr，結束碼為 `1`（語法錯誤為 `2`）。
 
 ### MCP
 
-[MCP](https://modelcontextprotocol.io) 介面讓 AI agent 把看板操作當成工具來呼叫。
+[MCP](https://modelcontextprotocol.io) 讓 AI Agent 以工具呼叫的方式讀寫看板。
 
-Claude Code（用網址連線，SAF Kanban 要開著）：
-
-```bash
-claude mcp add --transport http saf-kanban http://127.0.0.1:41952/mcp --header "Authorization: Bearer <權杖>"
-```
-
-Claude Desktop 的設定檔（啟動程式，SAF Kanban 不用開著）：
-
-```json
-{
-  "mcpServers": {
-    "saf-kanban": { "command": "<saf-kanban 的完整路徑>", "args": ["mcp"] }
+- **Claude Code（HTTP 網址，需開啟 SAF Kanban）**：
+  ```bash
+  claude mcp add --transport http saf-kanban http://127.0.0.1:41952/mcp --header "Authorization: Bearer <權杖>"
+  ```
+- **Claude Desktop（stdio 啟動程式，不需開啟 SAF Kanban）**：
+  ```json
+  {
+    "mcpServers": {
+      "saf-kanban": { "command": "<saf-kanban 的完整路徑>", "args": ["mcp"] }
+    }
   }
-}
-```
+  ```
+  > 安裝版執行 `saf-kanban mcp`；獨立伺服器執行 `saf-kanban-server mcp`。自訂資料夾時加上 `--data-dir <資料夾>`。
 
-- 安裝版的指令是 `saf-kanban mcp`；只有伺服器時是 `saf-kanban-server mcp`。資料夾不是預設位置時加上 `--data-dir <資料夾>`。
-
-AI 可以用的工具：
+支援的 MCP 工具：
 
 | 工具 | 功能 |
 | --- | --- |
-| `list_boards` | 列出看板 |
-| `get_board` | 一個看板的欄位（依序）和每個欄位裡的任務 |
-| `list_tasks` | 列出任務，可依欄位、負責人、優先順序、關鍵字、移入時間（`since`／`until`）篩選，並可用 `limit` 取最近移入的 N 張 |
-| `get_task` | 一個任務的完整內容 |
-| `create_task` | 新增任務 |
-| `update_task` | 修改任務的標題、描述（可用 `appendDescription` 追加）、優先順序、負責人、Issue ID |
-| `move_task` | 把任務移到某個欄位，可指定放在哪個任務前面或後面 |
-| `delete_task` | 刪除任務（會留在已刪除的任務裡） |
-| `list_deleted_tasks` | 已刪除的任務 |
-| `restore_task` | 把已刪除的任務復原：同一個 ID 和內容，放回原本的欄位和位置 |
-| `create_board` | 建立看板 |
-| `update_board` | 改看板名稱、欄位、負責人 |
+| `list_boards` / `get_board` | 列出看板／取得單一看板欄位與任務 |
+| `list_tasks` / `get_task` | 篩選列出任務（支援 `since`／`until`／`limit`）／取得單一任務 |
+| `create_task` / `update_task` | 新增任務／更新欄位（支援 `appendDescription` 追加描述） |
+| `move_task` | 移動任務到指定欄位與位置（`beforeTask`／`afterTask`） |
+| `delete_task` / `list_deleted_tasks` / `restore_task` | 刪除任務／查看歷史／原樣復原至原欄位與位置 |
+| `create_board` / `update_board` | 建立看板／修改名稱、欄位與負責人（不提供刪除看板工具，請在畫面操作） |
 
-- 沒有刪除看板的工具，刪除看板只能在畫面上做。
-- AI 誤刪任務時，可以用 `restore_task`（命令列是 `restore`）把它原樣放回：ID、內容、建立時間都不變，回到刪除前的欄位和位置；如果那個欄位已經被移除，要指定放回哪個欄位。skill 會告訴 AI 誤刪時用復原，而不是重新新增一個。
-- 工具裡任務的描述叫 `description`（HTTP API 裡是 `des`）。
-- AI 做的變更會即時出現在看板畫面上（用網址連線時立刻，其他方式在一秒內）。
+> 註：MCP 工具使用 `description` 欄位，HTTP API 使用 `des` 欄位。
+
+---
+
+## 資料位置、匯出入與備份
+
+預設資料夾位於 Windows 的 `%APPDATA%\SAF Kanban`（Linux / macOS 為 `~/.local/share/saf-kanban`）：
+
+| 路徑 | 內容 |
+| --- | --- |
+| `boards/<看板 ID>.json` | 每個看板一個獨立 JSON 檔（欄位、負責人、任務、已刪除紀錄） |
+| `trash/` | 刪除的看板會移到此處保留，不會直接消失 |
+| `config.json` | API 權杖 |
+| `boards.lock` | 多程式並發寫入用的檔案鎖 |
+| `server.json` | 伺服器目前連接埠（供 `mcp` 模式自動偵測） |
+
+- **全機備份**：直接複製整個資料夾即可。
+- **單一看板匯出／匯入**：在看板「設定」按「匯出看板」存成 JSON（不含 API 權杖），在看板選單按「匯入設定或看板」即可還原成新看板。
+- **從 Google Sheet 複製**：在 Google Sheet 看板的「設定」按「複製成本機看板」，會把欄位、任務（含建立與移入時間）與負責人複製成本機看板，不更動原 Sheet。
+- **寫入安全**：每次請求皆直接讀檔（外部還原備份不需重啟），寫入先落暫存檔再原子覆蓋，中途當機不損毀原檔。
+
+---
+
+## 安全性
+
+- 僅監聽本機回環介面（`127.0.0.1`），不對區域網路或網際網路開放。
+- 所有 HTTP API 與 HTTP MCP 請求均須攜帶 `Authorization: Bearer <權杖>`。
+- 檢查 `Host` 僅允許 `127.0.0.1`／`localhost`（防 DNS rebinding），並拒絕來自其他網站的 `Origin`。
+- CLI 與 `mcp` stdio 模式不經網路、直接操作本機檔案，不需權杖。
+- 權杖外洩時可於「AI / API 連線」按「**重新產生權杖**」，舊權杖立即失效。
+
+---
 
 ## API
 
-網址開頭是 `http://127.0.0.1:41952/api`，內容都是 JSON。
+基底網址為 `http://127.0.0.1:41952/api`，請求與回應皆為 JSON（需帶 `Authorization: Bearer <權杖>`）。
 
 | 方法與路徑 | 功能 |
 | --- | --- |
-| `GET /info` | 伺服器名稱與版本 |
-| `GET /boards` | 列出看板 |
-| `POST /boards` | 建立看板；可以附上 `tasks`、`history`，也就是直接送 `export` 的內容來複製看板 |
-| `GET /boards/{看板}` | 看板的名稱、欄位、負責人 |
-| `PATCH /boards/{看板}` | 改名稱、欄位、負責人 |
-| `DELETE /boards/{看板}` | 刪除看板（檔案移到 `trash/`） |
-| `GET /boards/{看板}/export` | 整個看板：設定、任務和已刪除的任務 |
-| `GET /boards/{看板}/tasks` | 列出任務，可以篩選 |
-| `POST /boards/{看板}/tasks` | 新增任務 |
-| `GET /boards/{看板}/tasks/{任務}` | 一個任務 |
-| `PUT /boards/{看板}/tasks/{任務}` | 整個取代；不存在就用這個 ID 建立 |
-| `PATCH /boards/{看板}/tasks/{任務}` | 只改有給的欄位（支援 `appendDes` 追加描述） |
-| `POST /boards/{看板}/tasks/{任務}/move` | 移到某個欄位和位置 |
-| `DELETE /boards/{看板}/tasks/{任務}` | 刪除（會留在已刪除的任務裡） |
-| `GET /boards/{看板}/history` | 已刪除的任務，由新到舊 |
-| `POST /boards/{看板}/history/{任務}/restore` | 復原已刪除的任務；可以帶 `column`、`beforeId`、`afterId` 改放別的地方 |
-| `GET /events` | 有變更時通知（Server-Sent Events） |
-| `GET /connection` | 連線資訊：API 與 MCP 位址、資料夾、執行檔路徑 |
-| `POST /token` | 重新產生權杖，回傳新的權杖 |
+| `GET /info` | 伺服器名稱、版本與是否支援 App 內更新（`canUpdate`） |
+| `GET /boards` / `POST /boards` | 列出看板／建立看板（可帶 `tasks`、`history` 還原匯出檔） |
+| `GET /boards/{看板}` / `PATCH` / `DELETE` | 讀取／修改名稱、欄位（含 `renames`）與負責人／刪除至 `trash/` |
+| `GET /boards/{看板}/export` | 匯出整個看板（設定、任務、已刪除紀錄） |
+| `GET /boards/{看板}/tasks` / `POST` | 篩選列出任務／新增任務 |
+| `GET /boards/{看板}/tasks/{任務}` / `PUT` / `PATCH` / `DELETE` | 讀取／整筆取代或建立／局部更新（支援 `appendDes`）／刪除至歷史 |
+| `POST /boards/{看板}/tasks/{任務}/move` | 移動欄位與位置（`column`、`beforeId`、`afterId`） |
+| `GET /boards/{看板}/history` | 已刪除的任務（由新到舊） |
+| `POST /boards/{看板}/history/{任務}/restore` | 原樣復原（可選帶 `column`、`beforeId`、`afterId`） |
+| `GET /events` | 即時變更通知（SSE，亦接受 `?token=<權杖>`） |
+| `GET /connection` | API／MCP 位址、資料夾與執行檔路徑 |
+| `GET /skill` / `POST /skill/install` | 取得 `SKILL.md` 內容與安裝狀態／安裝或更新 skill |
+| `POST /token` | 重新產生並回傳新權杖 |
+| `GET /update` / `POST /update/check` / `POST /update/install` | 查詢／檢查／安裝桌面版更新（僅安裝版啟用） |
 
-### 任務
+### 任務物件格式
 
 ```json
 {
@@ -233,59 +201,50 @@ AI 可以用的工具：
 }
 ```
 
-- `column` 是欄位名稱，必須是看板現有的欄位。
-- `priority` 畫面上用 `high`、`medium`、`low`；新增時沒給就是 `medium`。
-- `movedAt` 是任務最後一次移進目前欄位的 UTC 時間；舊版建立的任務在下次跨欄移動前不會有這個欄位。
-- 任務在看板裡有一個整體順序，每個欄位依這個順序顯示自己的任務。新增的任務排在最後。
+- `GET /boards/{看板}/tasks` 查詢參數：`column`、`assignee`（空字串找未指派）、`priority`、`q`（空白分隔多詞）、`since`、`until`（依 `movedAt`）、`limit`（依 `movedAt` 取最近 N 張）。
+- 失敗時回傳對應 HTTP 狀態碼與 `{ "error": { "code": "...", "message": "...", "params": { ... } } }`。
+- `GET /events` 會送出 `event: change` 與 `{"kind":"board"|"boards"|"update","boardId":"..."}`。
 
-### 例子
+<details>
+<summary><strong>curl 呼叫範例</strong></summary>
 
 ```bash
 TOKEN=<權杖>
 API=http://127.0.0.1:41952/api
 
-# 列出看板，取得看板 ID
+# 列出看板
 curl -H "Authorization: Bearer $TOKEN" $API/boards
 
-# 新增任務（沒給 column 就放在第一個欄位）
+# 新增任務（未給 column 則放第一個欄位）
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"title": "買牛奶", "priority": "high"}' $API/boards/<看板>/tasks
 
-# 找出指派給 Amy、內容有「登入」的任務
+# 依負責人與關鍵字篩選
 curl -H "Authorization: Bearer $TOKEN" "$API/boards/<看板>/tasks?assignee=Amy&q=登入"
 
-# 移到「完成」欄，放在某個任務前面
+# 移動到「完成」欄並放在指定任務前
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"column": "完成", "beforeId": "<另一個任務>"}' $API/boards/<看板>/tasks/<任務>/move
 ```
 
-- 篩選參數：`column`、`assignee`（給空字串是找未指派的）、`priority`、`q`（用空白隔開的詞要全部出現在標題、描述、Issue ID 或負責人裡）、`since`、`until`（依 `movedAt` 篩選）、`limit`（依 `movedAt` 取最近的 N 張）。
-- 移動：`beforeId` 是放在那個任務前面，`afterId` 是放在後面，兩個都給時用 `beforeId`；都不給就只換欄位，整體順序不變。
-- 改欄位：`PATCH /boards/{看板}` 的 `columns` 是新的欄位清單（依序），`renames` 是 `{"舊名稱": "新名稱"}`，欄位裡的任務會跟著改名。還有任務的欄位不能從清單拿掉。
+</details>
 
-### 錯誤
+---
 
-失敗時回傳對應的 HTTP 狀態碼和：
+## 從原始碼建置、測試與發佈
 
-```json
-{ "error": { "code": "UNKNOWN_COLUMN", "message": "This board has no column named `Nope`. Its columns are: Todo, Doing, Done.", "params": { "column": "Nope" } } }
-```
-
-`message` 是給人和 AI 看的英文說明；看板畫面依 `code` 顯示成目前的介面語言。
-
-### 變更通知
-
-`GET /events` 每次有變更就送一筆 `change` 事件，看板畫面靠它即時更新。瀏覽器的 EventSource 不能設定標頭，所以這個路徑也接受 `?token=<權杖>`。
-
-```text
-event: change
-data: {"kind":"board","boardId":"1a2b3c4d"}
-```
-
-`kind` 是 `board`（某個看板的內容變了）或 `boards`（看板清單變了）。
-
-## 測試
+需要 Node.js 22 與 Rust。在專案根目錄執行：
 
 ```bash
-npm run test:server
+npm install
+npm run local        # 建置桌面版前端並啟動本機伺服器（瀏覽器開啟印出的網址）
+npm run build:app    # 建置 Windows 桌面版程式與 NSIS 安裝檔
+npm run test:server  # 執行 Rust 伺服器與 CLI 整合測試
+cargo clippy --manifest-path desktop/Cargo.toml --all-targets -p saf-kanban-server -- -D warnings
 ```
+
+- 獨立伺服器（`saf-kanban-server`）支援 `--port`、`--data-dir`、`--ui-dir`。
+- 桌面版程式（`saf-kanban`）內嵌前端資源，支援 `--port`、`--data-dir`、`--hidden`。
+- **CI 與發佈流程**（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：
+  - 每次異動 `desktop/` 會自動在 Windows 建置安裝檔、靜默安裝並執行 `node desktop/app/smoke-test.mjs` 驗證。
+  - 發佈新版時，更新 [`Cargo.toml`](Cargo.toml) 版號並合併至 `main`，再於 GitHub Actions →「**Desktop app**」→「**Run workflow**」選擇 `main` 並勾選「**Publish a release**」（或推送 `desktop-v<版本>` tag）。CI 會使用 `TAURI_SIGNING_PRIVATE_KEY` Secret 簽署安裝檔，自動產生 `latest.json` 並建立 GitHub Release。
