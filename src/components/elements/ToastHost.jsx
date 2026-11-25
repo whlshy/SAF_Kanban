@@ -9,6 +9,7 @@ import {
   WarningAmber as WarningIcon,
 } from '@mui/icons-material'
 import { toastsAtom } from '@/lib/notify'
+import { useTheme } from '@/store/theme'
 
 function ToastIcon({ type }) {
   switch (type) {
@@ -27,21 +28,24 @@ function ToastIcon({ type }) {
 
 // Portaled directly to document.body above MUI Dialogs (z-index 1300) so
 // notifications are always visible regardless of where they were triggered.
+// Because `.dark` lives on `#root` (not `<body>`), mirror it on the portal
+// container so dark-mode tokens and `dark:` classes apply inside toasts too.
 export default function ToastHost() {
   const toasts = useAtomValue(toastsAtom)
+  const { isDark } = useTheme()
   if (!toasts.length || typeof document === "undefined") return null
 
   return createPortal(
     <div
       role="region"
       aria-live="polite"
-      className="pointer-events-none fixed top-4 left-1/2 z-[1500] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col items-center gap-2"
+      className={`${isDark ? "dark " : ""}pointer-events-none fixed top-4 left-1/2 z-[1500] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col items-center gap-2`}
     >
       {toasts.map((toast) => (
         <div
           key={toast.key}
           role={toast.type === "error" ? "alert" : "status"}
-          className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-popover px-3.5 py-2 text-sm text-popover-foreground shadow-lg"
+          className="pointer-events-auto flex items-center gap-2.5 rounded-lg border border-border bg-popover px-3.5 py-2 text-sm text-popover-foreground shadow-lg dark:bg-[#1f242c]"
         >
           <ToastIcon type={toast.type} />
           <div className="min-w-0 break-words leading-snug">{toast.content}</div>
