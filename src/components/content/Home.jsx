@@ -405,7 +405,10 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
   const write = useBoardWrite(source);
 
   const filtering = isFilterActive(filter);
-  const matches = React.useMemo(() => taskMatcher(filter), [filter.query, filter.assignee, filter.priority]);
+  const matches = React.useMemo(
+    () => taskMatcher({ query: filter.query, assignee: filter.assignee, priority: filter.priority }),
+    [filter.query, filter.assignee, filter.priority]
+  );
 
   useEffect(() => {
     const newColumns = {};
@@ -605,7 +608,7 @@ const EditTask = ({
 
   const handleCallback = (tf) => {
     setLoading(false);
-    if (!!tf)
+    if (tf)
       onClose?.();
   }
 

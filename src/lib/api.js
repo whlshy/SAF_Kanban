@@ -37,15 +37,13 @@ export default async function api({
 
   const res = await fetch(url, options)
   const text = await res.text()
-  let body = text
+  let body = null
   if (text) {
     try {
       body = JSON.parse(text)
     } catch {
       body = text
     }
-  } else {
-    body = null
   }
 
   return {

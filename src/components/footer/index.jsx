@@ -9,7 +9,7 @@ const CHANGELOG_URL = {
   en: "https://github.com/whlshy/SAF_Kanban/blob/main/CHANGELOG.en.md",
 }
 
-function index() {
+function Footer() {
   const lang = useAtomValue(langAtom)
   const t = useT()
   const desktopVersion = localServerVersion()
@@ -56,4 +56,4 @@ function index() {
   )
 }
 
-export default index
+export default Footer

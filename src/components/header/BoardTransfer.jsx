@@ -32,6 +32,7 @@ const saveFile = (content, name) => {
 export const exportLocalBoard = async (board) => {
   const content = await localRequest("GET", `/boards/${encodeURIComponent(board.id)}/export`)
   // Characters Windows doesn't allow in file names.
+  // eslint-disable-next-line no-control-regex
   const name = boardTitle(board).replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim().slice(0, 60) || "board"
   saveFile(
     { app: FILE_APP, kind: BOARD_KIND, version: FILE_VERSION, exportedAt: new Date().toISOString(), board: content },

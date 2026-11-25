@@ -12,6 +12,7 @@
     "build:local": "vite build --mode desktop",
     "local": "npm run build:local && cargo run --manifest-path desktop/Cargo.toml -- --ui-dir dist-local",
     "build:app": "npm run build:local && node desktop/app/prepare-cli.mjs && tauri build",
+    "lint": "eslint src",
     "test": "node --test \"src/**/*.test.js\"",
     "test:server": "cargo test --manifest-path desktop/Cargo.toml"
   },
@@ -39,8 +40,12 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.12.5",
     "@vitejs/plugin-react-swc": "^3.8.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
