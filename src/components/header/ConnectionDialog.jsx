@@ -50,7 +50,7 @@ function CopyButton({ text, label }) {
 // A block of text to copy, such as a setting or a file.
 function CodeBox({ text, shown = text, copyLabel, maxHeight }) {
   return (
-    <Box sx={{ position: 'relative', bgcolor: 'grey.100', borderRadius: 1, p: 1.5, pr: 5 }}>
+    <Box sx={{ position: 'relative', bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'grey.100'), borderRadius: 1, p: 1.5, pr: 5 }}>
       <Box component="pre" data-slot="connection-setup" sx={{ m: 0, fontFamily: 'monospace', fontSize: 12.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight, overflowY: maxHeight ? 'auto' : undefined }}>
         {shown}
       </Box>
