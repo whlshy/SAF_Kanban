@@ -4,7 +4,7 @@
 
 讓 SAF Kanban 完全在自己的電腦上執行：看板存成本機 JSON 檔案、不需 Google Sheet 與網路即可完整讀寫，並內建 CLI、AI Agent Skill、MCP 與 HTTP API，讓 AI 工具與腳本都能直接操作看板。
 
-👉 **[下載 Windows 安裝檔](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[返回主文件](../README.md)** ｜ **[版本紀錄](../CHANGELOG.md)**
+**[下載 Windows 安裝檔](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[返回主文件](../README.md)** ｜ **[版本紀錄](../CHANGELOG.md)**
 
 ## 目錄
 

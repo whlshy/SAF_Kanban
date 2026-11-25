@@ -5,7 +5,7 @@
 **A personal kanban board with no backend to host — your data stays completely in your hands.**
 Use it right in the browser (stored in your own Google Sheet), or install the Windows desktop app (stored as local files on your computer, with built-in AI agent support via Skill, CLI, and MCP).
 
-👉 **[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[Download Windows Desktop App](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Changelog](CHANGELOG.en.md)**
+**[Open SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[Download Windows Desktop App](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Changelog](CHANGELOG.en.md)**
 
 <p align="center">
   <picture>

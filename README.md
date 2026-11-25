@@ -5,7 +5,7 @@
 **不用自架伺服器、資料完全掌握在自己手裡的個人看板。**
 可以直接在瀏覽器使用（資料存在你自己的 Google Sheet），也可以安裝 Windows 桌面版（資料存成電腦本機檔案，並支援 AI Agent 透過 Skill / CLI / MCP 直接操作）。
 
-👉 **[線上開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[下載 Windows 桌面版](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[版本紀錄](CHANGELOG.md)**
+**[線上開啟 SAF Kanban](https://whlshy.github.io/SAF_Kanban/)** ｜ **[下載 Windows 桌面版](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[版本紀錄](CHANGELOG.md)**
 
 <p align="center">
   <picture>

@@ -4,7 +4,7 @@
 
 Run SAF Kanban completely on your own computer: boards are stored as local JSON files with full offline read/write (no Google Sheets or internet required), and bundled CLI, AI agent skill, MCP, and HTTP API interfaces let AI tools and scripts work on your boards directly.
 
-👉 **[Download Windows Installer](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Back to Main README](../README.en.md)** ｜ **[Changelog](../CHANGELOG.en.md)**
+**[Download Windows Installer](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Back to Main README](../README.en.md)** ｜ **[Changelog](../CHANGELOG.en.md)**
 
 ## Table of Contents
 
