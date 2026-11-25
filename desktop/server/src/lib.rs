@@ -12,6 +12,7 @@ pub mod mcp;
 pub mod model;
 pub mod skill;
 pub mod store;
+pub mod updater;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Component, Path, PathBuf};
@@ -59,6 +60,8 @@ pub struct Options {
     pub port: u16,
     /// The web UI to serve; `None` serves the API only.
     pub ui: Option<UiFiles>,
+    /// In-app updater handle provided by the installed desktop app.
+    pub updater: Option<Arc<updater::UpdateHandle>>,
 }
 
 /// `<data dir>/config.json`.
@@ -145,12 +148,22 @@ impl Server {
             options.data_dir.join("server.json"),
             serde_json::to_string(&running)?,
         )?;
+        let updater = options.updater;
         let state = Arc::new(api::AppState {
             store,
             token: RwLock::new(token.clone()),
             port: address.port(),
             ui: options.ui,
+            updater: updater.clone(),
         });
+        if let Some(updater) = updater {
+            let weak = Arc::downgrade(&state);
+            updater.set_notifier(Arc::new(move || {
+                if let Some(state) = weak.upgrade() {
+                    state.store.announce_update();
+                }
+            }));
+        }
         Ok(Self {
             address,
             token,

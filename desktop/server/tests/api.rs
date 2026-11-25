@@ -764,7 +764,7 @@ async fn the_web_ui_is_served_with_the_token_written_into_the_page() {
     assert_eq!(status, StatusCode::OK);
     assert!(
         html.contains(&format!(
-            "window.__SAF_KANBAN_LOCAL__={{\"serverVersion\":\"{}\",\"token\":\"{TOKEN}\"}}",
+            "window.__SAF_KANBAN_LOCAL__={{\"canUpdate\":false,\"serverVersion\":\"{}\",\"token\":\"{TOKEN}\"}}",
             env!("CARGO_PKG_VERSION")
         )),
         "{html}"
@@ -785,4 +785,99 @@ async fn the_web_ui_is_served_with_the_token_written_into_the_page() {
         (status, code(&body)),
         (StatusCode::NOT_FOUND, "UNKNOWN_ENDPOINT")
     );
+}
+
+#[tokio::test]
+async fn in_app_updater_endpoints_work_when_attached() {
+    use saf_kanban_server::updater::{UpdateBackend, UpdateHandle, UpdateState};
+    use std::sync::Arc;
+
+    // Standalone server has no updater attached.
+    let plain = app();
+    assert_eq!(plain.get("/api/info").await["canUpdate"], false);
+    let (status, body) = plain.call(Method::GET, "/api/update", Value::Null).await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::BAD_REQUEST, "UPDATER_UNAVAILABLE")
+    );
+
+    // Installed desktop app attaches a backend.
+    struct FakeUpdater {
+        handle: Arc<UpdateHandle>,
+    }
+
+    impl UpdateBackend for FakeUpdater {
+        fn check(&self, _silent: bool) {
+            self.handle.set_state(UpdateState {
+                status: "available",
+                current_version: "0.4.0".into(),
+                version: Some("0.5.0".into()),
+                notes: Some("Bug fixes".into()),
+                release_url: Some(
+                    "https://github.com/whlshy/SAF_Kanban/releases/tag/desktop-v0.5.0".into(),
+                ),
+                downloaded: None,
+                total: None,
+                error: None,
+            });
+        }
+
+        fn install(&self) -> Result<(), (&'static str, String)> {
+            if self.handle.state().status != "available" {
+                return Err(("NO_UPDATE_AVAILABLE", "No update ready.".into()));
+            }
+            self.handle.set_state(UpdateState {
+                status: "downloading",
+                current_version: "0.4.0".into(),
+                version: Some("0.5.0".into()),
+                notes: None,
+                release_url: None,
+                downloaded: Some(50),
+                total: Some(100),
+                error: None,
+            });
+            Ok(())
+        }
+    }
+
+    let handle = Arc::new(UpdateHandle::new("0.4.0"));
+    handle.set_backend(Arc::new(FakeUpdater {
+        handle: handle.clone(),
+    }));
+    let dir =
+        std::env::temp_dir().join(format!("saf-kanban-test-{}", uuid::Uuid::new_v4().simple()));
+    let desktop = App {
+        router: common::app_with_updater(dir.clone(), None, Some(handle)),
+        dir,
+    };
+
+    assert_eq!(desktop.get("/api/info").await["canUpdate"], true);
+    assert_eq!(desktop.get("/api/update").await["status"], "idle");
+
+    let (status, body) = desktop
+        .call(Method::POST, "/api/update/install", Value::Null)
+        .await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::BAD_REQUEST, "NO_UPDATE_AVAILABLE")
+    );
+
+    let (status, checked) = desktop
+        .call(
+            Method::POST,
+            "/api/update/check",
+            json!({ "silent": false }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(checked["status"], "available");
+    assert_eq!(checked["version"], "0.5.0");
+
+    let (status, installing) = desktop
+        .call(Method::POST, "/api/update/install", Value::Null)
+        .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    assert_eq!(installing["status"], "downloading");
+    assert_eq!(installing["downloaded"], 50);
+    assert_eq!(installing["total"], 100);
 }

@@ -79,6 +79,22 @@ pub fn install(content: &str) -> std::io::Result<Vec<PathBuf>> {
     Ok(places.into_iter().map(|(_, file)| file).collect())
 }
 
+/// Refreshes any skill files that were already installed earlier and are now
+/// out of date. Never creates a skill file in a place the user hasn't
+/// installed it.
+pub fn update_installed(content: &str) -> Vec<PathBuf> {
+    let mut updated = Vec::new();
+    for (_, file) in places() {
+        let Ok(existing) = std::fs::read_to_string(&file) else {
+            continue;
+        };
+        if existing != content && write(&file, content).is_ok() {
+            updated.push(file);
+        }
+    }
+    updated
+}
+
 /// A path as it can be typed in Git Bash, PowerShell and cmd alike.
 fn typed(path: &Path) -> String {
     path.display().to_string().replace('\\', "/")

@@ -474,6 +474,11 @@ impl Store {
         self.changes.subscribe()
     }
 
+    /// Tells open windows that the desktop app's update status changed.
+    pub fn announce_update(&self) {
+        self.announce("update", None);
+    }
+
     fn announce(&self, kind: &'static str, board_id: Option<&str>) {
         // No listeners is fine.
         let _ = self.changes.send(Change {

@@ -66,12 +66,27 @@ jobs:
 
       - run: npm ci
       - name: Build the installer
-        run: npm run build:app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+            npm run build:local
+            node desktop/app/prepare-cli.mjs
+            [System.IO.File]::WriteAllText("$PWD/updater-build.json", '{"bundle":{"createUpdaterArtifacts":true}}', (New-Object System.Text.UTF8Encoding $false))
+            npx tauri build --config "$PWD/updater-build.json"
+          } else {
+            npm run build:app
+          }
 
       - name: Install it
         run: |
           $setup = Get-Item desktop/target/release/bundle/nsis/*-setup.exe
           Copy-Item $setup "SAF-Kanban_${{ steps.version.outputs.version }}_x64-setup.exe"
+          $sig = Get-Item desktop/target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue
+          if ($sig) {
+            Copy-Item $sig "SAF-Kanban_${{ steps.version.outputs.version }}_x64-setup.exe.sig"
+          }
           Start-Process $setup.FullName -ArgumentList '/S' -Wait
           $installed = Join-Path $env:LOCALAPPDATA 'SAF Kanban\saf-kanban.exe'
           if (-not (Test-Path $installed)) { throw "Not installed at $installed" }
@@ -94,14 +109,39 @@ jobs:
         run: |
           # On a tag, that tag; otherwise desktop-v<version>, made on this commit.
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "desktop-v$env:VERSION" }
+          $installer = "SAF-Kanban_${env:VERSION}_x64-setup.exe"
+          $sigPath = "${installer}.sig"
+          $conf = Get-Content desktop/app/tauri.conf.json -Raw | ConvertFrom-Json
+          $pubkey = "$($conf.plugins.updater.pubkey)".Trim()
+          if ($pubkey -and -not (Test-Path $sigPath)) {
+            throw "Updater pubkey is configured in tauri.conf.json, but TAURI_SIGNING_PRIVATE_KEY secret is missing so no .sig file was created."
+          }
+          $assets = @($installer)
+          if (Test-Path $sigPath) {
+            $signature = (Get-Content $sigPath -Raw).Trim()
+            $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            $manifest = [ordered]@{
+              version = $env:VERSION
+              notes = "https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md"
+              pub_date = $pubDate
+              platforms = [ordered]@{
+                "windows-x86_64" = [ordered]@{
+                  signature = $signature
+                  url = "https://github.com/${{ github.repository }}/releases/download/$tag/$installer"
+                }
+              }
+            } | ConvertTo-Json -Depth 5
+            [System.IO.File]::WriteAllText("$PWD/latest.json", $manifest, (New-Object System.Text.UTF8Encoding $false))
+            $assets += "latest.json"
+          }
           $notes = @"
-          Windows 安裝檔：下載 ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` 後執行。安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。
+          Windows 安裝檔：下載 ``$installer`` 後執行。安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。
 
-          Windows installer: download ``SAF-Kanban_${env:VERSION}_x64-setup.exe`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
+          Windows installer: download ``$installer`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
 
           說明 / Guide: https://github.com/${{ github.repository }}/blob/$tag/desktop/README.md
           版本紀錄 / Changelog: https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md
           "@
           # From a file, so the quotes in the text reach GitHub as written.
-          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
-          gh release create $tag "SAF-Kanban_${env:VERSION}_x64-setup.exe" --target $env:GITHUB_SHA --title "SAF Kanban Desktop $env:VERSION" --notes-file release-notes.md
+          [System.IO.File]::WriteAllText("$PWD/release-notes.md", $notes, (New-Object System.Text.UTF8Encoding $false))
+          gh release create $tag @assets --target $env:GITHUB_SHA --title "SAF Kanban Desktop $env:VERSION" --notes-file release-notes.md

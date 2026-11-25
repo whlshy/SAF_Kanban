@@ -29,13 +29,30 @@ impl Drop for App {
 }
 
 pub fn app_in(dir: PathBuf, ui_dir: Option<PathBuf>) -> Router {
-    let state = AppState {
+    app_with_updater(dir, ui_dir, None)
+}
+
+pub fn app_with_updater(
+    dir: PathBuf,
+    ui_dir: Option<PathBuf>,
+    updater: Option<Arc<saf_kanban_server::updater::UpdateHandle>>,
+) -> Router {
+    let state = Arc::new(AppState {
         store: Store::open(&dir).unwrap(),
         token: std::sync::RwLock::new(TOKEN.into()),
         port: PORT,
         ui: ui_dir.map(saf_kanban_server::ui_in),
-    };
-    router(Arc::new(state))
+        updater: updater.clone(),
+    });
+    if let Some(updater) = updater {
+        let weak = Arc::downgrade(&state);
+        updater.set_notifier(Arc::new(move || {
+            if let Some(state) = weak.upgrade() {
+                state.store.announce_update();
+            }
+        }));
+    }
+    router(state)
 }
 
 pub fn app() -> App {

@@ -23,6 +23,7 @@
 - **關閉視窗不會結束程式**，它會留在右下角的通知區域，AI agent 和其他程式才能繼續使用看板。點圖示可以叫回視窗；在圖示上按右鍵選「結束」才會真的關掉。
 - 右鍵選單的「開機時自動啟動」打勾後，登入 Windows 時會在背景啟動，不會跳出視窗。
 - 再開一次程式只會叫回原本的視窗，不會開出第二個。
+- **App 內檢查與安裝更新**：安裝版啟動後會在背景檢查是否有新版本（離線時靜默略過）；有新版本時畫面上方會跳出提示，點「立即更新」即可下載驗證並自動覆蓋安裝與重啟，看板資料不受影響。也可以從系統匣右鍵選單或頁尾的「檢查更新」手動觸發。更新重啟後，先前已經安裝過的 AI Skill 會自動更新成最新版。
 - 看板裡連到其他網站的連結會用電腦預設的瀏覽器開啟。
 - 預設使用連接埠 41952。被其他程式佔用時會改用別的連接埠，「AI / API 連線」裡顯示的位址會跟著變；用位址連線的 AI 工具要改設定，用「啟動程式」方式的不用。
 
@@ -52,7 +53,7 @@ SAF Kanban local server
 
 桌面版程式（`saf-kanban`）的畫面檔案已經包在程式裡，可以加的參數是 `--port`、`--data-dir` 和 `--hidden`（啟動時不顯示視窗）。
 
-安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時，先改 [`Cargo.toml`](Cargo.toml) 的版本並合併到 `main`，再到 GitHub 的 Actions →「Desktop app」→「Run workflow」，選 `main` 並勾選「Publish a release」；也可以推一個 `desktop-v<版本>` 的標籤。兩種方式都會建立附上安裝檔的 Release（版本已經發布過的話會失敗，不會覆蓋）。
+安裝檔由 GitHub Actions 建置（[`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)）：每次改到 `desktop/` 都會建出安裝檔、實際安裝並檢查，安裝檔放在該次執行的 Artifacts。發布新版本時，先改 [`Cargo.toml`](Cargo.toml) 的版本並合併到 `main`，再到 GitHub 的 Actions →「Desktop app」→「Run workflow」，選 `main` 並勾選「Publish a release」；也可以推一個 `desktop-v<版本>` 的標籤。兩種方式都會建立附上安裝檔與 `latest.json`（由 `TAURI_SIGNING_PRIVATE_KEY` Secret 簽章）的 Release（版本已經發布過的話會失敗，不會覆蓋）。
 
 ## 資料
 
