@@ -134,12 +134,12 @@ pub fn skill_md(cli: &Path, data_dir: &Path) -> String {
 
 const SKILL: &str = r#"---
 name: saf-kanban
-description: Read and change the user's SAF Kanban boards (看板) kept on this computer - list boards, look at tasks, add, edit, move or delete tasks, and change a board's columns or assignees. Use when the user mentions SAF Kanban, their kanban board, or tasks and to-dos on a board.
+description: Read and change the user's SAF Kanban boards (看板) — both local boards on this computer and Google Sheet boards — list boards, look at tasks, add, edit, move or delete tasks, and manage boards. Use when the user mentions SAF Kanban, their kanban board, or tasks and to-dos on a board.
 ---
 
 # SAF Kanban
 
-SAF Kanban keeps kanban boards as files on this computer. Read and change them with its command-line tool. It works whether or not the SAF Kanban app is open; when the app is open, its window shows your changes within a second.
+SAF Kanban keeps local boards as files on this computer and shares Google Sheet board settings in the same data folder. Read and change them with its command-line tool. It works whether or not the SAF Kanban desktop app is open; when the app is open, its window shows changes within a second. Google Sheet boards require Apps Script v5 or newer.
 
 The tool is this command (keep the quotes):
 
@@ -152,7 +152,7 @@ Below it is written as `saf-kanban-cli`; always type the full command above inst
 ## Commands
 
 ```
-saf-kanban-cli boards                     List the boards
+saf-kanban-cli boards                     List local and Google Sheet boards
 saf-kanban-cli board <board> [--column C] [--limit N]
                                           Columns with their tasks in order, and the assignees
 saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
@@ -173,14 +173,22 @@ saf-kanban-cli deleted <board>            Deleted tasks, newest first, with thei
 saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
                                           Put a deleted task back as it was: same id and
                                           contents, in its old column and place
-saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B]
+saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--issue-link URL]
+                         [--sheet URL|ID] [--script URL|ID] [--user NAME]
+                                          Create a local board, or add a Google Sheet board (--script)
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
-                                          --columns and --users are the complete new lists, in order
+                          [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
+                                          --columns and --users are the complete new lists (local boards)
+saf-kanban-cli delete-board <board>       Delete a local board, or remove a Google Sheet board from the list
+saf-kanban-cli import <file> [--password PWD]
+                                          Import exported Google Sheet settings or a local board JSON
+saf-kanban-cli export [board...] [--sheets] [--out FILE] [--password PWD]
+                                          Export a local board or Google Sheet settings
 ```
 
 - `<board>` is a board's id or its exact name. `<task>` is a task id, shown in brackets like `[3f9a1c2e]`.
 - Add `--json` to any command to get JSON instead of text.
-- To add notes to an existing description without replacing it, use `--append-description` (or `--append-description-file`): it appends after a blank line safely under the file lock.
+- To add notes to an existing description without replacing it, use `--append-description` (or `--append-description-file`): it appends after a blank line safely under the lock.
 - For a description with several lines, pass `--description -` (or `--append-description -`) to read from standard input, or `--description-file FILE` / `--append-description-file FILE` to read from a file. **In PowerShell, write the text to a temporary file and use `--description-file` / `--append-description-file` instead of piping through standard input**, to avoid PowerShell pipeline encoding issues.
 - On a large board, narrow the view with `board <board> --column C --limit N` (or `tasks <board> --column C --limit N`). `--since` and `--until` (`YYYY-MM-DD` or ISO timestamp) filter by when a task last moved into its current column (`movedAt`), and `--limit N` returns the `N` tasks most recently moved into their column.
 
@@ -188,8 +196,8 @@ saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW
 
 - Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, and the names tasks can be assigned to. Use those exact names.
 - Each task is in one column. Priorities are `high`, `medium` and `low`.
-- `--rename OLD=NEW` renames a column and its tasks follow it. A column that still has tasks can't be removed; move or delete them first.
-- Ask the user before deleting tasks, removing columns or renaming boards.
+- For local boards, `--rename OLD=NEW` renames a column and its tasks follow it; a column that still has tasks can't be removed. For Google Sheet boards, columns and assignees are managed in the spreadsheet's `columns` and `users` tabs.
+- Ask the user before deleting tasks, deleting boards (`delete-board`), removing columns, or renaming boards.
 - A deleted task can be put back with `restore`, exactly as it was. If a task was deleted by mistake, restore it (find its id with `deleted`) instead of adding it again with `add`, which would make a different task. If its column was removed since, pass `--column`.
-- When a command fails it says why (an unknown column, a task id that doesn't exist, ...) and exits with a non-zero status; fix the command and try again.
+- When a command fails it says why (an unknown column, a task id that doesn't exist, an older Apps Script version, ...) and exits with a non-zero status; fix the command and try again.
 "#;

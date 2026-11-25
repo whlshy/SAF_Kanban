@@ -48,7 +48,7 @@ use tokio_stream::{Stream, StreamExt};
 
 use crate::error::{ApiError, ApiResult};
 use crate::mcp;
-use crate::model::{Board, BoardInfo, DeletedTask, Task};
+use crate::model::{Board, BoardInfo, DeletedTask, SheetBoard, Task};
 use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInput, TaskQuery};
 use crate::updater::{UpdateHandle, UpdateState};
 
@@ -69,6 +69,7 @@ type Shared = Arc<AppState>;
 pub fn router(state: Shared) -> Router {
     let api = Router::new()
         .route("/info", get(info))
+        .route("/sheets", get(list_sheets).put(replace_sheets))
         .route("/boards", get(list_boards).post(create_board))
         .route(
             "/boards/{board}",
@@ -338,6 +339,19 @@ async fn mcp_message(State(state): State<Shared>, body: Bytes) -> Response {
         Some(answer) => Json(answer).into_response(),
         None => StatusCode::ACCEPTED.into_response(),
     }
+}
+
+// ---- sheets ----
+
+async fn list_sheets(State(state): State<Shared>) -> ApiResult<Json<Vec<SheetBoard>>> {
+    state.store.list_sheets().map(Json)
+}
+
+async fn replace_sheets(
+    State(state): State<Shared>,
+    Json(boards): Json<Vec<SheetBoard>>,
+) -> ApiResult<Json<Vec<SheetBoard>>> {
+    state.store.replace_sheets(boards).map(Json)
 }
 
 // ---- boards ----

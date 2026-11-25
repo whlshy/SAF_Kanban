@@ -112,7 +112,7 @@ export default defineConfig(({
   }
 });
 
-// 自動複製 index.html 為 404.html
+// 自動複製 index.html 為 404.html，並同步輸出純 CLI 一鍵安裝腳本至 GitHub Pages 根目錄
 function create404Plugin() {
   return {
     name: 'create-404-plugin',
@@ -125,6 +125,15 @@ function create404Plugin() {
         console.log('✅ Copied index.html → 404.html')
       } else {
         console.warn('⚠️ index.html not found after build')
+      }
+
+      for (const name of ['install.ps1', 'install.sh']) {
+        const src = path.resolve(__dirname, 'scripts', name)
+        const dst = path.resolve(__dirname, 'dist', name)
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, dst)
+          console.log(`✅ Copied scripts/${name} → dist/${name}`)
+        }
       }
     }
   }

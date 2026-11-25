@@ -45,6 +45,20 @@ pub(super) fn show_boards(boards: &Value) -> String {
     boards
         .iter()
         .map(|board| {
+            if text(&board["type"]) == "sheet" {
+                let sheet_id = text(&board["sheetId"]);
+                let mut parts = vec![
+                    format!("[{}] {}", text(&board["id"]), text(&board["title"])),
+                    "Google Sheet".to_string(),
+                ];
+                if !sheet_id.is_empty() {
+                    parts.push(format!("sheet {sheet_id}"));
+                }
+                if !board["hasScript"].as_bool().unwrap_or(false) {
+                    parts.push("no Apps Script".to_string());
+                }
+                return parts.join(" · ");
+            }
             let columns: Vec<&str> = board["columns"]
                 .as_array()
                 .map(|names| names.iter().map(text).collect())
@@ -164,6 +178,20 @@ pub(super) fn show_deleted(tasks: &Value) -> String {
 }
 
 pub(super) fn show_board_info(verb: &str, board: &Value) -> String {
+    if text(&board["type"]) == "sheet" {
+        let mut lines = vec![format!(
+            "{verb} Google Sheet board [{}] {}",
+            text(&board["id"]),
+            text(&board["title"])
+        )];
+        if !text(&board["sheetId"]).is_empty() {
+            lines.push(format!("Sheet ID: {}", text(&board["sheetId"])));
+        }
+        if !text(&board["issueLink"]).is_empty() {
+            lines.push(format!("Issue link: {}", text(&board["issueLink"])));
+        }
+        return lines.join("\n");
+    }
     let names = |field: &str| -> String {
         board[field]
             .as_array()

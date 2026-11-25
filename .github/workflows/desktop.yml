@@ -1,12 +1,11 @@
-# Builds the Windows installer of the desktop app (desktop/), installs it on
-# the build machine and checks that the installed app works. The installer is
-# kept with the run, under "Artifacts".
+# Builds the Windows desktop installer (desktop/) and standalone cross-platform
+# CLI binaries (saf-kanban-cli for Windows x64, macOS arm64/x64, Linux x64),
+# tests them, and publishes them together on a GitHub Release.
 #
 # To publish a version: set it in desktop/Cargo.toml and merge it into main.
 # Then either run this workflow on main from the Actions tab with "Publish a
 # release" checked, or push a tag named desktop-v<version> (for example
-# desktop-v0.1.0). Either way the run creates the release, and the tag if
-# needed, with the installer attached.
+# desktop-v0.6.0).
 name: Desktop app
 
 on:
@@ -15,6 +14,7 @@ on:
     tags: ['desktop-v*']
     paths:
       - desktop/**
+      - scripts/install.*
       - .github/workflows/desktop.yml
   workflow_dispatch:
     inputs:
@@ -36,8 +36,8 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
-    permissions:
-      contents: write # to create the release
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     defaults:
       run:
         shell: pwsh
@@ -79,69 +79,184 @@ jobs:
             npm run build:app
           }
 
-      - name: Install it
+      - name: Install and check the app
         run: |
+          $version = "${{ steps.version.outputs.version }}"
           $setup = Get-Item desktop/target/release/bundle/nsis/*-setup.exe
-          Copy-Item $setup "SAF-Kanban_${{ steps.version.outputs.version }}_x64-setup.exe"
+          Copy-Item $setup "SAF-Kanban_${version}_x64-setup.exe"
           $sig = Get-Item desktop/target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue
           if ($sig) {
-            Copy-Item $sig "SAF-Kanban_${{ steps.version.outputs.version }}_x64-setup.exe.sig"
+            Copy-Item $sig "SAF-Kanban_${version}_x64-setup.exe.sig"
           }
           Start-Process $setup.FullName -ArgumentList '/S' -Wait
           $installed = Join-Path $env:LOCALAPPDATA 'SAF Kanban\saf-kanban.exe'
           if (-not (Test-Path $installed)) { throw "Not installed at $installed" }
-          "INSTALLED=$installed" >> $env:GITHUB_ENV
+          node desktop/app/smoke-test.mjs "$installed"
 
-      - name: Check the installed app
-        run: node desktop/app/smoke-test.mjs "$env:INSTALLED"
+      - name: Package standalone Windows CLI
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $cli = "desktop/target/release/saf-kanban-cli.exe"
+          if (-not (Test-Path $cli)) { throw "Missing $cli" }
+          & $cli --version
+          Compress-Archive -Path $cli -DestinationPath "saf-kanban-cli-${version}-windows-x64.zip" -Force
 
       - uses: actions/upload-artifact@v7
         with:
           name: SAF-Kanban-${{ steps.version.outputs.version }}-windows
-          path: SAF-Kanban_*-setup.exe
+          path: |
+            SAF-Kanban_*-setup.exe
+            SAF-Kanban_*-setup.exe.sig
+            saf-kanban-cli-*-windows-x64.zip
           if-no-files-found: error
 
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            label: macos-arm64
+            run_check: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            label: macos-x64
+            run_check: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            label: linux-x64
+            run_check: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+          key: cli-${{ matrix.target }}
+
+      - name: Read the version
+        id: version
+        shell: bash
+        run: |
+          version=$(cargo metadata --manifest-path desktop/Cargo.toml --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "saf-kanban-server") | .version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build saf-kanban-cli (${{ matrix.label }})
+        shell: bash
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: |
+          cargo build --release --manifest-path desktop/Cargo.toml -p saf-kanban-server --bin saf-kanban-cli --target ${{ matrix.target }}
+          bin="desktop/target/${{ matrix.target }}/release/saf-kanban-cli"
+          if [ "${{ matrix.run_check }}" = "true" ]; then
+            "$bin" --version
+          fi
+          archive="saf-kanban-cli-${{ steps.version.outputs.version }}-${{ matrix.label }}.tar.gz"
+          tar -czf "$archive" -C "desktop/target/${{ matrix.target }}/release" saf-kanban-cli
+          ls -lh "$archive"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: saf-kanban-cli-${{ steps.version.outputs.version }}-${{ matrix.label }}
+          path: saf-kanban-cli-*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, cli]
+    if: github.ref_type == 'tag' || (inputs.publish && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
       - name: Publish the release
-        if: github.ref_type == 'tag' || (inputs.publish && github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.windows.outputs.version }}
         run: |
-          # On a tag, that tag; otherwise desktop-v<version>, made on this commit.
-          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "desktop-v$env:VERSION" }
-          $installer = "SAF-Kanban_${env:VERSION}_x64-setup.exe"
-          $sigPath = "${installer}.sig"
-          $conf = Get-Content desktop/app/tauri.conf.json -Raw | ConvertFrom-Json
-          $pubkey = "$($conf.plugins.updater.pubkey)".Trim()
-          if ($pubkey -and -not (Test-Path $sigPath)) {
-            throw "Updater pubkey is configured in tauri.conf.json, but TAURI_SIGNING_PRIVATE_KEY secret is missing so no .sig file was created."
-          }
-          $assets = @($installer)
-          if (Test-Path $sigPath) {
-            $signature = (Get-Content $sigPath -Raw).Trim()
-            $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            $manifest = [ordered]@{
-              version = $env:VERSION
-              notes = "https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md"
-              pub_date = $pubDate
-              platforms = [ordered]@{
-                "windows-x86_64" = [ordered]@{
-                  signature = $signature
-                  url = "https://github.com/${{ github.repository }}/releases/download/$tag/$installer"
+          set -euo pipefail
+          cd release-artifacts
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="desktop-v${VERSION}"
+          fi
+
+          INSTALLER="SAF-Kanban_${VERSION}_x64-setup.exe"
+          SIG_PATH="${INSTALLER}.sig"
+
+          PUBKEY="$(jq -r '.plugins.updater.pubkey // ""' ../desktop/app/tauri.conf.json)"
+          if [ -n "$PUBKEY" ] && [ ! -f "$SIG_PATH" ]; then
+            echo "Updater pubkey is configured in tauri.conf.json, but TAURI_SIGNING_PRIVATE_KEY secret is missing so no .sig file was created." >&2
+            exit 1
+          fi
+
+          # Checksums for standalone CLI archives (verified by install.ps1 / install.sh).
+          sha256sum saf-kanban-cli-*.zip saf-kanban-cli-*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+          ASSETS=(
+            "$INSTALLER"
+            saf-kanban-cli-*.zip
+            saf-kanban-cli-*.tar.gz
+            SHA256SUMS.txt
+          )
+
+          if [ -f "$SIG_PATH" ]; then
+            SIGNATURE="$(tr -d '\r\n' < "$SIG_PATH")"
+            PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            jq -n \
+              --arg version "$VERSION" \
+              --arg notes "https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/CHANGELOG.md" \
+              --arg pub_date "$PUB_DATE" \
+              --arg signature "$SIGNATURE" \
+              --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${INSTALLER}" \
+              '{
+                version: $version,
+                notes: $notes,
+                pub_date: $pub_date,
+                platforms: {
+                  "windows-x86_64": {
+                    signature: $signature,
+                    url: $url
+                  }
                 }
-              }
-            } | ConvertTo-Json -Depth 5
-            [System.IO.File]::WriteAllText("$PWD/latest.json", $manifest, (New-Object System.Text.UTF8Encoding $false))
-            $assets += "latest.json"
-          }
-          $notes = @"
-          Windows 安裝檔：下載 ``$installer`` 後執行。安裝檔沒有簽章，Windows 會顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。
+              }' > latest.json
+            ASSETS+=(latest.json)
+          fi
 
-          Windows installer: download ``$installer`` and run it. The installer isn't signed, so Windows shows "Windows protected your PC"; choose "More info", then "Run anyway".
+          cat > release-notes.md <<EOF
+          ### 桌面版 / Desktop app (Windows)
+          下載 \`${INSTALLER}\` 後執行（內含桌面介面與 \`saf-kanban-cli.exe\`）。安裝檔沒有程式碼簽章，Windows 若顯示「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」即可。已安裝 0.5.0 以上版本可直接於應用程式內更新。
 
-          說明 / Guide: https://github.com/${{ github.repository }}/blob/$tag/desktop/README.md
-          版本紀錄 / Changelog: https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md
-          "@
-          # From a file, so the quotes in the text reach GitHub as written.
-          [System.IO.File]::WriteAllText("$PWD/release-notes.md", $notes, (New-Object System.Text.UTF8Encoding $false))
-          gh release create $tag @assets --target $env:GITHUB_SHA --title "SAF Kanban Desktop $env:VERSION" --notes-file release-notes.md
+          Download \`${INSTALLER}\` and run it (includes the desktop UI and \`saf-kanban-cli.exe\`). The installer isn't code-signed, so if Windows shows "Windows protected your PC", choose "More info" → "Run anyway". Desktop app 0.5.0+ can update directly from inside the app.
+
+          ### 純 CLI（免安裝桌面版） / Standalone CLI
+          - **Windows (PowerShell)**: \`irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex\`
+          - **macOS / Linux**: \`curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh\`
+
+          說明 / Guide: https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/desktop/README.md
+          版本紀錄 / Changelog: https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/CHANGELOG.md
+          EOF
+
+          gh release create "$TAG" "${ASSETS[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "SAF Kanban Desktop & CLI ${VERSION}" \
+            --notes-file release-notes.md

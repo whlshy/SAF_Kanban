@@ -84,3 +84,16 @@ impl From<&Board> for BoardInfo {
         }
     }
 }
+
+/// Settings for a Google Sheet board, shared between the desktop app and the CLI
+/// in `<data dir>/sheets.json`. Field names match the web UI's `BOARD_FIELDS`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SheetBoard {
+    pub id: String,
+    pub title: String,
+    pub sheet_id: String,
+    pub script_id: String,
+    pub user_key: String,
+    pub jira_link: String,
+}

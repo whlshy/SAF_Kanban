@@ -1,14 +1,16 @@
-# SAF Kanban 桌面版（Windows）
+# SAF Kanban 桌面版與純 CLI
 
 繁體中文 | [English](README.en.md)
 
-讓 SAF Kanban 完全在自己的電腦上執行：看板存成本機 JSON 檔案、不需 Google Sheet 與網路即可完整讀寫，並內建 CLI、AI Agent Skill、MCP 與 HTTP API，讓 AI 工具與腳本都能直接操作看板。
+讓 SAF Kanban 在自己的電腦上運作：本機看板存成 JSON 檔案（不需網路即可完整讀寫），並支援共用 Google Sheet 看板清單（透過 Apps Script v5+）；內建 CLI、AI Agent Skill、MCP 與 HTTP API，可選擇安裝 Windows 桌面版或免安裝桌面版的跨平台純 CLI。
 
-**[下載 Windows 安裝檔](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[返回主文件](../README.md)** ｜ **[版本紀錄](../CHANGELOG.md)**
+**[下載安裝檔與純 CLI](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[返回主文件](../README.md)** ｜ **[版本紀錄](../CHANGELOG.md)**
 
 ## 目錄
 
 - [安裝與日常使用](#安裝與日常使用)
+  - [Windows 桌面版（含介面與 CLI）](#windows-桌面版含介面與-cli)
+  - [純 CLI 版（Windows / macOS / Linux）](#純-cli-版windows--macos--linux)
 - [讓 AI Agent 使用](#讓-ai-agent-使用)
   - [Skill 與命令列（建議）](#skill-與命令列建議)
   - [MCP](#mcp)
@@ -21,10 +23,12 @@
 
 ## 安裝與日常使用
 
+### Windows 桌面版（含介面與 CLI）
+
 到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載最新的 `SAF-Kanban_<版本>_x64-setup.exe` 後執行：
 
 - 安裝檔目前未加程式碼簽章，Windows 顯示「Windows 已保護您的電腦」時點「**其他資訊 → 仍要執行**」。
-- 只安裝給目前的使用者，不需要系統管理員權限。
+- 只安裝給目前的使用者，不需要系統管理員權限，並會一併安裝 `saf-kanban-cli.exe`；歡迎畫面提供「**將 `saf-kanban-cli` 加入使用者 PATH**」選項可依需求勾選（解除安裝時會自動移除）。
 - 畫面使用 Windows 內建 WebView2（Windows 11 與已更新的 Windows 10 皆內建；若缺少會在安裝時自動下載一次）。
 
 日常使用與網頁版一致，桌面版另提供以下行為：
@@ -34,17 +38,37 @@
 - **App 內檢查與自動更新（`0.5.0+`）**：啟動 5 秒後與每 6 小時自動檢查新版本（離線時靜默略過）；有新版時上方會出現通知，點「**立即更新**」會下載、驗證 minisign 簽章並以 Windows NSIS `passive` 模式自動覆寫安裝與重啟，資料不受影響。也可從系統匣右鍵選單或頁尾的「檢查更新」手動觸發。
 - **自動同步 AI Skill**：更新桌面版並啟動時，會自動將先前已安裝過的 AI Skill 更新到最新版（未安裝過的位置不會自動建立）。
 - **外部連結與連接埠**：看板中的外部連結會用系統預設瀏覽器開啟。本機伺服器預設監聽 `41952`；若被佔用會自動改用空埠，可在右上角「AI / API 連線」查看實際位址。
-- **Google Sheet 看板**：在桌面版也能照常使用（需網路；讀取用 API 金鑰需允許 `http://127.0.0.1:41952/*` 來源）。
+- **Google Sheet 看板與 CLI 同步**：桌面版的 Google Sheet 看板清單保存在 `<資料夾>/sheets.json`（與本機看板同一個資料夾），與 CLI 完全共用；兩邊新增、修改或刪除皆會在 1 秒內同步。
+
+### 純 CLI 版（Windows / macOS / Linux）
+
+不需要桌面視窗時，可用官方一鍵安裝腳本直接安裝獨立執行檔 `saf-kanban-cli`（支援 Windows x64、macOS Apple Silicon / Intel、Linux x64，自動校驗 `SHA256SUMS.txt` 並加入使用者 `PATH`）：
+
+- **Windows（PowerShell）**：
+  ```powershell
+  irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex
+  ```
+- **macOS / Linux**：
+  ```bash
+  curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
+  ```
+
+- **升級**：重跑同一行安裝指令即可覆寫為最新版。
+- **解除安裝**：
+  - Windows：`$env:SAF_KANBAN_UNINSTALL=1; irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex`
+  - macOS / Linux：`curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh -s -- --uninstall`
+- **不修改 PATH**：Windows 加上 `$env:SAF_KANBAN_NO_PATH=1`；macOS / Linux 加上 `-s -- --no-path`。也可到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 手動下載各平台壓縮檔。
+- **與桌面版共存**：純 CLI 與桌面版共用同一個資料夾（`%APPDATA%\SAF Kanban` / `~/.local/share/saf-kanban`），先用純 CLI 建立的本機看板或匯入的 Google Sheet 看板，之後裝上桌面版會直接出現。
 
 ---
 
 ## 讓 AI Agent 使用
 
-點畫面右上角的機器人圖示（「**AI / API 連線**」）可直接查看各種連線方式的路徑、位址與可複製的設定。
+點畫面右上角的機器人圖示（「**AI / API 連線**」）可直接查看各種連線方式的路徑、位址與可複製的設定（純 CLI 版則直接使用 `saf-kanban-cli skill --install`）。
 
 | 方式 | 適用工具 | SAF Kanban 要開著嗎 | 需要權杖嗎 |
 | --- | --- | --- | --- |
-| **Skill + 命令列（建議）** | Claude Code、Codex、Gemini CLI、GitHub Copilot、Cursor 等支援 Agent Skills 的工具；其餘只要能跑指令的 AI 也能直接用 CLI | 不用 | 不用 |
+| **Skill + 命令列（建議）** | Claude Code、Codex、Cursor、Antigravity、Gemini CLI、GitHub Copilot 等支援 Agent Skills 的工具；其餘只要能跑指令的 AI 也能直接用 CLI | 不用 | 不用 |
 | **MCP（stdio 啟動程式）** | Claude Desktop 等由工具自行啟動程式的用戶端 | 不用 | 不用 |
 | **MCP（HTTP 網址）** | Claude Code、Cursor 等可填 MCP 網址的工具 | 要 | 要 |
 | **HTTP API** | 自寫腳本或其他程式整合 | 要 | 要 |
@@ -53,12 +77,12 @@
 
 ### Skill 與命令列（建議）
 
-安裝版會在 `saf-kanban.exe` 旁邊附帶命令列工具 `saf-kanban-cli.exe`（預設在 `%LOCALAPPDATA%\SAF Kanban\`）。`SKILL.md` 已寫好工具完整路徑，不需要手動改 `PATH`。
+安裝桌面版會在 `saf-kanban.exe` 旁邊附帶 `saf-kanban-cli.exe`（預設在 `%LOCALAPPDATA%\SAF Kanban\`）；純 CLI 版則裝在使用者 `PATH` 內。`SKILL.md` 已寫好工具完整路徑，AI 工具不需另外設定環境變數即可呼叫。
 
 安裝 skill（擇一）：
 
-- 在畫面點「**AI / API 連線 → Skill（建議）→ 安裝 skill**」
-- 或在終端機執行 `saf-kanban-cli skill --install`
+- 在桌面版畫面點「**AI / API 連線 → Skill（建議）→ 安裝 skill**」
+- 或在終端機執行 `saf-kanban-cli skill --install`（可用 `--target agents|claude|antigravity` 只裝單一目標）
 
 預設支援三個共用位置（畫面可個別安裝或全部安裝）：
 
@@ -71,10 +95,11 @@
 - 其他工具可執行 `saf-kanban-cli skill --into <skills 資料夾>`，或手動儲存 `saf-kanban-cli skill` 印出的內容。
 - 桌面版升級啟動時會自動更新已安裝的 skill；若你手動搬動了安裝位置，請再安裝一次（「AI / API 連線」會顯示「需要更新」）。
 
-命令列也可以直接手動或給腳本使用：
+命令列同時支援**本機看板**與 **Google Sheet 看板（需 Apps Script v5 以上）**，也可以直接手動或給腳本使用：
 
 ```text
-saf-kanban-cli boards                     列出看板
+saf-kanban-cli --version                  顯示 CLI 版本
+saf-kanban-cli boards                     列出本機與 Google Sheet 看板
 saf-kanban-cli board <看板> [--column C] [--limit N]
                                           欄位、任務與負責人
 saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--search 關鍵字]
@@ -87,18 +112,27 @@ saf-kanban-cli edit <看板> <任務> [--title T] [--priority P] [--assignee A] 
                      --append-description 描述 | --append-description-file 檔案]
 saf-kanban-cli move <看板> <任務>... <欄位> [--before 任務 | --after 任務]
 saf-kanban-cli delete <看板> <任務>       刪除任務（保留在歷史紀錄）
-saf-kanban-cli deleted <看板>             列出已刪除的任務
+saf-kanban-cli deleted <看板>             列出已刪除的任務（由新到舊）
 saf-kanban-cli restore <看板> <任務> [--column C] [--before 任務 | --after 任務]
                                           原樣復原已刪除的任務
-saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B]
+saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B] [--issue-link 網址]
+                         [--sheet 網址或ID] [--script 網址或ID] [--user 名稱]
+                                          建立本機看板，或帶 --script 新增 Google Sheet 看板
 saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
-saf-kanban-cli skill [--install | --into 資料夾]   印出或安裝 skill
+                          [--issue-link 網址] [--sheet 網址或ID] [--script 網址或ID] [--user 名稱]
+saf-kanban-cli delete-board <看板>        刪除本機看板（移至 trash/），或從清單移除 Google Sheet 看板（不動雲端試算表）
+saf-kanban-cli import <檔案> [--password 密碼]
+                                          匯入網頁／桌面版匯出的設定檔（支援明文與加密檔）或單一本機看板
+saf-kanban-cli export [看板...] [--sheets] [--out 檔案] [--password 密碼]
+                                          匯出單一本機看板，或匯出 Google Sheet 設定（--out - 輸出至 stdout）
+saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into 資料夾]
+                                          印出或安裝 skill
 ```
 
-- `<看板>` 可填 ID 或名稱；`<任務>` 為方括號內的任務 ID。`move` 可一次指定多個任務 ID（原子寫入）。
-- 所有指令皆支援 `--json`（輸出 JSON）與 `--data-dir <資料夾>`。
+- `<看板>` 可填 ID 或名稱；`<任務>` 為方括號內的任務 ID。`move` 可一次指定多個任務 ID。
+- 所有指令皆支援 `--json`（輸出 JSON）與 `--data-dir <資料夾>`；`boards` 預設與 JSON 輸出皆不會印出 Google Sheet 的 `scriptId`，避免外洩寫入網址。
 - `--description -`／`--append-description -` 從標準輸入讀取（自動處理 UTF-8 BOM 與 UTF-16）；PowerShell 建議改用 `--description-file`／`--append-description-file`。
-- `--append-description` 會在檔案鎖內空一行接在原本描述後面，不覆蓋原內容。
+- `--append-description` 會在鎖內空一行接在原本描述後面，不覆蓋原內容（本機與 Apps Script v5 皆支援）。
 - `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）依 `movedAt` 篩選；`--limit N` 依 `movedAt` 取最近移入的 N 張。
 - 失敗時錯誤輸出到 stderr，結束碼為 `1`（語法錯誤為 `2`）。
 
@@ -142,7 +176,8 @@ saf-kanban-cli skill [--install | --into 資料夾]   印出或安裝 skill
 | 路徑 | 內容 |
 | --- | --- |
 | `boards/<看板 ID>.json` | 每個看板一個獨立 JSON 檔（欄位、負責人、任務、已刪除紀錄） |
-| `trash/` | 刪除的看板會移到此處保留，不會直接消失 |
+| `sheets.json` | 桌面版與 CLI 共用的 Google Sheet 看板設定清單（Unix 權限 `0600`） |
+| `trash/` | 刪除的本機看板會移到此處保留，不會直接消失 |
 | `config.json` | API 權杖 |
 | `boards.lock` | 多程式並發寫入用的檔案鎖 |
 | `server.json` | 伺服器目前連接埠（供 `mcp` 模式自動偵測） |
@@ -171,7 +206,8 @@ saf-kanban-cli skill [--install | --into 資料夾]   印出或安裝 skill
 | 方法與路徑 | 功能 |
 | --- | --- |
 | `GET /info` | 伺服器名稱、版本與是否支援 App 內更新（`canUpdate`） |
-| `GET /boards` / `POST /boards` | 列出看板／建立看板（可帶 `tasks`、`history` 還原匯出檔） |
+| `GET /sheets` / `PUT /sheets` | 讀取／同步桌面版與 CLI 共用的 Google Sheet 看板清單（`sheets.json`） |
+| `GET /boards` / `POST /boards` | 列出本機看板／建立看板（可帶 `tasks`、`history` 還原匯出檔） |
 | `GET /boards/{看板}` / `PATCH` / `DELETE` | 讀取／修改名稱、欄位（含 `renames`）與負責人／刪除至 `trash/` |
 | `GET /boards/{看板}/export` | 匯出整個看板（設定、任務、已刪除紀錄） |
 | `GET /boards/{看板}/tasks` / `POST` | 篩選列出任務／新增任務 |

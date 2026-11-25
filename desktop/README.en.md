@@ -1,14 +1,16 @@
-# SAF Kanban Desktop App (Windows)
+# SAF Kanban Desktop App & Standalone CLI
 
 [繁體中文](README.md) | English
 
-Run SAF Kanban completely on your own computer: boards are stored as local JSON files with full offline read/write (no Google Sheets or internet required), and bundled CLI, AI agent skill, MCP, and HTTP API interfaces let AI tools and scripts work on your boards directly.
+Run SAF Kanban directly on your computer: local boards are stored as JSON files with full offline read/write, and Google Sheet board settings are shared in the same data folder (via Apps Script v5+). Choose either the Windows desktop app (GUI + CLI + MCP + HTTP API) or the cross-platform standalone CLI (Windows / macOS / Linux).
 
-**[Download Windows Installer](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Back to Main README](../README.en.md)** ｜ **[Changelog](../CHANGELOG.en.md)**
+**[Download Desktop App & CLI](https://github.com/whlshy/SAF_Kanban/releases)** ｜ **[Back to Main README](../README.en.md)** ｜ **[Changelog](../CHANGELOG.en.md)**
 
 ## Table of Contents
 
 - [Install and Everyday Use](#install-and-everyday-use)
+  - [Windows Desktop App (GUI + CLI)](#windows-desktop-app-gui--cli)
+  - [Standalone CLI (Windows / macOS / Linux)](#standalone-cli-windows--macos--linux)
 - [Using with AI Agents](#using-with-ai-agents)
   - [Skill and Command Line (Recommended)](#skill-and-command-line-recommended)
   - [MCP](#mcp)
@@ -21,10 +23,12 @@ Run SAF Kanban completely on your own computer: boards are stored as local JSON 
 
 ## Install and Everyday Use
 
+### Windows Desktop App (GUI + CLI)
+
 Download the latest `SAF-Kanban_<version>_x64-setup.exe` from [Releases](https://github.com/whlshy/SAF_Kanban/releases) and run it:
 
 - The installer isn't code-signed yet, so when Windows shows "Windows protected your PC", click **More info → Run anyway**.
-- Installs for the current user only — no administrator privileges required.
+- Installs for the current user only — no administrator privileges required — and bundles `saf-kanban-cli.exe` alongside `saf-kanban.exe`. The welcome page offers an optional **Add `saf-kanban-cli` to user PATH** checkbox (automatically removed on uninstall).
 - Uses Windows' built-in WebView2 runtime (included in Windows 11 and updated Windows 10; downloaded automatically once during install if missing).
 
 Everything works like the web app, plus desktop-specific features:
@@ -34,17 +38,37 @@ Everything works like the web app, plus desktop-specific features:
 - **In-app update check & install (`0.5.0+`)**: automatically checks GitHub Releases 5 seconds after startup and every 6 hours (silently skipped when offline). When a new version is found, click **Update now** on the banner to download, verify the minisign signature, and install via Windows NSIS `passive` mode with automatic restart — your boards remain untouched. You can also trigger **Check for updates** from the tray menu or footer.
 - **Automatic AI skill refresh**: on startup after an update, any previously installed AI skill is refreshed automatically (no files are created where you haven't installed it).
 - **External links & port**: external links open in your default browser. The local server listens on port `41952` by default and picks a free port if taken (check the active address in **AI / API** at the top right).
-- **Google Sheet boards**: continue to work in the desktop app when online (the Sheets API key must allow the `http://127.0.0.1:41952/*` origin).
+- **Google Sheet boards synced with CLI**: the desktop app stores its Google Sheet board list in `<data dir>/sheets.json` (in the same folder as local boards), shared directly with the CLI so changes on either side appear within a second.
+
+### Standalone CLI (Windows / macOS / Linux)
+
+If you don't need the desktop GUI, install the standalone `saf-kanban-cli` binary with one command (supports Windows x64, macOS Apple Silicon / Intel, and Linux x64; verifies `SHA256SUMS.txt` and adds the install folder to user `PATH`):
+
+- **Windows (PowerShell)**:
+  ```powershell
+  irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex
+  ```
+- **macOS / Linux**:
+  ```bash
+  curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
+  ```
+
+- **Upgrade**: re-run the exact same install command to upgrade in place.
+- **Uninstall**:
+  - Windows: `$env:SAF_KANBAN_UNINSTALL=1; irm https://whlshy.github.io/SAF_Kanban/install.ps1 | iex`
+  - macOS / Linux: `curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh -s -- --uninstall`
+- **Skip PATH edits**: set `$env:SAF_KANBAN_NO_PATH=1` on Windows, or pass `-s -- --no-path` on macOS/Linux. Platform archives are also available directly on [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+- **Coexistence with the desktop app**: both share the exact same data folder (`%APPDATA%\SAF Kanban` / `~/.local/share/saf-kanban`), so boards created or imported via the CLI appear automatically if you install the desktop app later.
 
 ---
 
 ## Using with AI Agents
 
-Click the robot icon (**AI / API**) at the top right to see exact paths, addresses, and copyable snippets for each integration method.
+Click the robot icon (**AI / API**) at the top right to see exact paths, addresses, and copyable snippets for each integration method (standalone CLI users can run `saf-kanban-cli skill --install` directly).
 
 | Method | Best for | Needs app open? | Needs token? |
 | --- | --- | --- | --- |
-| **Skill + CLI (Recommended)** | Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, and any agent that supports Agent Skills or shell commands | No | No |
+| **Skill + CLI (Recommended)** | Claude Code, Codex, Cursor, Antigravity, Gemini CLI, GitHub Copilot, and any agent that supports Agent Skills or shell commands | No | No |
 | **MCP (stdio program)** | Claude Desktop and clients that spawn an MCP binary | No | No |
 | **MCP (HTTP URL)** | Claude Code, Cursor, and tools accepting an HTTP MCP endpoint | Yes | Yes |
 | **HTTP API** | Custom scripts and programs | Yes | Yes |
@@ -53,12 +77,12 @@ Click the robot icon (**AI / API**) at the top right to see exact paths, address
 
 ### Skill and Command Line (Recommended)
 
-The installer places `saf-kanban-cli.exe` right next to `saf-kanban.exe` (default: `%LOCALAPPDATA%\SAF Kanban\`). The generated `SKILL.md` embeds the full binary path, so you don't need to edit `PATH`.
+The desktop installer places `saf-kanban-cli.exe` right next to `saf-kanban.exe` (default: `%LOCALAPPDATA%\SAF Kanban\`); the standalone CLI installer puts `saf-kanban-cli` on your user `PATH`. The generated `SKILL.md` embeds the full binary path so AI agents can run it immediately.
 
 Install the skill (either way):
 
-- Open **AI / API → Skill (recommended) → Install the skill** in the app
-- Or run `saf-kanban-cli skill --install`
+- Open **AI / API → Skill (recommended) → Install the skill** in the desktop app
+- Or run `saf-kanban-cli skill --install` (pass `--target agents|claude|antigravity` to install just one target)
 
 Supports three standard global locations (install individually or all at once in the UI):
 
@@ -71,10 +95,11 @@ Supports three standard global locations (install individually or all at once in
 - For other agents, run `saf-kanban-cli skill --into <skills folder>` or save the output of `saf-kanban-cli skill`.
 - Updating the desktop app refreshes installed skills automatically on startup; if you move the app binary to another path, reinstall once (**AI / API** will show "Update needed").
 
-You can also use the CLI directly from a terminal or scripts:
+The CLI works on both **local boards** and **Google Sheet boards (requires Apps Script v5+)**:
 
 ```text
-saf-kanban-cli boards                     List boards
+saf-kanban-cli --version                  Print the CLI version
+saf-kanban-cli boards                     List local and Google Sheet boards
 saf-kanban-cli board <board> [--column C] [--limit N]
                                           Columns, tasks, and assignees
 saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
@@ -87,18 +112,27 @@ saf-kanban-cli edit <board> <task> [--title T] [--priority P] [--assignee A] [--
                      --append-description TEXT | --append-description-file FILE]
 saf-kanban-cli move <board> <task>... <column> [--before TASK | --after TASK]
 saf-kanban-cli delete <board> <task>      Delete a task (kept in deleted tasks)
-saf-kanban-cli deleted <board>            List deleted tasks
+saf-kanban-cli deleted <board>            List deleted tasks (newest first)
 saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
                                           Restore a deleted task in place
-saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B]
+saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--issue-link URL]
+                         [--sheet URL|ID] [--script URL|ID] [--user NAME]
+                                          Create a local board, or add a Google Sheet board (--script)
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
-saf-kanban-cli skill [--install | --into DIR]   Print or install the AI skill
+                          [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
+saf-kanban-cli delete-board <board>       Delete a local board (to trash/), or remove a Google Sheet board from the list
+saf-kanban-cli import <file> [--password PWD]
+                                          Import exported Google Sheet settings (plain or encrypted) or a local board JSON
+saf-kanban-cli export [board...] [--sheets] [--out FILE] [--password PWD]
+                                          Export a local board or Google Sheet settings (--out - for stdout)
+saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into DIR]
+                                          Print or install the AI skill
 ```
 
-- `<board>` accepts a board ID or exact name; `<task>` is the task ID shown in brackets. `move` accepts multiple task IDs in one atomic write.
-- Every command supports `--json` and `--data-dir <DIR>`.
+- `<board>` accepts a board ID or exact name; `<task>` is the task ID shown in brackets. `move` accepts multiple task IDs.
+- Every command supports `--json` and `--data-dir <DIR>`; `boards` never prints `scriptId` (plain or `--json`) so deployment URLs aren't leaked into AI transcripts.
 - `--description -` / `--append-description -` reads from stdin (handling UTF-8 BOM and UTF-16 automatically); in PowerShell, prefer `--description-file` / `--append-description-file`.
-- `--append-description` appends after a blank line inside the write lock without overwriting existing text.
+- `--append-description` appends after a blank line safely under the lock (both local boards and Apps Script v5).
 - `--since` and `--until` (`YYYY-MM-DD` or ISO timestamp) filter by `movedAt`; `--limit N` returns the `N` tasks most recently moved into their column.
 - Errors print to stderr with exit code `1` (`2` for usage mistakes).
 
@@ -141,8 +175,9 @@ Default data folder: `%APPDATA%\SAF Kanban` on Windows (`~/.local/share/saf-kanb
 
 | Path | Contents |
 | --- | --- |
-| `boards/<board-id>.json` | One JSON file per board (columns, users, tasks, deleted history) |
-| `trash/` | Deleted board files are moved here instead of permanently erased |
+| `boards/<board-id>.json` | One JSON file per local board (columns, users, tasks, deleted history) |
+| `sheets.json` | Google Sheet board list shared between the desktop app and CLI (`0600` on Unix) |
+| `trash/` | Deleted local board files are moved here instead of permanently erased |
 | `config.json` | API token |
 | `boards.lock` | Cross-process file lock for safe concurrent writes |
 | `server.json` | Active server port for `mcp` bridge discovery |
@@ -171,7 +206,8 @@ Base URL: `http://127.0.0.1:41952/api` (JSON request/response, requires `Authori
 | Method & Path | Description |
 | --- | --- |
 | `GET /info` | Server name, version, and in-app updater flag (`canUpdate`) |
-| `GET /boards` / `POST /boards` | List boards / create a board (accepts `tasks` & `history` for imports) |
+| `GET /sheets` / `PUT /sheets` | Read / sync the shared Google Sheet board list (`sheets.json`) |
+| `GET /boards` / `POST /boards` | List local boards / create a board (accepts `tasks` & `history` for imports) |
 | `GET /boards/{board}` / `PATCH` / `DELETE` | Read / update title, columns (with `renames`), users / move to `trash/` |
 | `GET /boards/{board}/export` | Full board export (settings, tasks, history) |
 | `GET /boards/{board}/tasks` / `POST` | Filter tasks / create a task |

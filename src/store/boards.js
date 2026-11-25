@@ -15,6 +15,7 @@ import { localAvailable, localRequest, onLocalChange } from '@/data/localApi'
 
 const BOARDS_KEY = "boards"
 const LAST_BOARD_KEY = "lastBoardId"
+const SHEETS_MIGRATED_KEY = "sheetsMigratedToDisk"
 export const DEFAULT_BOARD_ID = "default"
 export const DEFAULT_TITLE = "SAF Kanban"
 // "Make a copy" link of the template Sheet (tabs and Apps Script ready to deploy).
@@ -104,8 +105,10 @@ migrateLegacySettings()
 
 const boardsAtom = atomWithStorage(BOARDS_KEY, [], undefined, { getOnInit: true })
 
-// Local boards as the rest of the app sees a board; null until first loaded.
+// Local boards and shared Google Sheet boards from the desktop server;
+// null until first loaded in desktop mode.
 const localBoardsAtom = atom(localAvailable() ? null : [])
+const desktopSheetsAtom = atom(localAvailable() ? null : [])
 
 const toLocalBoard = (info) => ({
   id: info.id,
@@ -116,15 +119,61 @@ const toLocalBoard = (info) => ({
   users: info.users,
 })
 
+const toSheetBoard = (info) => createBoard(info.id, {
+  title: info.title || "",
+  sheetId: info.sheetId || "",
+  scriptId: info.scriptId || "",
+  userKey: info.userKey || "",
+  jiraLink: info.jiraLink || "",
+})
+
 const reloadLocalBoards = async () => {
   const list = await localRequest("GET", "/boards")
   getDefaultStore().set(localBoardsAtom, list.map(toLocalBoard))
 }
 
+const reloadDesktopSheets = async ({ allowMigration = false } = {}) => {
+  let list = await localRequest("GET", "/sheets")
+  // One-time migration: carry over any Google Sheet boards previously stored
+  // only in the desktop WebView's localStorage into `<data dir>/sheets.json`.
+  if (allowMigration && !list.length) {
+    try {
+      if (localStorage.getItem(SHEETS_MIGRATED_KEY) !== "1") {
+        const legacy = JSON.parse(localStorage.getItem(BOARDS_KEY) || "[]")
+        if (Array.isArray(legacy) && legacy.length) {
+          list = await localRequest("PUT", "/sheets", legacy.map(toSheetBoard))
+        }
+        localStorage.setItem(SHEETS_MIGRATED_KEY, "1")
+      }
+    } catch {
+      // Ignore malformed legacy localStorage
+    }
+  } else if (allowMigration) {
+    try { localStorage.setItem(SHEETS_MIGRATED_KEY, "1") } catch { /* ignore */ }
+  }
+  getDefaultStore().set(desktopSheetsAtom, list.map(toSheetBoard))
+}
+
+const saveDesktopSheets = (next) => {
+  const normalized = next.map(toSheetBoard)
+  getDefaultStore().set(desktopSheetsAtom, normalized)
+  return localRequest("PUT", "/sheets", normalized).then((saved) => {
+    const mapped = saved.map(toSheetBoard)
+    getDefaultStore().set(desktopSheetsAtom, mapped)
+    return mapped
+  })
+}
+
 if (localAvailable()) {
   reloadLocalBoards().catch(() => getDefaultStore().set(localBoardsAtom, []))
-  // Boards added, renamed or removed by another window or through the API.
-  onLocalChange((change) => change.kind === "boards" && reloadLocalBoards().catch(() => {}))
+  reloadDesktopSheets({ allowMigration: true }).catch(() => getDefaultStore().set(desktopSheetsAtom, []))
+  // Boards or sheets added, renamed or removed by another window, CLI, or API.
+  onLocalChange((change) => {
+    if (change.kind === "boards") {
+      reloadLocalBoards().catch(() => {})
+      reloadDesktopSheets().catch(() => {})
+    }
+  })
 }
 
 // The default board keeps "SAF Kanban" as its fallback so upgrading users see
@@ -150,14 +199,27 @@ export const uniqueBoardTitle = (title, boards, placeholder) => {
 }
 
 export function useBoards() {
-  const [stored, setStored] = useAtom(boardsAtom)
+  const [webStored, setWebStored] = useAtom(boardsAtom)
   const localBoards = useAtomValue(localBoardsAtom)
+  const desktopSheets = useAtomValue(desktopSheetsAtom)
   const [searchParams, setSearchParams] = useSearchParams()
   // Read once per mount: syncing it across tabs would switch other tabs' boards.
   const [lastBoardId] = useState(() => localStorage.getItem(LAST_BOARD_KEY))
 
-  const loading = localBoards === null
+  const isDesktop = localAvailable()
+  const stored = useMemo(() => (isDesktop ? (desktopSheets || []) : webStored), [isDesktop, desktopSheets, webStored])
+  const loading = localBoards === null || (isDesktop && desktopSheets === null)
   const boards = useMemo(() => [...(localBoards || []), ...stored], [localBoards, stored])
+
+  const persistSheets = useCallback((nextOrUpdater) => {
+    if (isDesktop) {
+      const prev = getDefaultStore().get(desktopSheetsAtom) || []
+      const next = typeof nextOrUpdater === "function" ? nextOrUpdater(prev) : nextOrUpdater
+      return saveDesktopSheets(next)
+    }
+    setWebStored(nextOrUpdater)
+    return undefined
+  }, [isDesktop, setWebStored])
 
   const requestedId = searchParams.get("board")
   const currentBoard = useMemo(
@@ -178,10 +240,10 @@ export function useBoards() {
     })
   }, [setSearchParams])
 
-  // A Google Sheet board is added right away. A local board (fields.type
-  // "local", optionally with `columns`, `users`, and the `tasks` and `history`
-  // of a board being copied or imported) is created by the local server: the
-  // result is a promise, which rejects with a DataError if that fails.
+  // A Google Sheet board is saved to `<data dir>/sheets.json` in the desktop
+  // app (or localStorage on the web). A local board (fields.type "local",
+  // optionally with `columns`, `users`, and the `tasks` and `history` of a
+  // board being copied or imported) is created by the local server.
   const addBoard = useCallback((fields) => {
     const title = (id) => uniqueBoardTitle(fields.title, boards, boardPlaceholderTitle({ id }))
 
@@ -202,11 +264,11 @@ export function useBoards() {
 
     const id = stored.length ? newBoardId() : DEFAULT_BOARD_ID
     const board = createBoard(id, { ...normalizeBoardFields(fields), title: title(id) })
-    setStored([...stored, board])
-    if (board.id === DEFAULT_BOARD_ID) writeLegacy(board)
+    persistSheets([...stored, board])
+    if (!isDesktop && board.id === DEFAULT_BOARD_ID) writeLegacy(board)
     switchBoard(board.id)
     return board
-  }, [boards, stored, setStored, switchBoard])
+  }, [boards, stored, persistSheets, isDesktop, switchBoard])
 
   // With no boards yet, the first edit creates the default board, so a new
   // user fills in the settings exactly as before. For a local board the patch
@@ -221,13 +283,15 @@ export function useBoards() {
       }).then(reloadLocalBoards)
     }
 
+    const normalizedPatch = normalizeBoardFields(patch)
     const target = currentBoard || createBoard(DEFAULT_BOARD_ID)
-    const updated = { ...target, ...patch }
-    setStored((prev) => currentBoard
-      ? prev.map((b) => (b.id === updated.id ? { ...b, ...patch } : b))
+    const updated = { ...target, ...normalizedPatch }
+    const promise = persistSheets((prev) => currentBoard
+      ? prev.map((b) => (b.id === updated.id ? { ...b, ...normalizedPatch } : b))
       : [...prev, updated])
-    if (updated.id === DEFAULT_BOARD_ID) writeLegacy(updated)
-  }, [currentBoard, setStored])
+    if (!isDesktop && updated.id === DEFAULT_BOARD_ID) writeLegacy(updated)
+    return promise
+  }, [currentBoard, persistSheets, isDesktop])
 
   // Adds boards (e.g. from an imported file) with fresh ids. If there were no
   // boards yet, the first one becomes the default board like any first board.
@@ -236,10 +300,10 @@ export function useBoards() {
       !stored.length && i === 0 ? DEFAULT_BOARD_ID : newBoardId(),
       normalizeBoardFields(Object.fromEntries(BOARD_FIELDS.map((f) => [f, fields[f] || ""])))
     ))
-    setStored([...stored, ...added])
-    if (added[0]?.id === DEFAULT_BOARD_ID) writeLegacy(added[0])
+    persistSheets([...stored, ...added])
+    if (!isDesktop && added[0]?.id === DEFAULT_BOARD_ID) writeLegacy(added[0])
     return added
-  }, [stored, setStored])
+  }, [stored, persistSheets, isDesktop])
 
   // Removing a Google Sheet board only forgets its settings. A local board's
   // file is moved to the trash folder by the server (a promise, as above).
@@ -250,10 +314,11 @@ export function useBoards() {
     if (boards.find((b) => b.id === id)?.type === "local") {
       return localRequest("DELETE", `/boards/${id}`).then(reloadLocalBoards).then(next)
     }
-    setStored(stored.filter((b) => b.id !== id))
-    if (id === DEFAULT_BOARD_ID) writeLegacy(null)
+    const promise = persistSheets(stored.filter((b) => b.id !== id))
+    if (!isDesktop && id === DEFAULT_BOARD_ID) writeLegacy(null)
+    if (promise) return promise.then(next)
     next()
-  }, [boards, stored, setStored, switchBoard])
+  }, [boards, stored, persistSheets, isDesktop, switchBoard])
 
   return { boards, currentBoard, loading, switchBoard, addBoard, updateCurrentBoard, importBoards, deleteBoard }
 }
