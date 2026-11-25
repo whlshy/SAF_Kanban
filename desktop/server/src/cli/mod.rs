@@ -50,9 +50,9 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
   new-board <name> [--columns A,B,C] [--users A,B]
   edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
   skill [--install | --into DIR]  Print the AI agent skill, or install it: --install puts it
-                                  where most agents (~/.agents/skills) and Claude Code
-                                  (~/.claude/skills) find it; --into DIR into another
-                                  agent's skills folder
+                                  where most agents (~/.agents/skills), Claude Code
+                                  (~/.claude/skills) and Antigravity (~/.gemini/config/skills)
+                                  find it; --into DIR into another agent's skills folder
 
 <board> is a board's id or exact name; <task> is a task id.
 --description - and --append-description - read from standard input (UTF-8 or UTF-16).
@@ -153,7 +153,7 @@ fn run(args: &Args) -> Result<String, Failure> {
             .map(|file| format!("  {}", file.display()))
             .collect();
         return Ok(format!(
-            "Installed the skill for AI agents (Codex, Gemini CLI, GitHub Copilot, Cursor, Claude Code, ...):\n{}",
+            "Installed the skill for AI agents (Codex, Gemini CLI, GitHub Copilot, Cursor, Claude Code, Antigravity, ...):\n{}",
             files.join("\n")
         ));
     }

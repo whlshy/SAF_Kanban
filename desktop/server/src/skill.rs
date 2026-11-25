@@ -3,8 +3,9 @@
 //!
 //! Agent Skills is an open format, and most agents read personal skills from
 //! `~/.agents/skills/<name>/SKILL.md` (Codex, Gemini CLI, GitHub Copilot,
-//! Cursor, ...). Claude Code reads them from `~/.claude/skills/` instead, so
-//! the skill is installed in both places.
+//! Cursor, ...). Claude Code reads from `~/.claude/skills/` and Google
+//! Antigravity (App, IDE, CLI) reads global skills from
+//! `~/.gemini/config/skills/`.
 
 use std::path::{Path, PathBuf};
 
@@ -29,8 +30,9 @@ fn home() -> Option<PathBuf> {
 }
 
 /// Where the skill goes: `(which agents read it, the SKILL.md file)`.
-/// `agents` is the shared place; `claude` is Claude Code's, which honours
-/// `CLAUDE_CONFIG_DIR`.
+/// `agents` is the shared place; `claude` is Claude Code's (which honours
+/// `CLAUDE_CONFIG_DIR`); `antigravity` is Google Antigravity's global skills
+/// folder (`~/.gemini/config/skills`).
 pub fn places() -> Vec<(&'static str, PathBuf)> {
     let Some(home) = home() else {
         return Vec::new();
@@ -42,6 +44,10 @@ pub fn places() -> Vec<(&'static str, PathBuf)> {
     vec![
         ("agents", skill_file(&home.join(".agents").join("skills"))),
         ("claude", skill_file(&claude.join("skills"))),
+        (
+            "antigravity",
+            skill_file(&home.join(".gemini").join("config").join("skills")),
+        ),
     ]
 }
 
@@ -62,6 +68,23 @@ pub fn install_into(skills_dir: &Path, content: &str) -> std::io::Result<PathBuf
     let file = skill_file(skills_dir);
     write(&file, content)?;
     Ok(file)
+}
+
+/// Writes the skill for one named target from [`places`]. Returns `Ok(None)`
+/// when `target` is not a known target key.
+pub fn install_for(target: &str, content: &str) -> std::io::Result<Option<PathBuf>> {
+    let places = places();
+    if places.is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Can't tell where the home folder is.",
+        ));
+    }
+    let Some((_, file)) = places.into_iter().find(|(agents, _)| *agents == target) else {
+        return Ok(None);
+    };
+    write(&file, content)?;
+    Ok(Some(file))
 }
 
 /// Writes the skill everywhere in [`places`] and returns the files.

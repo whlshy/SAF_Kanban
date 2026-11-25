@@ -142,8 +142,12 @@ try {
   // A home folder of its own, so the build machine's isn't touched.
   const home = join(dataDir, 'home')
   const installed = await run(['skill', '--install'], { HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: '' })
-  const skillFiles = ['.agents', '.claude'].map((dir) => join(home, dir, 'skills', 'saf-kanban', 'SKILL.md'))
-  check('command line: installs the skill for AI agents and Claude Code', installed.code === 0
+  const skillFiles = [
+    join(home, '.agents', 'skills', 'saf-kanban', 'SKILL.md'),
+    join(home, '.claude', 'skills', 'saf-kanban', 'SKILL.md'),
+    join(home, '.gemini', 'config', 'skills', 'saf-kanban', 'SKILL.md'),
+  ]
+  check('command line: installs the skill for AI agents, Claude Code and Antigravity', installed.code === 0
     && skillFiles.every((file) => existsSync(file) && readFileSync(file, 'utf8').includes(cli.replaceAll('\\', '/'))), JSON.stringify(installed))
   const wrong = await run(['move', 'Smoke test', 'no-such-task', 'Todo'])
   check('command line: a mistake fails with a reason', wrong.code === 1 && wrong.stderr.includes('TASK_NOT_FOUND'), JSON.stringify(wrong))

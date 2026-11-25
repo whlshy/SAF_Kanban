@@ -64,8 +64,9 @@ function CodeBox({ text, shown = text, copyLabel, maxHeight }) {
 const showError = (error) => message.error(error?.userMessage || translate("common.apiError"), 8)
 
 // The skill teaches an AI agent the command line, which works on the board
-// files directly: no token, and SAF Kanban doesn't have to be open. It goes
-// where most agents look (~/.agents/skills) and where Claude Code does.
+// files directly: no token, and SAF Kanban doesn't have to be open. Users can
+// install for a single tool (shared ~/.agents, Claude Code, or Antigravity) or
+// install to all places at once.
 function SkillSetup() {
   const t = useT()
   const [skill, setSkill] = React.useState(null)
@@ -73,10 +74,10 @@ function SkillSetup() {
   const load = React.useCallback(() => localRequest("GET", "/skill").then(setSkill, showError), [])
   React.useEffect(() => { load() }, [load])
 
-  const install = async () => {
+  const install = async (agents = null) => {
     setBusy(true)
     try {
-      await localRequest("POST", "/skill")
+      await localRequest("POST", "/skill", agents ? { agents } : undefined)
       message.success(t("connection.skill.installed"), 6)
       await load()
     } catch (error) {
@@ -92,18 +93,41 @@ function SkillSetup() {
   const color = { ok: "success.main", old: "warning.main", none: "text.secondary" }
   return (
     <>
-      <Box component="ul" data-slot="skill-places" sx={{ listStyle: 'none', p: 0, m: 0, mb: 1 }}>
-        {skill.places.map((place) => (
-          <Box component="li" key={place.agents} className="flex flex-wrap items-baseline gap-x-2" sx={{ py: 0.25 }}>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>{t(`connection.skill.place.${place.agents}`)}</Typography>
-            <Typography variant="caption" component="code" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{place.file}</Typography>
-            <Typography variant="caption" data-slot="skill-state" sx={{ color: color[state(place)], fontWeight: 500 }}>
-              {t(`connection.skill.state.${state(place)}`)}
-            </Typography>
-          </Box>
-        ))}
+      <Box component="ul" data-slot="skill-places" sx={{ listStyle: 'none', p: 0, m: 0, mb: 1.5 }}>
+        {skill.places.map((place) => {
+          const placeState = state(place)
+          return (
+            <Box
+              component="li"
+              key={place.agents}
+              className="flex flex-wrap items-center justify-between gap-2"
+              sx={{ py: 0.75, borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Box className="min-w-0 flex-1">
+                <Box className="flex flex-wrap items-baseline gap-x-2">
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{t(`connection.skill.place.${place.agents}`)}</Typography>
+                  <Typography variant="caption" data-slot="skill-state" sx={{ color: color[placeState], fontWeight: 500 }}>
+                    {t(`connection.skill.state.${placeState}`)}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" component="code" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
+                  {place.file}
+                </Typography>
+              </Box>
+              <Button
+                variant={placeState === "ok" ? "outlined" : "contained"}
+                size="small"
+                onClick={() => install(place.agents)}
+                disabled={busy}
+                sx={{ textTransform: 'none', flexShrink: 0 }}
+              >
+                {t(`connection.skill.installOne.${placeState}`)}
+              </Button>
+            </Box>
+          )
+        })}
       </Box>
-      <Button variant="contained" size="small" onClick={install} disabled={busy || !skill.places.length} sx={{ textTransform: 'none', mb: 1.5 }}>
+      <Button variant="outlined" size="small" onClick={() => install()} disabled={busy || !skill.places.length} sx={{ textTransform: 'none', mb: 1.5 }}>
         {t(`connection.skill.install.${overall}`)}
       </Button>
       <CodeBox text={skill.content} copyLabel={t("connection.skill.copy")} maxHeight={220} />

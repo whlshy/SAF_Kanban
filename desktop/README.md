@@ -60,12 +60,13 @@
 - 在畫面點「**AI / API 連線 → Skill（建議）→ 安裝 skill**」
 - 或在終端機執行 `saf-kanban-cli skill --install`
 
-預設會寫入兩個共用位置：
+預設支援三個共用位置（畫面可個別安裝或全部安裝）：
 
 | 路徑 | 對應 AI 工具 |
 | --- | --- |
 | `~/.agents/skills/saf-kanban/SKILL.md` | Codex、Gemini CLI、GitHub Copilot、Cursor 等 |
 | `~/.claude/skills/saf-kanban/SKILL.md` | Claude Code（若設了 `CLAUDE_CONFIG_DIR` 則改寫至該目錄） |
+| `~/.gemini/config/skills/saf-kanban/SKILL.md` | Google Antigravity（App、IDE、CLI 共用全域位置） |
 
 - 其他工具可執行 `saf-kanban-cli skill --into <skills 資料夾>`，或手動儲存 `saf-kanban-cli skill` 印出的內容。
 - 桌面版升級啟動時會自動更新已安裝的 skill；若你手動搬動了安裝位置，請再安裝一次（「AI / API 連線」會顯示「需要更新」）。
@@ -180,7 +181,7 @@ saf-kanban-cli skill [--install | --into 資料夾]   印出或安裝 skill
 | `POST /boards/{看板}/history/{任務}/restore` | 原樣復原（可選帶 `column`、`beforeId`、`afterId`） |
 | `GET /events` | 即時變更通知（SSE，亦接受 `?token=<權杖>`） |
 | `GET /connection` | API／MCP 位址、資料夾與執行檔路徑 |
-| `GET /skill` / `POST /skill/install` | 取得 `SKILL.md` 內容與安裝狀態／安裝或更新 skill |
+| `GET /skill` / `POST /skill` | 取得 `SKILL.md` 內容與安裝狀態／安裝或更新 skill（可選帶 `{"agents": "antigravity"|"claude"|"agents"}`） |
 | `POST /token` | 重新產生並回傳新權杖 |
 | `GET /update` / `POST /update/check` / `POST /update/install` | 查詢／檢查／安裝桌面版更新（僅安裝版啟用） |
 

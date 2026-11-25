@@ -1,11 +1,11 @@
-//! The "AI / API" dialog's skill: shown, installed in each place agents look,
-//! and recognised as installed.
+//! The "AI / API" dialog's skill: shown, installed per-target or all at once,
+//! auto-refreshed when previously installed, and recognised as installed.
 
 mod common;
 
 use axum::http::{Method, StatusCode};
 use common::app;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[tokio::test]
 async fn the_app_shows_and_installs_the_skill() {
@@ -22,6 +22,12 @@ async fn the_app_shows_and_installs_the_skill() {
         .join("SKILL.md");
     let claude = home
         .join(".claude")
+        .join("skills")
+        .join("saf-kanban")
+        .join("SKILL.md");
+    let antigravity = home
+        .join(".gemini")
+        .join("config")
         .join("skills")
         .join("saf-kanban")
         .join("SKILL.md");
@@ -64,35 +70,66 @@ async fn the_app_shows_and_installs_the_skill() {
         states(&skill),
         [
             place("agents", &shared, false, false),
-            place("claude", &claude, false, false)
+            place("claude", &claude, false, false),
+            place("antigravity", &antigravity, false, false),
         ]
     );
     // Nothing is installed yet, so auto-updating installed skills creates nothing.
     assert!(saf_kanban_server::skill::update_installed(content).is_empty());
-    assert!(!shared.exists() && !claude.exists());
+    assert!(!shared.exists() && !claude.exists() && !antigravity.exists());
 
-    // If only one location was installed earlier and is outdated, only that one is refreshed.
-    std::fs::create_dir_all(claude.parent().unwrap()).unwrap();
-    std::fs::write(&claude, "outdated").unwrap();
+    // Installing only Antigravity leaves the other targets untouched.
+    let (status, single) = app
+        .call(
+            Method::POST,
+            "/api/skill",
+            json!({ "agents": "antigravity" }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(single["files"].as_array().unwrap().len(), 1);
+    assert_eq!(std::fs::read_to_string(&antigravity).unwrap(), content);
+    assert!(!shared.exists() && !claude.exists());
+    assert_eq!(
+        states(&app.get("/api/skill").await),
+        [
+            place("agents", &shared, false, false),
+            place("claude", &claude, false, false),
+            place("antigravity", &antigravity, true, true),
+        ]
+    );
+
+    // Unknown target returns 400.
+    let (status, err) = app
+        .call(Method::POST, "/api/skill", json!({ "agents": "unknown" }))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(err["error"]["code"], "UNKNOWN_SKILL_TARGET");
+
+    // If only installed locations are outdated, only those are refreshed.
+    std::fs::write(&antigravity, "outdated").unwrap();
     assert_eq!(
         saf_kanban_server::skill::update_installed(content),
-        vec![claude.clone()]
+        vec![antigravity.clone()]
     );
-    assert_eq!(std::fs::read_to_string(&claude).unwrap(), content);
-    assert!(!shared.exists());
+    assert_eq!(std::fs::read_to_string(&antigravity).unwrap(), content);
+    assert!(!shared.exists() && !claude.exists());
     // Already up to date -> nothing rewritten.
     assert!(saf_kanban_server::skill::update_installed(content).is_empty());
 
+    // Empty body installs all targets.
     let (status, installed) = app.call(Method::POST, "/api/skill", Value::Null).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(installed["files"].as_array().unwrap().len(), 2);
+    assert_eq!(installed["files"].as_array().unwrap().len(), 3);
     assert_eq!(std::fs::read_to_string(&shared).unwrap(), content);
     assert_eq!(std::fs::read_to_string(&claude).unwrap(), content);
+    assert_eq!(std::fs::read_to_string(&antigravity).unwrap(), content);
     assert_eq!(
         states(&app.get("/api/skill").await),
         [
             place("agents", &shared, true, true),
-            place("claude", &claude, true, true)
+            place("claude", &claude, true, true),
+            place("antigravity", &antigravity, true, true),
         ]
     );
 
@@ -102,7 +139,8 @@ async fn the_app_shows_and_installs_the_skill() {
         states(&app.get("/api/skill").await),
         [
             place("agents", &shared, true, true),
-            place("claude", &claude, true, false)
+            place("claude", &claude, true, false),
+            place("antigravity", &antigravity, true, true),
         ]
     );
 }
