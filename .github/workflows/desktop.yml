@@ -9,13 +9,13 @@
 name: Desktop app
 
 on:
-  push:
-    branches: ['**']
-    tags: ['desktop-v*']
+  pull_request:
     paths:
       - desktop/**
       - scripts/install.*
       - .github/workflows/desktop.yml
+  push:
+    tags: ['desktop-v*']
   workflow_dispatch:
     inputs:
       publish:
@@ -26,12 +26,11 @@ on:
 permissions:
   contents: read
 
-# On a working branch, a newer push replaces a run that is still going. On
-# main every commit's run finishes, and a release run (started by hand) runs
-# beside the one its merge started instead of cancelling it.
+# On a pull request, a newer push replaces a run that is still going. Release
+# runs (tag push or manual workflow_dispatch) always run to completion.
 concurrency:
   group: desktop-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   windows:
