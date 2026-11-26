@@ -14,6 +14,14 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.21.2 and desktop app 0.6.2 — 2026-11-26
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
+
+### Improved
+
+- **Toast enter and exit animations**: added a smooth slide-and-fade entrance (`220ms`) and exit with animated height collapse (`180ms`) so stacked notifications glide smoothly into place; in-place updates for the same `key` do not replay the entrance animation, and `prefers-reduced-motion` is respected.
+
 ## 1.21.1 and desktop app 0.6.1 — 2026-11-25
 
 Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
