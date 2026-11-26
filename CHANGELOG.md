@@ -14,6 +14,14 @@
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
 
+## 1.21.2 與桌面版 0.6.2 — 2026-11-26
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。
+
+### 改善
+
+- **通知 Toast 進場與退場動畫**：新增柔和的上方滑入淡入動畫（`220ms`）與淡出收合動畫（`180ms`），多則通知堆疊關閉時會平滑補位而不跳動；同 `key` 原地更新不會重播進場動畫，並支援系統「減少動態效果」（`prefers-reduced-motion`）設定。
+
 ## 1.21.1 與桌面版 0.6.1 — 2026-11-25
 
 桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。
