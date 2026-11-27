@@ -49,11 +49,15 @@ function resolveDot(row) {
   return LABEL_PALETTE[key].dot
 }
 
-function LabelRow({ row, label, autoFocus, disabled, onChangeRow, onRemove, onEnter }) {
+function LabelRow({ row, label, autoFocus, disabled, inUseCount = 0, onChangeRow, onRemove, onEnter }) {
   const t = useT()
   const [anchorEl, setAnchorEl] = React.useState(null)
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: row.key, disabled })
   const dot = resolveDot(row)
+  const removeDisabled = disabled || inUseCount > 0
+  const removeTitle = inUseCount > 0
+    ? t("settings.labels.inUse", { count: inUseCount })
+    : t("list.remove")
 
   return (
     <Box
@@ -140,14 +144,18 @@ function LabelRow({ row, label, autoFocus, disabled, onChangeRow, onRemove, onEn
         inputProps={{ "aria-label": label }}
       />
 
-      <IconButton size="small" disabled={disabled} onClick={onRemove} aria-label={t("list.remove")} title={t("list.remove")}>
-        <RemoveIcon fontSize="small" />
-      </IconButton>
+      <Tooltip title={removeTitle}>
+        <span>
+          <IconButton size="small" disabled={removeDisabled} onClick={onRemove} aria-label={removeTitle}>
+            <RemoveIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
     </Box>
   )
 }
 
-export default function LabelListEditor({ label, hint, rows, onChange, addLabel, disabled }) {
+export default function LabelListEditor({ label, hint, rows, onChange, addLabel, disabled, usedCounts = {} }) {
   const [focusKey, setFocusKey] = React.useState(null)
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -175,18 +183,23 @@ export default function LabelListEditor({ label, hint, rows, onChange, addLabel,
       {hint && <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.75 }}>{hint}</Typography>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[vertical]} onDragEnd={handleDragEnd}>
         <SortableContext items={rows.map((row) => row.key)} strategy={verticalListSortingStrategy}>
-          {rows.map((row, index) => (
-            <LabelRow
-              key={row.key}
-              row={row}
-              label={`${label} ${index + 1}`}
-              autoFocus={row.key === focusKey}
-              disabled={disabled}
-              onChangeRow={(updated) => onChange(rows.map((each) => (each.key === row.key ? updated : each)))}
-              onRemove={() => onChange(rows.filter((each) => each.key !== row.key))}
-              onEnter={() => index === rows.length - 1 && row.name.trim() && add()}
-            />
-          ))}
+          {rows.map((row, index) => {
+            const lookupKey = String(row.original ?? row.name ?? "").trim().toLowerCase()
+            const inUseCount = lookupKey ? (usedCounts[lookupKey] || 0) : 0
+            return (
+              <LabelRow
+                key={row.key}
+                row={row}
+                label={`${label} ${index + 1}`}
+                autoFocus={row.key === focusKey}
+                disabled={disabled}
+                inUseCount={inUseCount}
+                onChangeRow={(updated) => onChange(rows.map((each) => (each.key === row.key ? updated : each)))}
+                onRemove={() => onChange(rows.filter((each) => each.key !== row.key))}
+                onEnter={() => index === rows.length - 1 && row.name.trim() && add()}
+              />
+            )
+          })}
         </SortableContext>
       </DndContext>
       <Button size="small" startIcon={<AddIcon />} onClick={add} disabled={disabled} sx={{ textTransform: 'none', mt: 0.5, ml: -0.5 }}>

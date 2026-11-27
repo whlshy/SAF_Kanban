@@ -51,6 +51,7 @@ pub struct SheetDeletedTask {
 
 #[derive(Debug, Clone, Default)]
 pub struct SheetSnapshot {
+    pub version: u64,
     pub columns: Vec<String>,
     pub users: Vec<String>,
     pub labels: Vec<LabelDef>,
@@ -146,6 +147,17 @@ fn parse_script_json(mut response: ureq::http::Response<ureq::Body>) -> Result<V
                 let id = body["params"]["id"].as_str().unwrap_or("");
                 format!("Task `{id}` is already on the board.")
             }
+            "DUPLICATE_LABEL" => {
+                let label = body["params"]["label"].as_str().unwrap_or("");
+                format!("Label `{label}` is listed more than once.")
+            }
+            "LABEL_IN_USE" => {
+                let label = body["params"]["label"].as_str().unwrap_or("");
+                let count = body["params"]["count"].as_u64().unwrap_or(1);
+                format!(
+                    "Label `{label}` is still in use by {count} task(s). Remove it from those tasks first."
+                )
+            }
             _ => format!("Apps Script error ({code}): {message}"),
         });
     }
@@ -213,6 +225,7 @@ pub fn check_info(script_id: &str, expected_sheet_id: &str) -> Result<ScriptInfo
 /// one Apps Script v5 request.
 pub fn read_board(board: &SheetBoard) -> Result<SheetSnapshot, String> {
     let body = post_script(board, json!({ "action": "read" }))?;
+    let version = body.get("version").and_then(Value::as_u64).unwrap_or(0);
     let columns: Vec<String> = serde_json::from_value(body["columns"].clone()).unwrap_or_default();
     let users: Vec<String> = serde_json::from_value(body["users"].clone()).unwrap_or_default();
     let labels: Vec<LabelDef> = serde_json::from_value(body["labels"].clone()).unwrap_or_default();
@@ -220,6 +233,7 @@ pub fn read_board(board: &SheetBoard) -> Result<SheetSnapshot, String> {
     let history: Vec<SheetDeletedTask> =
         serde_json::from_value(body["history"].clone()).unwrap_or_default();
     Ok(SheetSnapshot {
+        version,
         columns,
         users,
         labels,
@@ -464,6 +478,12 @@ pub fn add_task(board: &SheetBoard, input: &SheetTaskCreate<'_>) -> Result<Value
         return Err("A task needs a title.".to_string());
     }
     let snapshot = read_board(board)?;
+    if input.labels.as_ref().is_some_and(|list| !list.is_empty()) && snapshot.version < 6 {
+        return Err(format!(
+            "Task labels on a Google Sheet board require Apps Script v6 or newer (this sheet is running v{}). Update apps-script/Code.gs and deploy a new version.",
+            snapshot.version
+        ));
+    }
     let column = match input.column {
         Some(col) => {
             if !snapshot.columns.is_empty() && !snapshot.columns.iter().any(|c| c == col) {
@@ -533,6 +553,14 @@ pub fn edit_task(
     patch: &SheetTaskEdit<'_>,
 ) -> Result<Value, String> {
     let snapshot = read_board(board)?;
+    let mutates_labels =
+        patch.labels.is_some() || patch.add_labels.is_some() || patch.remove_labels.is_some();
+    if mutates_labels && snapshot.version < 6 {
+        return Err(format!(
+            "Task labels on a Google Sheet board require Apps Script v6 or newer (this sheet is running v{}). Update apps-script/Code.gs and deploy a new version.",
+            snapshot.version
+        ));
+    }
     let Some(existing) = snapshot.tasks.iter().find(|t| t.id == task_id) else {
         return Err(format!("There is no task `{task_id}`."));
     };
@@ -717,3 +745,51 @@ pub fn restore_task(
         "column": target_col,
     }))
 }
+
+/// Replaces the `labels` worksheet on a Google Sheet board (Apps Script v7+),
+/// optionally renaming existing task labels and refusing deletion of labels in use.
+pub fn save_labels(
+    board: &SheetBoard,
+    labels: Option<&Value>,
+    renames: &serde_json::Map<String, Value>,
+) -> Result<Value, String> {
+    let snapshot = read_board(board)?;
+    if snapshot.version < 7 {
+        return Err(format!(
+            "Editing preset labels on a Google Sheet board requires Apps Script v7 or newer (this sheet is running v{}). Update apps-script/Code.gs and deploy a new version.",
+            snapshot.version
+        ));
+    }
+    let next_labels = match labels {
+        Some(value) => value.clone(),
+        None => {
+            let renamed: Vec<LabelDef> = snapshot
+                .labels
+                .into_iter()
+                .map(|mut def| {
+                    let key = def.name.trim().to_lowercase();
+                    if let Some((_, to)) = renames
+                        .iter()
+                        .find(|(from, _)| from.trim().to_lowercase() == key)
+                    {
+                        if let Some(next_name) = to.as_str() {
+                            def.name = next_name.trim().to_string();
+                        }
+                    }
+                    def
+                })
+                .collect();
+            json!(renamed)
+        }
+    };
+    let mut payload = json!({
+        "action": "saveLabels",
+        "labels": next_labels,
+    });
+    if !renames.is_empty() {
+        payload["renames"] = Value::Object(renames.clone());
+    }
+    let body = post_script(board, payload)?;
+    Ok(body.get("labels").cloned().unwrap_or_else(|| json!([])))
+}
+

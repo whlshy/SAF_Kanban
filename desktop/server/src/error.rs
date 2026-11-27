@@ -128,6 +128,15 @@ impl ApiError {
         .with(json!({ "column": column, "count": count }))
     }
 
+    pub fn label_in_use(label: &str, count: usize) -> Self {
+        Self::new(
+            StatusCode::CONFLICT,
+            "LABEL_IN_USE",
+            format!("Label `{label}` is still used by {count} task(s). Remove it from those tasks before deleting the label."),
+        )
+        .with(json!({ "label": label, "count": count }))
+    }
+
     pub fn unsupported_file(id: &str) -> Self {
         Self::new(
             StatusCode::CONFLICT,

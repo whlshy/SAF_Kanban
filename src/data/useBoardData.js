@@ -52,7 +52,9 @@ export function useBoardData(board, { paused = false } = {}) {
     // The columns have been asked for and the answer is in (possibly empty).
     columnsLoaded: columnsQuery.isFetched && !columnsQuery.isFetching,
     tasksLoading: tasksQuery.isFetching,
+    tasksUpdatedAt: tasksQuery.dataUpdatedAt,
     reloadTasks: tasksQuery.refetch,
+    reloadLabels: labelsQuery.refetch,
   }
 }
 

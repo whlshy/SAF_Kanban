@@ -6,7 +6,7 @@
  */
 
 // 新版 Script 會在回應中帶上版本號，前端與 CLI 可據此判斷能使用哪些功能。
-const SCRIPT_VERSION = 6;
+const SCRIPT_VERSION = 7;
 
 // 通常留空：會使用這個 Apps Script 所屬的 Google Sheet。
 // 只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID。
@@ -25,6 +25,11 @@ const CREATED_AT_COLUMN = 8;
 const MOVED_AT_COLUMN = 9;
 const LABELS_COLUMN = 10;
 const HISTORY_COLUMN_COUNT = 11;
+const HASH_COLOR_KEYS = ["red", "orange", "amber", "green", "teal", "blue", "indigo", "purple", "pink"];
+const VALID_COLOR_SET = {
+  red: true, orange: true, amber: true, green: true, teal: true,
+  blue: true, indigo: true, purple: true, pink: true, gray: true
+};
 
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
@@ -98,7 +103,9 @@ function handleRequest(params) {
       case "read":
         return handleRead(spreadsheet, sheet);
       case "upsert":
-        return handleUpsert(sheet, params);
+        return handleUpsert(spreadsheet, sheet, params);
+      case "saveLabels":
+        return handleSaveLabels(spreadsheet, sheet, params);
       case "move":
         return handleMove(sheet, params);
       case "delete":
@@ -273,7 +280,14 @@ function handleRead(spreadsheet, kanbanSheet) {
   });
 }
 
-function handleUpsert(sheet, params) {
+function ensureColumns(sheet, minColumns) {
+  var maxCols = sheet.getMaxColumns();
+  if (maxCols < minColumns) {
+    sheet.insertColumnsAfter(maxCols, minColumns - maxCols);
+  }
+}
+
+function handleUpsert(spreadsheet, sheet, params) {
   if (!params.task) {
     fail("MISSING_TASK");
   }
@@ -295,6 +309,7 @@ function handleUpsert(sheet, params) {
     fail("MISSING_TASK_ID");
   }
 
+  ensureColumns(sheet, LABELS_COLUMN);
   var rowNumber = findTaskRow(sheet, task.id);
   var hasLabelsPatch = task.labels !== undefined || task.addLabels !== undefined || task.removeLabels !== undefined;
 
@@ -320,6 +335,9 @@ function handleUpsert(sheet, params) {
       sheet.getRange(rowNumber, LABELS_COLUMN)
         .setNumberFormat("@")
         .setValue(finalLabels.join(", "));
+      if (finalLabels.length) {
+        syncBoardLabels(spreadsheet, finalLabels);
+      }
     }
   } else {
     if ((task.des === undefined || task.des === null || task.des === "") && task.appendDes) {
@@ -334,6 +352,9 @@ function handleUpsert(sheet, params) {
     sheet.getRange(rowNumber, CREATED_AT_COLUMN, 1, 3)
       .setNumberFormat("@")
       .setValues([[now, now, initialLabels.join(", ")]]);
+    if (initialLabels.length) {
+      syncBoardLabels(spreadsheet, initialLabels);
+    }
   }
 
   SpreadsheetApp.flush();
@@ -343,6 +364,199 @@ function handleUpsert(sheet, params) {
     action: "upsert",
     id: task.id,
     row: rowNumber,
+    version: SCRIPT_VERSION
+  });
+}
+
+function hashLabelColor(name) {
+  var text = normalizeValue(name).trim().toLowerCase();
+  var hash = 2166136261;
+  for (var i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return HASH_COLOR_KEYS[Math.abs(hash) % HASH_COLOR_KEYS.length];
+}
+
+function normalizeLabelColor(color) {
+  var clean = normalizeValue(color).trim().toLowerCase();
+  if (!clean) {
+    return "";
+  }
+  if (VALID_COLOR_SET[clean]) {
+    return clean;
+  }
+  if (/^#[0-9a-f]{6}$/.test(clean)) {
+    return clean;
+  }
+  return "";
+}
+
+// 任務上新增尚未存在於全域清單的標籤時，自動補入 labels 工作表並附上對應雜湊色。
+function syncBoardLabels(spreadsheet, taskLabels) {
+  if (!taskLabels || !taskLabels.length) {
+    return;
+  }
+  var labelsSheet = spreadsheet.getSheetByName(LABELS_SHEET_NAME);
+  var existingRows = readDisplayRows(labelsSheet, 2);
+  var existingSet = {};
+  for (var i = 0; i < existingRows.length; i++) {
+    var existingName = normalizeValue(existingRows[i][0]).replace(/,/g, " ").trim();
+    if (existingName) {
+      existingSet[existingName.toLowerCase()] = true;
+    }
+  }
+  var toAppend = [];
+  for (var j = 0; j < taskLabels.length; j++) {
+    var name = normalizeValue(taskLabels[j]).replace(/,/g, " ").trim();
+    if (!name) {
+      continue;
+    }
+    var key = name.toLowerCase();
+    if (existingSet[key]) {
+      continue;
+    }
+    existingSet[key] = true;
+    toAppend.push([name, hashLabelColor(name)]);
+  }
+  if (!toAppend.length) {
+    return;
+  }
+  var targetSheet = labelsSheet || getOrCreateSheet(spreadsheet, LABELS_SHEET_NAME);
+  ensureColumns(targetSheet, 2);
+  var startRow = targetSheet.getLastRow() + 1;
+  targetSheet.getRange(startRow, 1, toAppend.length, 2)
+    .setNumberFormat("@")
+    .setValues(toAppend);
+}
+
+// v7+：更新 labels 工作表（支援改名同步更新 kanban J 欄，並禁止刪除仍被任務使用的標籤）。
+function handleSaveLabels(spreadsheet, kanbanSheet, params) {
+  var rawLabels = params.labels;
+  if (typeof rawLabels === "string") {
+    try {
+      rawLabels = JSON.parse(rawLabels);
+    } catch (error) {
+      fail("INVALID_LABELS_JSON");
+    }
+  }
+  if (!Array.isArray(rawLabels)) {
+    fail("INVALID_LABELS_JSON");
+  }
+
+  var rawRenames = params.renames || {};
+  if (typeof rawRenames === "string") {
+    try {
+      rawRenames = JSON.parse(rawRenames);
+    } catch (error) {
+      fail("INVALID_LABELS_JSON");
+    }
+  }
+  if (!rawRenames || typeof rawRenames !== "object" || Array.isArray(rawRenames)) {
+    rawRenames = {};
+  }
+
+  var normalized = [];
+  var allowedSet = {};
+  for (var i = 0; i < rawLabels.length; i++) {
+    var entry = rawLabels[i];
+    var rawName = typeof entry === "string" ? entry : (entry && entry.name);
+    var name = normalizeValue(rawName).replace(/,/g, " ").trim();
+    if (!name) {
+      continue;
+    }
+    var key = name.toLowerCase();
+    if (allowedSet[key]) {
+      fail("DUPLICATE_LABEL", { label: name });
+    }
+    allowedSet[key] = true;
+    var color = typeof entry === "string" ? "" : normalizeLabelColor(entry && entry.color);
+    normalized.push(color ? { name: name, color: color } : { name: name });
+  }
+
+  var renameMap = {};
+  for (var fromKey in rawRenames) {
+    if (!Object.prototype.hasOwnProperty.call(rawRenames, fromKey)) {
+      continue;
+    }
+    var fromClean = normalizeValue(fromKey).replace(/,/g, " ").trim().toLowerCase();
+    var toClean = normalizeValue(rawRenames[fromKey]).replace(/,/g, " ").trim();
+    if (fromClean && toClean) {
+      renameMap[fromClean] = toClean;
+    }
+  }
+
+  // 檢查所有任務套用改名後的標籤：只要有任何任務仍使用不在新清單內的標籤就拒絕刪除。
+  var taskRows = readDisplayRows(kanbanSheet, LABELS_COLUMN);
+  var rewrittenColumn = [];
+  var hasRewrites = false;
+  var missingCounts = {};
+  var missingDisplay = {};
+
+  for (var r = 0; r < taskRows.length; r++) {
+    var row = taskRows[r];
+    var currentLabels = row.length >= LABELS_COLUMN ? parseLabelsValue(row[9]) : [];
+    var mapped = [];
+    var seenInTask = {};
+    var changed = false;
+    for (var k = 0; k < currentLabels.length; k++) {
+      var orig = currentLabels[k];
+      var renamed = renameMap[orig.toLowerCase()] || orig;
+      if (renamed !== orig) {
+        changed = true;
+      }
+      var rKey = renamed.toLowerCase();
+      if (!seenInTask[rKey]) {
+        seenInTask[rKey] = true;
+        mapped.push(renamed);
+      } else {
+        changed = true;
+      }
+      if (!allowedSet[rKey]) {
+        missingCounts[rKey] = (missingCounts[rKey] || 0) + 1;
+        if (!missingDisplay[rKey]) {
+          missingDisplay[rKey] = renamed;
+        }
+      }
+    }
+    if (changed) {
+      hasRewrites = true;
+    }
+    rewrittenColumn.push([mapped.join(", ")]);
+  }
+
+  for (var missingKey in missingCounts) {
+    if (Object.prototype.hasOwnProperty.call(missingCounts, missingKey)) {
+      fail("LABEL_IN_USE", { label: missingDisplay[missingKey], count: missingCounts[missingKey] });
+    }
+  }
+
+  if (hasRewrites && taskRows.length > 0) {
+    ensureColumns(kanbanSheet, LABELS_COLUMN);
+    kanbanSheet.getRange(1, LABELS_COLUMN, taskRows.length, 1)
+      .setNumberFormat("@")
+      .setValues(rewrittenColumn);
+  }
+
+  var labelsSheet = getOrCreateSheet(spreadsheet, LABELS_SHEET_NAME);
+  ensureColumns(labelsSheet, 2);
+  labelsSheet.clearContents();
+  if (normalized.length > 0) {
+    var rowsToWrite = [];
+    for (var n = 0; n < normalized.length; n++) {
+      rowsToWrite.push([normalized[n].name, normalized[n].color || ""]);
+    }
+    labelsSheet.getRange(1, 1, rowsToWrite.length, 2)
+      .setNumberFormat("@")
+      .setValues(rowsToWrite);
+  }
+
+  SpreadsheetApp.flush();
+
+  return createJsonResponse({
+    status: "success",
+    action: "saveLabels",
+    labels: normalized,
     version: SCRIPT_VERSION
   });
 }
@@ -440,11 +654,13 @@ function handleDelete(spreadsheet, sheet, params) {
   }
 
   // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間，J 欄是移入目前欄位的時間，K 欄是標籤（v6+）。
+  ensureColumns(sheet, LABELS_COLUMN);
   var lastState = sheet.getRange(rowNumber, 1, 1, LABELS_COLUMN).getDisplayValues()[0];
   var labels = lastState.pop();
   var movedAt = lastState.pop();
   var createdAt = lastState.pop();
   var historySheet = getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME);
+  ensureColumns(historySheet, HISTORY_COLUMN_COUNT);
   var newHistoryRow = historySheet.getLastRow() + 1;
   historySheet.getRange(newHistoryRow, 1, 1, HISTORY_COLUMN_COUNT)
     .setNumberFormat("@")
@@ -504,11 +720,15 @@ function handleRestore(spreadsheet, sheet, params) {
     normalizeValue(row[5]),
     normalizeValue(row[6])
   ];
+  ensureColumns(sheet, LABELS_COLUMN);
   sheet.appendRow(restoredRow);
   var insertedRow = sheet.getLastRow();
   sheet.getRange(insertedRow, CREATED_AT_COLUMN, 1, 3)
     .setNumberFormat("@")
     .setValues([[createdAt, movedAt, labels]]);
+  if (labels) {
+    syncBoardLabels(spreadsheet, parseLabelsValue(labels));
+  }
 
   var beforeId = normalizeValue(params.beforeId);
   var afterId = normalizeValue(params.afterId);

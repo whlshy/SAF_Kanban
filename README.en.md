@@ -97,7 +97,7 @@ Create a new Google Sheet with the sheets named exactly as below (case-sensitive
 
 - `columns`: list column names in order in column A (e.g. `Todo`, `In Progress`, `Testing`, `Done`).
 - `users`: list assignee names in column A (legacy format with user ID in A and name in B still works).
-- `labels` (optional): list preset label names in column A and semantic color names (`red`, `orange`, `amber`, `green`, `teal`, `blue`, `indigo`, `purple`, `pink`, `gray`) or `#RRGGBB` hex in column B (leave empty or omit the tab completely if not needed).
+- `labels` (optional; Apps Script v7+ supports editing from Web Settings or CLI and auto-syncs new task labels): list preset label names in column A and semantic color names (`red`, `orange`, `amber`, `green`, `teal`, `blue`, `indigo`, `purple`, `pink`, `gray`) or `#RRGGBB` hex in column B (leave empty or omit the tab completely if not needed).
 - `history`: keeps deleted tasks (created automatically on first deletion if absent). Columns A–G match `kanban`; H is deletion time, I is creation time, J is column move time (v4+), and K is labels (v6+).
 
 ### 2. Share and paste Apps Script
@@ -144,7 +144,7 @@ If you only need terminal or AI agent access (Claude Code, Codex, Cursor, Antigr
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+; labels require v6). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
+Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+; task labels require v6; editing preset labels & auto-sync require v7). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
 
 ---
 
@@ -172,7 +172,7 @@ Click the clock icon at the top right to browse and search deleted tasks (newest
 
 ## Update the Apps Script
 
-When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working without new features (see [Apps Script versions](CHANGELOG.en.md#apps-script-versions)). The current version (v5) adds `doPost`, `action=read`, `action=restore`, and atomic description appending (`appendDes`) for CLI access, on top of v4 (`history` archiving on deletion, Sheet ID verification, localized error codes, and creation/move timestamps in columns H and I).
+When [`apps-script/Code.gs`](apps-script/Code.gs) is updated, older scripts keep working without new features (see [Apps Script versions](CHANGELOG.en.md#apps-script-versions)). The current version (v7) adds editing preset labels/colors & rename propagation from Settings/CLI (`action=saveLabels`, blocking removal of in-use labels) and auto-syncing new task labels to the `labels` tab, on top of v6 (task labels in `kanban` col J / `history` col K), v5 (`doPost`, `action=read`, `action=restore`, `appendDes`), and v4 (`history` archiving, Sheet ID verification, localized errors, and creation/move timestamps in columns H and I).
 
 How to update (your deployment ID stays the same, so SAF Kanban settings need no changes):
 

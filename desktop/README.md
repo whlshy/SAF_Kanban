@@ -160,12 +160,12 @@ saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into �
 
 | 工具 | 功能 |
 | --- | --- |
-| `list_boards` / `get_board` | 列出看板／取得單一看板欄位與任務 |
-| `list_tasks` / `get_task` | 篩選列出任務（支援 `since`／`until`／`limit`）／取得單一任務 |
-| `create_task` / `update_task` | 新增任務／更新欄位（支援 `appendDescription` 追加描述） |
+| `list_boards` / `get_board` | 列出看板／取得單一看板欄位、任務、負責人與常用標籤 |
+| `list_tasks` / `get_task` | 篩選列出任務（支援 `label`、`since`／`until`／`limit`）／取得單一任務 |
+| `create_task` / `update_task` | 新增任務／更新欄位（支援 `appendDescription` 追加描述、`labels`／`addLabels`／`removeLabels`） |
 | `move_task` | 移動任務到指定欄位與位置（`beforeTask`／`afterTask`） |
 | `delete_task` / `list_deleted_tasks` / `restore_task` | 刪除任務／查看歷史／原樣復原至原欄位與位置 |
-| `create_board` / `update_board` | 建立看板／修改名稱、欄位與負責人（不提供刪除看板工具，請在畫面操作） |
+| `create_board` / `update_board` | 建立看板／修改名稱、欄位、負責人與常用標籤（含 `renameLabels`；不提供刪除看板工具，請在畫面操作） |
 
 > 註：MCP 工具使用 `description` 欄位，HTTP API 使用 `des` 欄位。
 

@@ -188,9 +188,36 @@ fn apply_mock_label_mutations(
     out
 }
 
+fn sync_mock_board_labels(st: &mut MockSheetState, task_labels: &[String]) {
+    if st.version < 7 {
+        return;
+    }
+    for label in task_labels {
+        let trimmed = label.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let exists = st
+            .labels
+            .iter()
+            .any(|def| def["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(trimmed)));
+        if !exists {
+            st.labels.push(json!({ "name": trimmed, "color": "blue" }));
+        }
+    }
+}
+
 fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Value {
     let version = st.version;
     if version < 5 && (action == "read" || action == "restore") {
+        return json!({
+            "status": "error",
+            "code": "UNKNOWN_ACTION",
+            "params": { "action": action },
+            "version": version,
+        });
+    }
+    if version < 7 && action == "saveLabels" {
         return json!({
             "status": "error",
             "code": "UNKNOWN_ACTION",
@@ -214,8 +241,7 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
         "upsert" => {
             let task = &payload["task"];
             let id = task["id"].as_str().unwrap().to_string();
-            let existing = st.tasks.iter_mut().find(|t| t["id"] == id);
-            if let Some(row) = existing {
+            let final_labels = if let Some(row) = st.tasks.iter_mut().find(|t| t["id"] == id) {
                 let mut des = task["des"].as_str().unwrap_or("").to_string();
                 if let Some(append) = task["appendDes"].as_str().filter(|s| !s.is_empty()) {
                     let prev = row["des"].as_str().unwrap_or("");
@@ -248,6 +274,7 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
                 row["priority"] = json!(task["priority"].as_str().unwrap_or("medium"));
                 row["assignee"] = json!(task["assignee"].as_str().unwrap_or(""));
                 row["labels"] = json!(labels);
+                labels
             } else {
                 let labels = task
                     .as_object()
@@ -266,8 +293,97 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
                     "createdAt": "2026-11-25 10:00:00",
                     "movedAt": "2026-11-25 10:00:00",
                 }));
-            }
+                labels
+            };
+            sync_mock_board_labels(st, &final_labels);
             json!({ "status": "success", "action": "upsert", "id": id, "version": version })
+        }
+        "saveLabels" => {
+            let Some(raw_labels) = payload["labels"].as_array() else {
+                return json!({
+                    "status": "error",
+                    "code": "INVALID_LABELS_JSON",
+                    "version": version,
+                });
+            };
+            let mut next_defs: Vec<Value> = Vec::new();
+            let mut next_keys: Vec<String> = Vec::new();
+            for item in raw_labels {
+                let name = item["name"].as_str().unwrap_or("").trim().to_string();
+                if name.is_empty() {
+                    continue;
+                }
+                let lower = name.to_lowercase();
+                if next_keys.contains(&lower) {
+                    return json!({
+                        "status": "error",
+                        "code": "DUPLICATE_LABEL",
+                        "params": { "label": name },
+                        "version": version,
+                    });
+                }
+                next_keys.push(lower);
+                let color = item["color"].as_str().unwrap_or("blue").to_string();
+                next_defs.push(json!({ "name": name, "color": color }));
+            }
+            let renames: HashMap<String, String> = payload["renames"]
+                .as_object()
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| {
+                            let from = k.trim().to_lowercase();
+                            let to = v.as_str()?.trim().to_string();
+                            (!from.is_empty() && !to.is_empty()).then_some((from, to))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let mut updated_tasks = Vec::with_capacity(st.tasks.len());
+            let mut in_use: HashMap<String, (String, usize)> = HashMap::new();
+            for task in &st.tasks {
+                let mut renamed = Vec::new();
+                for label in parse_mock_labels(&task["labels"]) {
+                    let mapped = renames
+                        .get(&label.to_lowercase())
+                        .cloned()
+                        .unwrap_or(label);
+                    if !renamed
+                        .iter()
+                        .any(|cur: &String| cur.eq_ignore_ascii_case(&mapped))
+                    {
+                        let key = mapped.to_lowercase();
+                        in_use
+                            .entry(key)
+                            .and_modify(|(_, c)| *c += 1)
+                            .or_insert_with(|| (mapped.clone(), 1));
+                        renamed.push(mapped);
+                    }
+                }
+                updated_tasks.push(renamed);
+            }
+
+            for (key, (label_name, count)) in &in_use {
+                if !next_keys.contains(key) {
+                    return json!({
+                        "status": "error",
+                        "code": "LABEL_IN_USE",
+                        "params": { "label": label_name, "count": count },
+                        "version": version,
+                    });
+                }
+            }
+
+            for (task, labels) in st.tasks.iter_mut().zip(updated_tasks) {
+                task["labels"] = json!(labels);
+            }
+            st.labels = next_defs;
+            json!({
+                "status": "success",
+                "action": "saveLabels",
+                "version": version,
+                "labels": st.labels,
+            })
         }
         "move" => {
             let id = payload["id"].as_str().unwrap();
@@ -407,7 +523,9 @@ fn version_flag_and_single_target_skill_install_work() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     let dir = TempDir::new("sheet-e2e");
-    let (v5_url, state) = start_mock_server(5).await;
+    let (v7_url, state) = start_mock_server(7).await;
+    let (v6_url, _) = start_mock_server(6).await;
+    let (v5_url, _) = start_mock_server(5).await;
     let (v4_url, _) = start_mock_server(4).await;
 
     // Older v4 script is rejected with a clear upgrade prompt.
@@ -418,6 +536,30 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     assert!(err.contains("Apps Script v4"), "got: {err}");
     assert!(err.contains("v5"), "got: {err}");
 
+    // v5 script works for normal ops, but rejects label writes with a clear v6 prompt.
+    ok(cli(
+        dir.path(),
+        &["new-board", "V5 Sheet", "--script", &v5_url],
+    ));
+    let v5_label_err = fail(cli(
+        dir.path(),
+        &["add", "V5 Sheet", "Needs v6", "--labels", "Bug"],
+    ));
+    assert!(v5_label_err.contains("Apps Script v6"), "got: {v5_label_err}");
+    ok(cli(dir.path(), &["delete-board", "V5 Sheet"]));
+
+    // v6 script rejects editing board preset labels with a clear v7 prompt.
+    ok(cli(
+        dir.path(),
+        &["new-board", "V6 Sheet", "--script", &v6_url],
+    ));
+    let v6_labels_err = fail(cli(
+        dir.path(),
+        &["edit-board", "V6 Sheet", "--labels", "Bug:red,CLI:blue"],
+    ));
+    assert!(v6_labels_err.contains("Apps Script v7"), "got: {v6_labels_err}");
+    ok(cli(dir.path(), &["delete-board", "V6 Sheet"]));
+
     // Mismatched sheetId is rejected.
     let err = fail(cli(
         dir.path(),
@@ -427,7 +569,7 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
             "--sheet",
             "https://docs.google.com/spreadsheets/d/OTHER_SHEET/edit",
             "--script",
-            &v5_url,
+            &v7_url,
         ],
     ));
     assert!(err.contains("does not match"), "got: {err}");
@@ -441,14 +583,14 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
             "--sheet",
             "https://docs.google.com/spreadsheets/d/SHEET_ID_12345/edit#gid=0",
             "--script",
-            &v5_url,
+            &v7_url,
             "--issue-link",
             "https://example.com/issues/",
         ],
     ));
     assert!(created.contains("Created Google Sheet board"));
     assert!(created.contains("SHEET_ID_12345"));
-    assert!(!created.contains(&v5_url), "script URL must not be printed");
+    assert!(!created.contains(&v7_url), "script URL must not be printed");
 
     // `boards` lists the Google Sheet without exposing `scriptId`.
     let listed_json: Value =
@@ -501,6 +643,17 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     assert_eq!(edited["description"], "Line one\n\nLine two");
     assert_eq!(edited["labels"], json!(["CLI", "Urgent"]));
 
+    // v7 auto-synced the new task label "Urgent" into the Sheet's global labels.
+    assert!(
+        state
+            .lock()
+            .unwrap()
+            .labels
+            .iter()
+            .any(|l| l["name"] == "Urgent"),
+        "expected Urgent to be auto-synced to Sheet preset labels"
+    );
+
     let by_label: Value = serde_json::from_str(&ok(cli(
         dir.path(),
         &["tasks", "Team Sheet", "--label", "urgent", "--json"],
@@ -542,12 +695,41 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     assert_eq!(restored["column"], "Doing");
     assert_eq!(restored["labels"], json!(["CLI", "Urgent"]));
 
-    // edit-board updates title, rejects --columns cleanly.
+    // edit-board updates title, supports --labels/--rename-label on v7, and rejects --columns cleanly.
     let err = fail(cli(
         dir.path(),
         &["edit-board", "Team Sheet", "--columns", "A,B"],
     ));
     assert!(err.contains("columns"), "got: {err}");
+
+    // Dropping an in-use label ("Urgent") is rejected with LABEL_IN_USE.
+    let in_use_err = fail(cli(
+        dir.path(),
+        &["edit-board", "Team Sheet", "--labels", "CLI:indigo"],
+    ));
+    assert!(
+        in_use_err.contains("Urgent") && in_use_err.contains("in use"),
+        "got: {in_use_err}"
+    );
+
+    // Renaming "Urgent" -> "Hotfix" and changing colors works and propagates to tasks!
+    ok(cli(
+        dir.path(),
+        &[
+            "edit-board",
+            "Team Sheet",
+            "--labels",
+            "CLI:indigo,Hotfix:orange",
+            "--rename-label",
+            "Urgent=Hotfix",
+        ],
+    ));
+    let after_rename: Value = serde_json::from_str(&ok(cli(
+        dir.path(),
+        &["task", "Team Sheet", &task_id, "--json"],
+    )))
+    .unwrap();
+    assert_eq!(after_rename["labels"], json!(["CLI", "Hotfix"]));
 
     ok(cli(
         dir.path(),

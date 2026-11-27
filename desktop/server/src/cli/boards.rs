@@ -271,12 +271,10 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
         BoardRef::Sheet(existing) => {
             if args.option("columns").is_some()
                 || args.option("users").is_some()
-                || args.option("labels").is_some()
                 || !args.all("rename").is_empty()
-                || !args.all("rename-label").is_empty()
             {
                 return Err(Failure::Failed(
-                    "Google Sheet boards manage columns, assignees and labels in the spreadsheet's `columns`, `users` and `labels` tabs."
+                    "Google Sheet boards manage columns and assignees in the spreadsheet's `columns` and `users` tabs."
                         .to_string(),
                 ));
             }
@@ -303,7 +301,24 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
             let updated = store
                 .update_sheet(&existing.id, patch)
                 .map_err(|e| Failure::Failed(format!("{} ({})", e.message, e.code)))?;
-            let view = sheet_summary(&updated);
+
+            let mut label_renames = Map::new();
+            for rename in args.all("rename-label") {
+                let (from, to) = rename
+                    .split_once('=')
+                    .ok_or_else(|| usage("--rename-label takes OLD=NEW."))?;
+                label_renames.insert(from.trim().to_string(), json!(to.trim()));
+            }
+            let labels_arg = match args.option("labels") {
+                Some(raw) => Some(parse_label_defs_arg(raw)?),
+                None => None,
+            };
+            let mut view = sheet_summary(&updated);
+            if labels_arg.is_some() || !label_renames.is_empty() {
+                let saved_labels = sheet::save_labels(&updated, labels_arg.as_ref(), &label_renames)
+                    .map_err(Failure::Failed)?;
+                view["labels"] = saved_labels;
+            }
             Ok(shown(view.clone(), show_board_info("Updated", &view)))
         }
         BoardRef::Local(board_id) => {

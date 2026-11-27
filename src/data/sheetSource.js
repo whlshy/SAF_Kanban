@@ -47,9 +47,13 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     })
 
     if (response.body?.status === "error") {
-      throw new DataError(t("script.error", { message: translateScriptError(response.body) }))
+      throw Object.assign(
+        new DataError(t("script.error", { message: translateScriptError(response.body) })),
+        { code: response.body?.code }
+      )
     }
     if (!response.ok) throw new DataError(t("script.unreachable"))
+    return response.body
   }
 
   return {
@@ -93,7 +97,27 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     },
 
     // Creates the task, or updates the one with the same id.
-    saveTask: (task) => callScript({ action: "upsert", task: JSON.stringify(taskToScript(task)) }),
+    saveTask: async (task) => {
+      const body = await callScript({ action: "upsert", task: JSON.stringify(taskToScript(task)) })
+      const scriptVersion = Number(body?.version || 0)
+      return { scriptVersion, supportsLabels: scriptVersion >= 6 }
+    },
+    // Saves preset labels (Apps Script v7+), optionally renaming task labels.
+    saveLabels: async (labels, renames = {}) => {
+      try {
+        const body = await callScript({
+          action: "saveLabels",
+          labels: JSON.stringify(labels || []),
+          ...(Object.keys(renames || {}).length ? { renames: JSON.stringify(renames) } : {}),
+        })
+        return body?.labels || []
+      } catch (error) {
+        if (error?.code === "UNKNOWN_ACTION") {
+          throw new DataError(t("script.saveLabelsNeedV7"))
+        }
+        throw error
+      }
+    },
     // Puts the task in `column`, right before `beforeId` or else right after
     // `afterId`; with neither, it keeps its place in the stored order.
     moveTask: ({ id, column, beforeId, afterId }) =>

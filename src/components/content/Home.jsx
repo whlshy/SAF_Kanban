@@ -7,7 +7,7 @@ import { useBoards } from '@/store/boards'
 import { t as translate, useT } from '@/i18n'
 import { useBoardData, useBoardWrite } from '@/data/useBoardData'
 import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter'
-import { labelOptions } from '@/lib/labels'
+import { labelOptions, parseLabels } from '@/lib/labels'
 import useOnline from '@/lib/useOnline'
 import { filterAtom } from '@/store/filter'
 import { useDialogStore } from '@/store'
@@ -32,7 +32,7 @@ function Home() {
 
   // While a dialog is open nothing is fetched (typing a Sheet ID in Settings
   // shouldn't load every partial ID), and closing it refreshes the board.
-  const { source, columns, tasks, users, labels: boardLabels, columnsLoaded, tasksLoading, reloadTasks } =
+  const { source, columns, tasks, users, labels: boardLabels, columnsLoaded, tasksLoading, tasksUpdatedAt, reloadTasks, reloadLabels } =
     useBoardData(currentBoard, { paused: open })
 
   // Each board starts unfiltered.
@@ -93,11 +93,13 @@ function Home() {
             source={source}
             columnNames={columns}
             tasks={tasks}
+            tasksUpdatedAt={tasksUpdatedAt}
             users={users}
             boardLabels={boardLabels}
             filter={shownFilter}
             onToggleLabel={handleToggleLabel}
             reloadTasks={reloadTasks}
+            reloadLabels={reloadLabels}
             disabled={tasksLoading}
             locked={!online}
           />
@@ -109,7 +111,7 @@ function Home() {
 
 export default Home
 
-function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onToggleLabel, reloadTasks, disabled, locked, notice }) {
+function WHLKanban({ source, columnNames, tasks, tasksUpdatedAt, users, boardLabels, filter, onToggleLabel, reloadTasks, reloadLabels, disabled, locked, notice }) {
   // What the board shows: column name -> its tasks that pass the filter.
   // Dragging and saving update it right away; reloading then confirms it.
   const [columns, setColumns] = React.useState({})
@@ -130,7 +132,7 @@ function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onT
       newColumns[name] = tasks.filter((task) => task.column == name && matches(task))
     })
     setColumns(newColumns)
-  }, [tasks, columnNames, matches])
+  }, [tasks, tasksUpdatedAt, columnNames, matches])
 
   const totals = React.useMemo(
     () => Object.fromEntries(columnNames.map((name) => [name, tasks.filter((task) => task.column == name).length])),
@@ -140,6 +142,7 @@ function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onT
   // A saved task that the filter hides would seem to vanish, so say why.
   const onSaved = (task) => {
     reloadTasks()
+    if (task && parseLabels(task.labels).length) reloadLabels?.()
     if (task && filtering && !matches(task)) message.info(translate("filter.savedHidden"), 5)
     else message.success(translate("common.success"))
   }
@@ -189,15 +192,26 @@ function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onT
   }
 
   const handleEditTask = (newTask, callback) => {
-    let task = newTask
-    let newColumns
+    const existing = newTask?.id ? tasks.find((item) => item.id == newTask.id) : null
+    const prevLabels = parseLabels(existing?.labels)
+    const nextLabels = parseLabels(newTask?.labels)
+    const labelsChanged = existing
+      ? (prevLabels.length !== nextLabels.length || prevLabels.some((label, i) => label !== nextLabels[i]))
+      : nextLabels.length > 0
+    const otherFieldsChanged = !existing || ["title", "issueId", "des", "priority", "assignee"]
+      .some((field) => String(existing[field] ?? "") !== String(newTask?.[field] ?? ""))
 
-    if (newTask?.id) {
-      // 編輯
-      newColumns = Object.fromEntries(Object.entries(columns).map(([name, items]) =>
-        [name, items.map(f => f?.id == newTask.id ? { ...f, ...newTask } : f).filter(matches)]))
-    } else {
-      // 新增
+    const applyTask = (committedTask) => {
+      if (newTask?.id) {
+        return Object.fromEntries(Object.entries(columns).map(([name, items]) =>
+          [name, items.map(f => f?.id == newTask.id ? { ...f, ...committedTask } : f).filter(matches)]))
+      }
+      const firstColumn = columnNames[0]
+      return { ...columns, [firstColumn]: columns[firstColumn].concat([committedTask]).filter(matches) }
+    }
+
+    let task = newTask
+    if (!newTask?.id) {
       const firstColumn = columnNames[0]
       if (!columns[firstColumn]) {
         message.error(translate("task.noColumns"))
@@ -205,13 +219,26 @@ function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onT
         return
       }
       task = { ...newTask, id: crypto.randomUUID().split('-')[0], column: firstColumn }
-      newColumns = { ...columns, [firstColumn]: columns[firstColumn].concat([task]).filter(matches) }
     }
 
     write.mutate(
       { op: "saveTask", payload: task },
       {
-        onSuccess: () => (setColumns(newColumns), callback?.(true), onSaved(task)),
+        onSuccess: (result) => {
+          if (labelsChanged && result?.supportsLabels === false) {
+            const persistedTask = { ...task, labels: prevLabels }
+            setColumns(applyTask(persistedTask))
+            reloadTasks()
+            const versionText = result.scriptVersion > 0 ? `v${result.scriptVersion}` : "v1"
+            const key = otherFieldsChanged ? "script.labelsPartialSave" : "script.labelsNeedV6"
+            message.warning(translate(key, { version: versionText }), 8)
+            callback?.(otherFieldsChanged)
+            return
+          }
+          setColumns(applyTask(task))
+          callback?.(true)
+          onSaved(task)
+        },
         onError: () => callback?.(false),
       }
     )

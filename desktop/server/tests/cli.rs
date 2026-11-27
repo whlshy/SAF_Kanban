@@ -735,13 +735,22 @@ fn labels_work_from_the_cli() {
     assert_eq!(unlabeled.as_array().unwrap().len(), 1);
     assert_eq!(unlabeled[0]["title"], "No labels yet");
 
+    // Dropping a label still used by a task is rejected.
+    let drop_used = run_in(
+        dir,
+        &["edit-board", "Labeled", "--labels", "Bug:red,Frontend:blue"],
+        None,
+    );
+    assert_eq!(drop_used.status.code(), Some(1));
+    assert!(err(&drop_used).contains("LABEL_IN_USE"), "{}", err(&drop_used));
+
     ok(
         dir,
         &[
             "edit-board",
             "Labeled",
             "--labels",
-            "Defect:red,Frontend:blue",
+            "Defect:red,Frontend:blue,Urgent:orange",
             "--rename-label",
             "Bug=Defect",
         ],

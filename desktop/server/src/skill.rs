@@ -139,7 +139,7 @@ description: Read and change the user's SAF Kanban boards (看板) — both loca
 
 # SAF Kanban
 
-SAF Kanban keeps local boards as files on this computer and shares Google Sheet board settings in the same data folder. Read and change them with its command-line tool. It works whether or not the SAF Kanban desktop app is open; when the app is open, its window shows changes within a second. Google Sheet boards require Apps Script v5 or newer.
+SAF Kanban keeps local boards as files on this computer and shares Google Sheet board settings in the same data folder. Read and change them with its command-line tool. It works whether or not the SAF Kanban desktop app is open; when the app is open, its window shows changes within a second. Google Sheet boards require Apps Script v5 or newer (v6+ for task labels, v7+ for auto-syncing and editing board preset labels).
 
 The tool is this command (keep the quotes):
 
@@ -154,10 +154,10 @@ Below it is written as `saf-kanban-cli`; always type the full command above inst
 ```
 saf-kanban-cli boards                     List local and Google Sheet boards
 saf-kanban-cli board <board> [--column C] [--limit N]
-                                          Columns with their tasks in order, and the assignees
+                                          Columns with their tasks in order, assignees, and preset labels
 saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--label L] [--search WORDS]
                      [--since TIME] [--until TIME] [--limit N]
-                                          Find tasks (--assignee "" finds unassigned, --label "" finds unlabeled)
+                                          Find tasks (--assignee "" finds unassigned; --label "" or __unlabeled__ finds unlabeled)
 saf-kanban-cli task <board> <task>        One task, with its whole description
 saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--labels A,B]
                    [--description TEXT | --description-file FILE]
@@ -180,7 +180,8 @@ saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--labels "bug:r
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
                           [--labels "bug:red,feat:blue"] [--rename-label OLD=NEW]
                           [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
-                                          --columns and --users are the complete new lists (local boards)
+                                          --columns and --users are local boards only; --labels and --rename-label
+                                          also work on Google Sheet boards (Apps Script v7+)
 saf-kanban-cli delete-board <board>       Delete a local board, or remove a Google Sheet board from the list
 saf-kanban-cli import <file> [--password PWD]
                                           Import exported Google Sheet settings or a local board JSON
@@ -196,9 +197,12 @@ saf-kanban-cli export [board...] [--sheets] [--out FILE] [--password PWD]
 
 ## How boards work
 
-- Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, and the names tasks can be assigned to. Use those exact names.
+- Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, the assignee names, and any preset labels. Use those exact names.
 - Each task is in one column. Priorities are `high`, `medium` and `low`.
-- For local boards, `--rename OLD=NEW` renames a column and its tasks follow it; a column that still has tasks can't be removed. For Google Sheet boards, columns and assignees are managed in the spreadsheet's `columns` and `users` tabs.
+- Labels are hybrid and synced: tasks can use the board's preset labels or any new label name (matched case-insensitively, comma-separated). Saving a new label on a task automatically adds it to the board's global preset labels (local boards and Google Sheet boards with Apps Script v7+) with a deterministic color. On `edit`, prefer `--add-label` / `--remove-label` when adding or removing individual labels so existing labels aren't overwritten (`--labels` replaces the entire label list; `--labels ""` clears all labels).
+- Preset label colors accept these 10 palette names — `red`, `orange`, `amber`, `green`, `teal`, `blue`, `indigo`, `purple`, `pink`, `gray` — or a `#RRGGBB` hex code (omit the color for an automatic deterministic color).
+- Removing a preset label via `edit-board --labels` is rejected (`LABEL_IN_USE`) if any task on the board still uses it; remove it from those tasks first (or rename it with `--rename-label OLD=NEW`, which updates all tasks).
+- For local boards, `--rename OLD=NEW` renames a column and its tasks follow it (a column that still has tasks can't be removed). For Google Sheet boards, columns and assignees are managed in the spreadsheet's `columns` and `users` tabs, while preset labels can be edited with `edit-board --labels` / `--rename-label` (requires Apps Script v7+; task labels require v6+).
 - Ask the user before deleting tasks, deleting boards (`delete-board`), removing columns, or renaming boards.
 - A deleted task can be put back with `restore`, exactly as it was. If a task was deleted by mistake, restore it (find its id with `deleted`) instead of adding it again with `add`, which would make a different task. If its column was removed since, pass `--column`.
 - When a command fails it says why (an unknown column, a task id that doesn't exist, an older Apps Script version, ...) and exits with a non-zero status; fix the command and try again.

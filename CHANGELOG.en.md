@@ -8,12 +8,28 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 | Version | Released with | Changes |
 | --- | --- | --- |
+| v7 | 1.22.1 | Adds `action=saveLabels` to edit the `labels` tab (colors, order, and rename propagation across tasks) from Web Settings or CLI while blocking removal of labels still in use; `upsert`/`restore` auto-sync new task labels into the `labels` tab and auto-expand trimmed columns |
 | v6 | 1.22.0 | Adds task labels: column J of `kanban` (comma-separated), column K of `history` on delete, optional `labels` sheet (`A:B`) for preset labels and colors, and atomic `addLabels`/`removeLabels` in `upsert`; fully backwards-compatible with older Sheets |
 | v5 | 1.21.0 | Adds `doPost` JSON endpoint, `action=read` (fetches columns, tasks, users, and history in one call), `action=restore`, and atomic description appending (`appendDes`) in `upsert` for CLI access to Google Sheet boards |
 | v4 | 1.19.0 | Records when each task last moved into its current column in column I of `kanban` (on creation and cross-column moves); deleting a task keeps it in column J of `history` |
 | v3 | 1.18.0 | Records when each new task was created in column H of `kanban`; deleting a task keeps that time in column I of `history` |
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
+
+## 1.22.1 and desktop app / CLI 0.7.1 — 2026-11-27
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Google Sheet boards need **Apps Script v7** to edit preset labels & colors in Settings/CLI and auto-sync new task labels.
+
+### Added & Improved
+
+- **Edit Google Sheet preset labels & colors in Settings and CLI (Apps Script v7)**: Google Sheet boards now show the Labels editor in Settings (10-color palette, drag reorder, and rename propagation across tasks), and `saf-kanban-cli edit-board --labels` / `--rename-label` now works on Google Sheet boards as well.
+- **Auto-sync new task labels to global board labels**: saving a task with a brand-new label automatically registers it in the board's preset labels (local `board.labels` and Google Sheet `labels` tab on v7+) using the same deterministic palette color across Web, Rust, and Apps Script.
+- **Prevent removing global labels still in use by tasks**: the Settings editor disables the remove button with an in-use count tooltip, and both the local Rust server (`409 LABEL_IN_USE`) and Apps Script v7 reject removing any label still attached to a task.
+- **Complete AI Skill & MCP label docs and schemas**: updated embedded `SKILL.md`, MCP tool instructions/schemas (all 10 valid palette names, `__unlabeled__` filter, v6/v7 requirements), and desktop READMEs.
+
+### Fixed
+
+- **Fixed phantom labels and false "Success" toast on outdated Apps Script (< v6)**: saving task labels against Apps Script v1–v5 now reverts unsaved labels in the UI (fixing React Query structural sharing hiding the resync) and shows a clear warning to upgrade to v6+; Apps Script also auto-expands trimmed columns before writing column J.
 
 ## 1.22.0 and desktop app / CLI 0.7.0 — 2026-11-27
 
