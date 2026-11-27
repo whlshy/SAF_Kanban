@@ -14,6 +14,14 @@
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
 
+## 桌面版 0.6.3 — 2026-11-27
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。網站沒有變更。
+
+### 新增
+
+- **記住視窗大小、位置與最大化狀態**：桌面版會在 `<data dir>/window.json` 自動記錄主視窗最後一次的位置、尺寸與最大化狀態，完整結束或更新重啟後自動還原；支援 Windows HiDPI 物理像素、多螢幕配置（拔除外接螢幕時自動移回主螢幕置中）、最大化還原保留原本尺寸，以及 `--hidden` 開機靜默啟動不搶焦點。
+
 ## 1.21.2 與桌面版 0.6.2 — 2026-11-26
 
 桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載。

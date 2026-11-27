@@ -7,7 +7,7 @@
 //   node desktop/app/smoke-test.mjs <path to saf-kanban(.exe)>
 
 import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -22,6 +22,11 @@ const port = 41977
 const base = `http://127.0.0.1:${port}`
 const dataDir = mkdtempSync(join(tmpdir(), 'saf-kanban-smoke-'))
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Pre-seed a saved window state to verify `--hidden` startup restores cleanly
+// without clobbering the user's saved bounds.
+const seededWindow = JSON.stringify({ x: 120, y: 80, width: 1100, height: 760, maximized: true }, null, 2)
+writeFileSync(join(dataDir, 'window.json'), seededWindow)
 
 let failed = 0
 const check = (name, ok, detail = '') => {
@@ -160,6 +165,8 @@ try {
   // has stopped by now.
   await sleep(3000)
   check('the app is still running', !exited)
+  const windowAfterHidden = readFileSync(join(dataDir, 'window.json'), 'utf8')
+  check('hidden startup keeps saved window.json intact', windowAfterHidden === seededWindow, windowAfterHidden)
 
   // ---- with the app closed ----
   app.kill()

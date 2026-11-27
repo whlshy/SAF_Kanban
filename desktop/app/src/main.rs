@@ -14,23 +14,34 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod updater;
+mod window_state;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use saf_kanban_server::updater::UpdateHandle;
 use saf_kanban_server::{bridge, default_data_dir, skill, Options, Server, UiFiles, DEFAULT_PORT};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::webview::NewWindowResponse;
-use tauri::{App, AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{
+    App, AppHandle, Manager, PhysicalPosition, PhysicalSize, RunEvent, Url, WebviewUrl,
+    WebviewWindowBuilder, Window, WindowEvent,
+};
 use tauri_plugin_autostart::ManagerExt;
+use window_state::{
+    MonitorRect, WindowSnapshot, WindowState, WindowStateStore, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    MIN_HEIGHT, MIN_WIDTH,
+};
 
 const WINDOW: &str = "main";
+const ERROR_WINDOW: &str = "error";
 /// Given when the program is started at sign-in: no window until asked for.
 const HIDDEN: &str = "--hidden";
+const SAVE_DEBOUNCE: Duration = Duration::from_millis(350);
 
 struct Args {
     mcp: bool,
@@ -147,10 +158,75 @@ async fn start_server(
 
 fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(WINDOW) {
+        let should_maximize = app
+            .try_state::<PendingMaximize>()
+            .is_some_and(|pending| pending.0.swap(false, Ordering::SeqCst));
         let _ = window.unminimize();
         let _ = window.show();
+        if should_maximize {
+            let _ = window.maximize();
+        }
         let _ = window.set_focus();
     }
+}
+
+fn snapshot_window(window: &Window) -> Option<WindowSnapshot> {
+    let visible = window.is_visible().ok()?;
+    let minimized = window.is_minimized().ok()?;
+    let maximized = window.is_maximized().ok()?;
+    let pos = window.outer_position().ok()?;
+    let size = window.inner_size().ok()?;
+    Some(WindowSnapshot {
+        x: pos.x,
+        y: pos.y,
+        width: size.width,
+        height: size.height,
+        maximized,
+        minimized,
+        visible,
+    })
+}
+
+fn record_and_debounce(window: &Window) {
+    let Some(saved) = window.try_state::<SavedWindow>() else {
+        return;
+    };
+    let Some(snapshot) = snapshot_window(window) else {
+        return;
+    };
+    let store = Arc::clone(&saved.0);
+    if let Some(generation) = store.record(snapshot) {
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(SAVE_DEBOUNCE).await;
+            store.flush_if_current(generation);
+        });
+    }
+}
+
+fn capture_and_flush(app: &AppHandle) {
+    let Some(saved) = app.try_state::<SavedWindow>() else {
+        return;
+    };
+    if let Some(window) = app.get_webview_window(WINDOW) {
+        if let (Ok(visible), Ok(minimized), Ok(maximized), Ok(pos), Ok(size)) = (
+            window.is_visible(),
+            window.is_minimized(),
+            window.is_maximized(),
+            window.outer_position(),
+            window.inner_size(),
+        ) {
+            let _ = saved.0.record(WindowSnapshot {
+                x: pos.x,
+                y: pos.y,
+                width: size.width,
+                height: size.height,
+                maximized,
+                minimized,
+                visible,
+            });
+        }
+    }
+    saved.0.flush();
 }
 
 /// Whether an address is this program's own web UI.
@@ -168,15 +244,24 @@ fn open_outside(url: &Url) {
     }
 }
 
-fn open_ui(app: &App, port: u16, hidden: bool) -> tauri::Result<()> {
+fn open_ui(
+    app: &App,
+    port: u16,
+    hidden: bool,
+    saved: Option<&WindowState>,
+    state_store: &WindowStateStore,
+    pending_maximize: &AtomicBool,
+) -> tauri::Result<()> {
     let url: Url = format!("http://127.0.0.1:{port}/")
         .parse()
         .expect("a valid address");
-    WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(url))
+    // Build hidden first so restoring position/size/maximized never flashes the
+    // window at the default position before jumping.
+    let window = WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(url))
         .title("SAF Kanban")
-        .inner_size(1280.0, 800.0)
-        .min_inner_size(360.0, 480.0)
-        .visible(!hidden)
+        .inner_size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        .min_inner_size(MIN_WIDTH as f64, MIN_HEIGHT as f64)
+        .visible(false)
         .on_navigation(move |url| {
             // `blob:` is a file the UI made for saving, such as exported boards.
             if is_ui(url, port) || matches!(url.scheme(), "blob" | "about") {
@@ -190,6 +275,48 @@ fn open_ui(app: &App, port: u16, hidden: bool) -> tauri::Result<()> {
             NewWindowResponse::Deny
         })
         .build()?;
+
+    let mut restore_maximized = false;
+    if let Some(state) = saved {
+        let monitors: Vec<MonitorRect> = window
+            .available_monitors()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|monitor| {
+                let area = monitor.work_area();
+                MonitorRect {
+                    x: area.position.x,
+                    y: area.position.y,
+                    width: area.size.width,
+                    height: area.size.height,
+                }
+            })
+            .collect();
+
+        if let Some(restored) = window_state::resolve_restore(state, &monitors) {
+            // Apply position first so `set_size` runs at the destination monitor's DPI.
+            if let Some((x, y)) = restored.position {
+                let _ = window.set_position(PhysicalPosition::new(x, y));
+                let _ = window.set_size(PhysicalSize::new(restored.width, restored.height));
+            } else {
+                let _ = window.set_size(PhysicalSize::new(restored.width, restored.height));
+                let _ = window.center();
+            }
+            restore_maximized = restored.maximized;
+        }
+    }
+
+    if hidden {
+        // Calling `maximize()` on Windows makes a hidden window visible, so defer
+        // maximizing until the first time the user opens the window from the tray.
+        pending_maximize.store(restore_maximized, Ordering::SeqCst);
+    } else {
+        if restore_maximized {
+            let _ = window.maximize();
+        }
+        let _ = window.show();
+    }
+    state_store.start_tracking();
     Ok(())
 }
 
@@ -209,7 +336,7 @@ fn open_failure(app: &App, error: &std::io::Error) -> tauri::Result<()> {
     let url: Url = page
         .parse()
         .unwrap_or_else(|_| "about:blank".parse().expect("a valid address"));
-    WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::External(url))
+    WebviewWindowBuilder::new(app, ERROR_WINDOW, WebviewUrl::External(url))
         .title("SAF Kanban")
         .inner_size(560.0, 240.0)
         .build()?;
@@ -268,7 +395,10 @@ fn add_tray(
                     handle.check(false);
                 }
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                capture_and_flush(app);
+                app.exit(0);
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -293,6 +423,10 @@ struct InTray(bool);
 /// Set right before an update installer quits the app so closing the window
 /// isn't intercepted by the tray hide handler.
 struct InstallingUpdate(Arc<AtomicBool>);
+/// Remembers the main window's bounds across restarts in `<data_dir>/window.json`.
+struct SavedWindow(Arc<WindowStateStore>);
+/// Deferred maximize when the app starts with `--hidden` and was previously maximized.
+struct PendingMaximize(Arc<AtomicBool>);
 
 fn main() {
     let args = args();
@@ -301,7 +435,7 @@ fn main() {
         return;
     }
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         // Starting the program again shows the window of the one running.
         .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
             if !arguments.iter().any(|argument| argument == HIDDEN) {
@@ -323,6 +457,16 @@ fn main() {
             let installing = Arc::new(AtomicBool::new(false));
             app.manage(InstallingUpdate(installing.clone()));
 
+            let initial_window = window_state::load(&args.data_dir);
+            let window_store = Arc::new(WindowStateStore::new(
+                &args.data_dir,
+                initial_window.clone(),
+            ));
+            app.manage(SavedWindow(window_store.clone()));
+
+            let pending_maximize = Arc::new(AtomicBool::new(false));
+            app.manage(PendingMaximize(pending_maximize.clone()));
+
             let updater_pair = if updater::is_configured(app) {
                 updater::TauriUpdater::start(app, installing.clone()).ok()
             } else {
@@ -335,7 +479,14 @@ fn main() {
                 Ok(server) => {
                     let port = server.address.port();
                     tauri::async_runtime::spawn(server.run(std::future::pending()));
-                    open_ui(app, port, args.hidden)?;
+                    open_ui(
+                        app,
+                        port,
+                        args.hidden,
+                        initial_window.as_ref(),
+                        &window_store,
+                        &pending_maximize,
+                    )?;
                     // Without the icon, closing the window has to quit.
                     app.manage(InTray(add_tray(app, updater_pair).is_ok()));
                 }
@@ -347,16 +498,32 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                let installing = window
-                    .try_state::<InstallingUpdate>()
-                    .is_some_and(|flag| flag.0.load(Ordering::SeqCst));
-                if !installing && window.state::<InTray>().0 {
-                    api.prevent_close();
-                    let _ = window.hide();
+            if window.label() != WINDOW {
+                return;
+            }
+            match event {
+                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                    record_and_debounce(window);
                 }
+                WindowEvent::CloseRequested { api, .. } => {
+                    capture_and_flush(window.app_handle());
+                    let installing = window
+                        .try_state::<InstallingUpdate>()
+                        .is_some_and(|flag| flag.0.load(Ordering::SeqCst));
+                    if !installing && window.state::<InTray>().0 {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                _ => {}
             }
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("SAF Kanban couldn't start");
+
+    app.run(|app, event| {
+        if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+            capture_and_flush(app);
+        }
+    });
 }

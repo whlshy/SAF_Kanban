@@ -14,6 +14,14 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## Desktop app 0.6.3 — 2026-11-27
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases). The website is unchanged.
+
+### Added
+
+- **Remember window size, position, and maximized state**: the desktop app now saves the main window's bounds in `<data dir>/window.json` and restores them across full restarts and updates, using physical pixels for Windows HiDPI accuracy, preserving normal bounds while maximized, falling back to centered placement when a previously used external monitor is disconnected, and respecting `--hidden` startup.
+
 ## 1.21.2 and desktop app 0.6.2 — 2026-11-26
 
 Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases).
