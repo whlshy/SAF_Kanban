@@ -78,6 +78,9 @@ jobs:
             npm run build:app
           }
 
+      - name: Test the desktop app
+        run: cargo test --manifest-path desktop/Cargo.toml -p saf-kanban
+
       - name: Install and check the app
         run: |
           $version = "${{ steps.version.outputs.version }}"
