@@ -1,8 +1,9 @@
 import { matchesTerms, searchTerms } from './search.js'
+import { parseLabels } from './labels.js'
 
 // Helpers for the history sheet: one deleted task per row, columns A:G as in
-// the kanban sheet, H the deletion time and I when the task was created
-// (Apps Script v3 and later).
+// the kanban sheet, H the deletion time, I creation time (Apps Script v3+),
+// J last column-move time (v4+), and K labels (v6+).
 
 // Google Sheets date serials count days from 1899-12-30; 25569 is 1970-01-01.
 const SERIAL_UNIX_EPOCH = 25569
@@ -33,6 +34,7 @@ export const parseHistory = (values = []) =>
   values
     .map((row, index) => {
       const serial = toSerial(row[7])
+      const labels = parseLabels(row[10])
       return {
         row: index + 1,
         id: text(row[0]),
@@ -46,6 +48,8 @@ export const parseHistory = (values = []) =>
         deletedAt: serial === null ? text(row[7]) : formatSerial(serial),
         // A date the Sheet recognised comes as a serial; text stays as written.
         createdAt: typeof row[8] === "number" ? formatSerial(row[8]) : text(row[8]),
+        ...(row[9] !== undefined && row[9] !== "" ? { movedAt: typeof row[9] === "number" ? formatSerial(row[9]) : text(row[9]) } : {}),
+        ...(labels.length ? { labels } : {}),
       }
     })
     .filter((r) => r.id || r.title)
@@ -62,5 +66,5 @@ export const parseHistory = (values = []) =>
 export const filterHistory = (records, query) => {
   const terms = searchTerms(query)
   if (!terms.length) return records
-  return records.filter((r) => matchesTerms([r.title, r.des, r.issueId, r.column, r.assignee], terms))
+  return records.filter((r) => matchesTerms([r.title, r.des, r.issueId, r.column, r.assignee, ...parseLabels(r.labels)], terms))
 }

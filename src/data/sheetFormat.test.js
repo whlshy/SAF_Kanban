@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rowsToColumns, rowsToTasks, rowsToUsers, taskToScript } from './sheetFormat.js'
+import { rowsToColumns, rowsToLabels, rowsToTasks, rowsToUsers, taskToScript } from './sheetFormat.js'
 
 test('kanban rows become tasks, in row order', () => {
   const tasks = rowsToTasks([
@@ -46,4 +46,19 @@ test('a task is sent to the Apps Script under the field names it reads', () => {
   // What is read back from the Sheet is the same task.
   const row = ['id', 'title', 'jiraId', 'des', 'task', 'priority', 'assignee'].map((field) => taskToScript(task)[field])
   assert.deepEqual(rowsToTasks([row])[0], task)
+})
+
+test('column J labels and labels sheet rows are parsed cleanly', () => {
+  const [labeled, plain] = rowsToTasks([
+    ['a1', 'Labeled', '', '', 'Todo', 'high', '', '2026-11-21 10:30:00', '2026-11-22 14:15:00', 'bug, frontend, BUG'],
+    ['b2', 'Plain', '', '', 'Todo', 'low', ''],
+  ])
+  assert.deepEqual(labeled.labels, ['bug', 'frontend'])
+  assert.equal('labels' in plain, false)
+
+  assert.deepEqual(
+    rowsToLabels([['bug', 'red'], ['custom', '#3b82f6'], ['plain'], [], ['']]),
+    [{ name: 'bug', color: 'red' }, { name: 'custom', color: '#3b82f6' }, { name: 'plain' }]
+  )
+  assert.deepEqual(taskToScript({ ...labeled, labels: ['bug', 'ui'] }).labels, ['bug', 'ui'])
 })

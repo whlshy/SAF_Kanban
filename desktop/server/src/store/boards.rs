@@ -7,8 +7,8 @@ use crate::error::{ApiError, ApiResult};
 use crate::model::{Board, BoardInfo, FILE_VERSION};
 
 use super::{
-    clean_names, new_id, now, valid_id, BoardPatch, NewBoard, Store, DEFAULT_COLUMNS,
-    DEFAULT_PRIORITY,
+    clean_label_defs, clean_labels, clean_names, new_id, now, valid_id, BoardPatch, NewBoard,
+    Store, DEFAULT_COLUMNS, DEFAULT_PRIORITY,
 };
 
 impl Store {
@@ -78,6 +78,7 @@ impl Store {
             if task.priority.is_empty() {
                 task.priority = DEFAULT_PRIORITY.to_string();
             }
+            task.labels = clean_labels(task.labels);
             if task.created_at.is_empty() {
                 task.created_at = time.clone();
             }
@@ -90,6 +91,7 @@ impl Store {
             .history
             .into_iter()
             .map(|mut deleted| {
+                deleted.task.labels = clean_labels(deleted.task.labels);
                 if deleted.deleted_at.is_empty() {
                     deleted.deleted_at = time.clone();
                 }
@@ -110,6 +112,7 @@ impl Store {
                 issue_link: input.issue_link.trim().to_string(),
                 columns,
                 users: clean_names(input.users, "DUPLICATE_USER")?,
+                labels: clean_label_defs(input.labels)?,
                 created_at: time,
                 tasks,
                 history,
@@ -167,6 +170,44 @@ impl Store {
 
             if let Some(users) = patch.users {
                 board.users = clean_names(users, "DUPLICATE_USER")?;
+            }
+
+            if !patch.label_renames.is_empty() {
+                let mut label_renames = HashMap::new();
+                for (from, to) in &patch.label_renames {
+                    let to = to.replace(',', " ").trim().to_string();
+                    if to.is_empty() {
+                        return Err(ApiError::invalid(
+                            "EMPTY_LABEL_NAME",
+                            format!("Label `{from}` can't be renamed to an empty name."),
+                        ));
+                    }
+                    label_renames.insert(from.trim().to_lowercase(), to);
+                }
+                for task in &mut board.tasks {
+                    let updated: Vec<String> = task
+                        .labels
+                        .iter()
+                        .map(|label| {
+                            label_renames
+                                .get(&label.to_lowercase())
+                                .cloned()
+                                .unwrap_or_else(|| label.clone())
+                        })
+                        .collect();
+                    task.labels = clean_labels(updated);
+                }
+                if patch.labels.is_none() {
+                    for def in &mut board.labels {
+                        if let Some(new_name) = label_renames.get(&def.name.to_lowercase()) {
+                            def.name = new_name.clone();
+                        }
+                    }
+                    board.labels = clean_label_defs(std::mem::take(&mut board.labels))?;
+                }
+            }
+            if let Some(labels) = patch.labels {
+                board.labels = clean_label_defs(labels)?;
             }
             Ok(BoardInfo::from(&*board))
         })?;

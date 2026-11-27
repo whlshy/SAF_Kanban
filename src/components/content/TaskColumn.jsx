@@ -4,7 +4,18 @@ import { KanbanColumn, KanbanColumnContent } from '@/components/ui/kanban'
 import TaskCard from './TaskCard'
 
 // `total` is given while a filter hides some of the column's tasks.
-export default function TaskColumn({ value, tasks, total, isOverlay, disabled, locked, ...props }) {
+export default function TaskColumn({
+  value,
+  tasks,
+  total,
+  isOverlay,
+  disabled,
+  locked,
+  boardLabels = [],
+  activeLabel = "",
+  onLabelClick,
+  ...props
+}) {
   return (
     <KanbanColumn
       value={value}
@@ -35,6 +46,9 @@ export default function TaskColumn({ value, tasks, total, isOverlay, disabled, l
             asHandle={!isOverlay}
             disabled={disabled}
             locked={locked}
+            boardLabels={boardLabels}
+            activeLabel={activeLabel}
+            onLabelClick={onLabelClick}
           />
         ))}
       </KanbanColumnContent>

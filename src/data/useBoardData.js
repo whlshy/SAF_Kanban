@@ -31,6 +31,7 @@ export function useBoardData(board, { paused = false } = {}) {
   const columnsQuery = useQuery({ ...common, queryKey: queryKey("columns"), queryFn: () => source.loadColumns() })
   const tasksQuery = useQuery({ ...common, queryKey: queryKey("tasks"), queryFn: () => source.loadTasks(), refetchOnWindowFocus: true })
   const usersQuery = useQuery({ ...common, queryKey: queryKey("users"), queryFn: () => source.loadUsers() })
+  const labelsQuery = useQuery({ ...common, queryKey: queryKey("labels"), queryFn: () => source.loadLabels?.() ?? EMPTY })
 
   // Data that other programs can change (the local server's API) says when it
   // did. While paused the queries are only marked out of date, and reload
@@ -47,6 +48,7 @@ export function useBoardData(board, { paused = false } = {}) {
     columns: columnsQuery.data || EMPTY,
     tasks: tasksQuery.data || EMPTY,
     users: usersQuery.data || EMPTY,
+    labels: labelsQuery.data || EMPTY,
     // The columns have been asked for and the answer is in (possibly empty).
     columnsLoaded: columnsQuery.isFetched && !columnsQuery.isFetching,
     tasksLoading: tasksQuery.isFetching,

@@ -1,16 +1,18 @@
 import React from 'react'
 import { Search as SearchIcon, Close as CloseIcon } from '@mui/icons-material'
 import { useT } from '@/i18n'
-import { PRIORITIES, UNASSIGNED, assigneeOptions, isFilterActive } from '@/lib/filter'
+import { PRIORITIES, UNASSIGNED, UNLABELED, assigneeOptions, isFilterActive } from '@/lib/filter'
+import { labelOptions } from '@/lib/labels'
 
 // Plain inputs styled with the board's own colours, so they follow its theme.
 const fieldClass = "h-8 rounded-md border bg-background text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-card dark:[color-scheme:dark]"
 
-// Search box plus assignee and priority filters, shown above the columns.
-export default function FilterBar({ filter, onChange, tasks, users, shown }) {
+// Search box plus assignee, priority, and label filters, shown above the columns.
+export default function FilterBar({ filter, onChange, tasks, users, boardLabels = [], shown }) {
   const t = useT()
   const active = isFilterActive(filter)
   const names = React.useMemo(() => assigneeOptions(users, tasks), [users, tasks])
+  const labels = React.useMemo(() => labelOptions(boardLabels, tasks), [boardLabels, tasks])
   // The usual three, then any other value found in the Sheet.
   const priorities = React.useMemo(
     () => [...new Set([...PRIORITIES, ...tasks.map((task) => task.priority).filter(Boolean)])],
@@ -66,6 +68,16 @@ export default function FilterBar({ filter, onChange, tasks, users, shown }) {
           </option>
         ))}
       </select>
+      <select
+        value={filter.label || ""}
+        onChange={(e) => onChange({ label: e.target.value })}
+        aria-label={t("task.labels")}
+        className={`${fieldClass} min-w-0 flex-1 px-2 sm:w-40 sm:flex-none`}
+      >
+        <option value="">{t("filter.anyLabel")}</option>
+        <option value={UNLABELED}>{t("task.unlabeled")}</option>
+        {labels.map((label) => <option key={label} value={label}>{label}</option>)}
+      </select>
       {active && (
         <div className="flex basis-full items-center gap-2 text-xs text-muted-foreground sm:basis-auto">
           <span data-slot="filter-count" className="whitespace-nowrap tabular-nums">
@@ -73,7 +85,7 @@ export default function FilterBar({ filter, onChange, tasks, users, shown }) {
           </span>
           <button
             type="button"
-            onClick={() => onChange({ query: "", assignee: "", priority: "" })}
+            onClick={() => onChange({ query: "", assignee: "", priority: "", label: "" })}
             className="rounded px-1.5 py-1 text-foreground underline-offset-2 hover:underline"
           >
             {t("filter.clear")}

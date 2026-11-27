@@ -30,7 +30,7 @@ use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use tokio::sync::broadcast;
 
 use crate::error::{ApiError, ApiResult};
-use crate::model::{Board, DeletedTask, Task, FILE_VERSION};
+use crate::model::{Board, DeletedTask, LabelDef, Task, FILE_VERSION};
 
 pub const DEFAULT_COLUMNS: [&str; 3] = ["Todo", "Doing", "Done"];
 pub const DEFAULT_PRIORITY: &str = "medium";
@@ -53,6 +53,7 @@ pub struct NewBoard {
     /// Defaults to Todo, Doing, Done.
     pub columns: Option<Vec<String>>,
     pub users: Vec<String>,
+    pub labels: Vec<LabelDef>,
     /// Tasks to start with, in board order: for a board copied from somewhere
     /// else or brought back from an exported file. A column they name that
     /// isn't in `columns` is added after the others.
@@ -69,8 +70,11 @@ pub struct BoardPatch {
     /// The new list of columns, in order.
     pub columns: Option<Vec<String>>,
     pub users: Option<Vec<String>>,
-    /// Old column name -> new name; the column's tasks follow it.
+    pub labels: Option<Vec<LabelDef>>,
+    /// Old column name -> new column name; the column's tasks follow it.
     pub renames: HashMap<String, String>,
+    /// Old label name -> new label name; existing tasks using it are updated.
+    pub label_renames: HashMap<String, String>,
 }
 
 /// A task as a client sends it. Missing fields mean "empty" when creating or
@@ -88,6 +92,9 @@ pub struct TaskInput {
     pub column: Option<String>,
     pub priority: Option<String>,
     pub assignee: Option<String>,
+    pub labels: Option<Vec<String>>,
+    pub add_labels: Option<Vec<String>>,
+    pub remove_labels: Option<Vec<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -120,7 +127,9 @@ pub struct TaskQuery {
     /// An empty value finds unassigned tasks.
     pub assignee: Option<String>,
     pub priority: Option<String>,
-    /// Words that must all appear in the title, description, issue ID or assignee.
+    /// An empty value finds unlabeled tasks; otherwise matched case-insensitively.
+    pub label: Option<String>,
+    /// Words that must all appear in the title, description, issue ID, assignee or labels.
     pub q: Option<String>,
     /// Only tasks moved into their current column at or after this time
     /// (`YYYY-MM-DD` or ISO timestamp).
@@ -324,6 +333,96 @@ fn clean_names(names: Vec<String>, duplicate_code: &'static str) -> ApiResult<Ve
             ));
         }
         cleaned.push(name);
+    }
+    Ok(cleaned)
+}
+
+/// Normalizes a task's labels: splits commas, trims, drops empties, and
+/// deduplicates case-insensitively while preserving first-seen casing.
+pub(crate) fn clean_labels<I, S>(raw: I) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut seen = HashSet::new();
+    let mut cleaned = Vec::new();
+    for entry in raw {
+        for part in entry.as_ref().split(',') {
+            let trimmed = part.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if seen.insert(trimmed.to_lowercase()) {
+                cleaned.push(trimmed.to_string());
+            }
+        }
+    }
+    cleaned
+}
+
+/// Applies optional `add` and `remove` mutations on top of `base` labels.
+pub(crate) fn apply_label_mutations(
+    base: Vec<String>,
+    add: Option<Vec<String>>,
+    remove: Option<Vec<String>>,
+) -> Vec<String> {
+    let remove_set: HashSet<String> = remove
+        .map(clean_labels)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| name.to_lowercase())
+        .collect();
+    let mut combined = clean_labels(base);
+    combined.retain(|name| !remove_set.contains(&name.to_lowercase()));
+    if let Some(add) = add {
+        for label in clean_labels(add) {
+            let key = label.to_lowercase();
+            if !remove_set.contains(&key) && !combined.iter().any(|existing| existing.to_lowercase() == key) {
+                combined.push(label);
+            }
+        }
+    }
+    combined
+}
+
+fn normalize_label_color(color: &str) -> String {
+    const PALETTE: [&str; 10] = [
+        "red", "orange", "amber", "green", "teal", "blue", "indigo", "purple", "pink", "gray",
+    ];
+    let trimmed = color.trim().to_lowercase();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if PALETTE.contains(&trimmed.as_str()) {
+        return trimmed;
+    }
+    if let Some(hex) = trimmed.strip_prefix('#') {
+        if hex.len() == 6 && hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return trimmed;
+        }
+    }
+    String::new()
+}
+
+/// Trims board label definitions, drops empty names, and refuses case-insensitive duplicates.
+pub(crate) fn clean_label_defs(defs: Vec<LabelDef>) -> ApiResult<Vec<LabelDef>> {
+    let mut seen = HashSet::new();
+    let mut cleaned = Vec::new();
+    for def in defs {
+        let name = def.name.replace(',', " ").trim().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        if !seen.insert(name.to_lowercase()) {
+            return Err(ApiError::invalid(
+                "DUPLICATE_LABEL",
+                format!("`{name}` is listed more than once."),
+            ));
+        }
+        cleaned.push(LabelDef {
+            name,
+            color: normalize_label_color(&def.color),
+        });
     }
     Ok(cleaned)
 }

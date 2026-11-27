@@ -683,3 +683,70 @@ fn board_limit_and_moved_at_filtering_work_together() {
     assert_eq!(bad.status.code(), Some(1));
     assert!(err(&bad).contains("INVALID_TIME"));
 }
+
+#[test]
+fn labels_work_from_the_cli() {
+    let folder = Folder::new();
+    let dir = &folder.0;
+
+    let created_board = ok(
+        dir,
+        &[
+            "new-board",
+            "Labeled",
+            "--labels",
+            "Bug:red,Frontend:blue,Docs",
+        ],
+    );
+    assert!(created_board.contains("Labels: Bug (red), Frontend (blue), Docs"));
+
+    let task = json_of(
+        dir,
+        &["add", "Labeled", "Fix crash", "--labels", "Bug,API"],
+    );
+    let task_id = task["id"].as_str().unwrap().to_string();
+    assert_eq!(task["labels"], json!(["Bug", "API"]));
+
+    ok(dir, &["add", "Labeled", "No labels yet"]);
+
+    let board_text = ok(dir, &["board", "Labeled"]);
+    assert!(board_text.contains("#Bug"), "{board_text}");
+    assert!(board_text.contains("#API"), "{board_text}");
+
+    let edited = json_of(
+        dir,
+        &[
+            "edit",
+            "Labeled",
+            &task_id,
+            "--add-label",
+            "Urgent",
+            "--remove-label",
+            "API",
+        ],
+    );
+    assert_eq!(edited["labels"], json!(["Bug", "Urgent"]));
+
+    let filtered = json_of(dir, &["tasks", "Labeled", "--label", "urgent"]);
+    assert_eq!(filtered.as_array().unwrap().len(), 1);
+    assert_eq!(filtered[0]["id"], task_id);
+
+    let unlabeled = json_of(dir, &["tasks", "Labeled", "--label", "__unlabeled__"]);
+    assert_eq!(unlabeled.as_array().unwrap().len(), 1);
+    assert_eq!(unlabeled[0]["title"], "No labels yet");
+
+    ok(
+        dir,
+        &[
+            "edit-board",
+            "Labeled",
+            "--labels",
+            "Defect:red,Frontend:blue",
+            "--rename-label",
+            "Bug=Defect",
+        ],
+    );
+    let after_rename = json_of(dir, &["task", "Labeled", &task_id]);
+    assert_eq!(after_rename["labels"], json!(["Defect", "Urgent"]));
+}
+

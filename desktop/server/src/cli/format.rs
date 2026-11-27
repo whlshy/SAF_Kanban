@@ -8,7 +8,7 @@ pub(super) fn text(value: &Value) -> &str {
     value.as_str().unwrap_or("")
 }
 
-/// `[id] title · column · priority · assignee · issue X`, leaving out what is empty.
+/// `[id] title · column · priority · assignee · #label1 #label2 · issue X`, leaving out what is empty.
 pub(super) fn task_line(task: &Value, with_column: bool) -> String {
     let mut parts = vec![format!("[{}] {}", text(&task["id"]), text(&task["title"]))];
     if with_column {
@@ -19,10 +19,48 @@ pub(super) fn task_line(task: &Value, with_column: bool) -> String {
             parts.push(text(&task[field]).to_string());
         }
     }
+    if let Some(labels) = task["labels"].as_array() {
+        let tags: Vec<String> = labels
+            .iter()
+            .map(text)
+            .filter(|name| !name.is_empty())
+            .map(|name| format!("#{name}"))
+            .collect();
+        if !tags.is_empty() {
+            parts.push(tags.join(" "));
+        }
+    }
     if !text(&task["issueId"]).is_empty() {
         parts.push(format!("issue {}", text(&task["issueId"])));
     }
     parts.join(" · ")
+}
+
+fn format_label_defs(value: &Value) -> String {
+    value
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    if let Some(name) = item.as_str() {
+                        return (!name.is_empty()).then(|| name.to_string());
+                    }
+                    let name = text(&item["name"]);
+                    if name.is_empty() {
+                        return None;
+                    }
+                    let color = text(&item["color"]);
+                    Some(if color.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{name} ({color})")
+                    })
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default()
 }
 
 fn first_line(description: &str) -> Option<String> {
@@ -94,6 +132,10 @@ pub(super) fn show_board(board: &Value) -> String {
             users.join(", ")
         }
     ));
+    let labels = format_label_defs(&board["labels"]);
+    if !labels.is_empty() {
+        out.push(format!("Labels: {labels}"));
+    }
     if !text(&board["issueLink"]).is_empty() {
         out.push(format!("Issue link: {}", text(&board["issueLink"])));
     }
@@ -149,6 +191,16 @@ pub(super) fn show_task(task: &Value) -> String {
             out.push(format!("{label:<10} {}", text(&task[field])));
         }
     }
+    if let Some(labels) = task["labels"].as_array() {
+        let names: Vec<&str> = labels
+            .iter()
+            .map(text)
+            .filter(|name| !name.is_empty())
+            .collect();
+        if !names.is_empty() {
+            out.push(format!("{:<10} {}", "labels", names.join(", ")));
+        }
+    }
     let description = text(&task["description"]);
     if description.trim().is_empty() {
         out.push("description: (none)".to_string());
@@ -199,13 +251,20 @@ pub(super) fn show_board_info(verb: &str, board: &Value) -> String {
             .filter(|joined| !joined.is_empty())
             .unwrap_or_else(|| "(none)".to_string())
     };
-    format!(
-        "{verb} board [{}] {}\nColumns: {}\nAssignees: {}",
-        text(&board["id"]),
-        text(&board["title"]),
-        names("columns"),
-        names("users")
-    )
+    let mut lines = vec![
+        format!(
+            "{verb} board [{}] {}",
+            text(&board["id"]),
+            text(&board["title"])
+        ),
+        format!("Columns: {}", names("columns")),
+        format!("Assignees: {}", names("users")),
+    ];
+    let labels = format_label_defs(&board["labels"]);
+    if !labels.is_empty() {
+        lines.push(format!("Labels: {labels}"));
+    }
+    lines.join("\n")
 }
 
 /// Applies `--column` and `--limit` filters to a board view from `get_board`.

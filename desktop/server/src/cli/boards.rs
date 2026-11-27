@@ -151,18 +151,48 @@ fn taken_titles(store: &Store) -> Result<HashSet<String>, Failure> {
     Ok(set)
 }
 
+fn parse_label_defs_arg(raw: &str) -> Result<Value, Failure> {
+    let mut defs = Vec::new();
+    for item in raw.split(',') {
+        let entry = item.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        let (name, color) = match entry.rsplit_once(':') {
+            Some((left, right)) if !left.trim().is_empty() => (left.trim(), right.trim()),
+            _ => (entry, ""),
+        };
+        if name.is_empty() {
+            continue;
+        }
+        defs.push(json!({ "name": name, "color": color }));
+    }
+    Ok(Value::Array(defs))
+}
+
 pub(super) fn cmd_new_board(store: &Store, args: &Args) -> Result<String, Failure> {
     args.expect(
         &["name"],
-        &["columns", "users", "issue-link", "sheet", "script", "user"],
+        &[
+            "columns",
+            "users",
+            "labels",
+            "issue-link",
+            "sheet",
+            "script",
+            "user",
+        ],
     )?;
     let shown = |value: Value, plain: String| if args.json { pretty(&value) } else { plain };
     let is_sheet = args.option("sheet").is_some() || args.option("script").is_some();
 
     if is_sheet {
-        if args.option("columns").is_some() || args.option("users").is_some() {
+        if args.option("columns").is_some()
+            || args.option("users").is_some()
+            || args.option("labels").is_some()
+        {
             return Err(usage(
-                "Google Sheet boards manage columns and assignees in the spreadsheet's `columns` and `users` tabs; omit --columns and --users.",
+                "Google Sheet boards manage columns, assignees and labels in the spreadsheet's `columns`, `users` and `labels` tabs; omit --columns, --users and --labels.",
             ));
         }
         let raw_script = args.option("script").ok_or_else(|| {
@@ -206,6 +236,9 @@ pub(super) fn cmd_new_board(store: &Store, args: &Args) -> Result<String, Failur
     if let Some(users) = args.option("users") {
         arguments["users"] = list(users);
     }
+    if let Some(labels) = args.option("labels") {
+        arguments["labels"] = parse_label_defs_arg(labels)?;
+    }
     if let Some(link) = args.option("issue-link") {
         arguments["issueLink"] = json!(link);
     }
@@ -221,6 +254,8 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
             "columns",
             "rename",
             "users",
+            "labels",
+            "rename-label",
             "issue-link",
             "sheet",
             "script",
@@ -236,10 +271,12 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
         BoardRef::Sheet(existing) => {
             if args.option("columns").is_some()
                 || args.option("users").is_some()
+                || args.option("labels").is_some()
                 || !args.all("rename").is_empty()
+                || !args.all("rename-label").is_empty()
             {
                 return Err(Failure::Failed(
-                    "Google Sheet boards manage columns and assignees in the spreadsheet's `columns` and `users` tabs."
+                    "Google Sheet boards manage columns, assignees and labels in the spreadsheet's `columns`, `users` and `labels` tabs."
                         .to_string(),
                 ));
             }
@@ -288,6 +325,9 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
             if let Some(users) = args.option("users") {
                 arguments["users"] = list(users);
             }
+            if let Some(labels) = args.option("labels") {
+                arguments["labels"] = parse_label_defs_arg(labels)?;
+            }
             if let Some(link) = args.option("issue-link") {
                 arguments["issueLink"] = json!(link);
             }
@@ -300,6 +340,16 @@ pub(super) fn cmd_edit_board(store: &Store, args: &Args) -> Result<String, Failu
             }
             if !renames.is_empty() {
                 arguments["renameColumns"] = Value::Object(renames);
+            }
+            let mut label_renames = Map::new();
+            for rename in args.all("rename-label") {
+                let (from, to) = rename
+                    .split_once('=')
+                    .ok_or_else(|| usage("--rename-label takes OLD=NEW."))?;
+                label_renames.insert(from.trim().to_string(), json!(to.trim()));
+            }
+            if !label_renames.is_empty() {
+                arguments["renameLabels"] = Value::Object(label_renames);
             }
             let updated = mcp::run(store, "update_board", &arguments)?;
             Ok(shown(updated.clone(), show_board_info("Updated", &updated)))
@@ -387,6 +437,7 @@ pub(super) fn cmd_import(store: &Store, args: &Args) -> Result<String, Failure> 
                     issue_link: board.issue_link,
                     columns: Some(board.columns),
                     users: board.users,
+                    labels: board.labels,
                     tasks: board.tasks,
                     history: board.history,
                 })

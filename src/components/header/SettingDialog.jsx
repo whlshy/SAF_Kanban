@@ -8,10 +8,12 @@ import { boardPlaceholderTitle, boardTitle, normalizeBoardField, useBoards } fro
 import { t, useT } from '@/i18n';
 import { DialogFooter } from '@/components/elements/dialog/Dialog';
 import ListEditor, { rowNames, rowRenames, toRows } from '@/components/elements/ListEditor';
+import LabelListEditor, { labelRowDefs, labelRowRenames, toLabelRows } from '@/components/elements/LabelListEditor';
 import { createBoardSource } from '@/data';
 import { localAvailable } from '@/data/localApi';
 import { exportLocalBoard } from './BoardTransfer';
 import { sheetTimeToIso } from '@/lib/createdAt';
+import { normalizeLabelDefs } from '@/lib/labels';
 
 export const SETTING_FIELDS = [
   { field: "title", labelKey: "field.title" },
@@ -21,8 +23,8 @@ export const SETTING_FIELDS = [
   { field: "jiraLink", labelKey: "field.jiraLink", hintKey: "field.jiraLink.hint" },
 ]
 
-// A local board has no Sheet or Script to point at; its columns and assignees
-// are edited here instead of in a Sheet.
+// A local board has no Sheet or Script to point at; its columns, assignees
+// and preset labels are edited here instead of in a Sheet.
 const LOCAL_FIELDS = ["title", "jiraLink"]
 
 const SettingDialog = ({ closeDialog }) => {
@@ -37,6 +39,7 @@ const SettingDialog = ({ closeDialog }) => {
     Object.fromEntries(SETTING_FIELDS.map(({ field }) => [field, currentBoard?.[field] || ""])));
   const [columns, setColumns] = React.useState(() => toRows(currentBoard?.columns));
   const [users, setUsers] = React.useState(() => toRows(currentBoard?.users));
+  const [labels, setLabels] = React.useState(() => toLabelRows(currentBoard?.labels));
   const [saving, setSaving] = React.useState(false);
 
   const showError = (error) => message.error(error?.userMessage || t("common.apiError"), 8);
@@ -74,10 +77,16 @@ const SettingDialog = ({ closeDialog }) => {
     let content;
     try {
       const source = createBoardSource(currentBoard);
-      const [columns, tasks, users] = await Promise.all([source.loadColumns(), source.loadTasks(), source.loadUsers()]);
+      const [columns, tasks, users, sheetLabels] = await Promise.all([
+        source.loadColumns(),
+        source.loadTasks(),
+        source.loadUsers(),
+        source.loadLabels ? source.loadLabels().catch(() => []) : Promise.resolve([]),
+      ]);
       content = {
         columns: [...new Set(columns.map((name) => String(name).trim()).filter(Boolean))],
         users,
+        labels: normalizeLabelDefs(sheetLabels),
         // Blank rows of the Sheet aren't tasks. Creation and column-move times
         // the Sheet has are kept; without a creation time the copy's time is used.
         tasks: tasks
@@ -115,6 +124,13 @@ const SettingDialog = ({ closeDialog }) => {
       const same = (rows, saved = []) => JSON.stringify(rowNames(rows)) === JSON.stringify(saved);
       if (!same(columns, currentBoard.columns)) Object.assign(patch, { columns: rowNames(columns), renames: rowRenames(columns) });
       if (!same(users, currentBoard.users)) patch.users = rowNames(users);
+      const nextLabels = labelRowDefs(labels);
+      const savedLabels = normalizeLabelDefs(currentBoard.labels);
+      if (JSON.stringify(nextLabels) !== JSON.stringify(savedLabels)) {
+        patch.labels = nextLabels;
+        const renamedLabels = labelRowRenames(labels);
+        if (Object.keys(renamedLabels).length) patch.labelRenames = renamedLabels;
+      }
     }
     if (!Object.keys(patch).length) return closeDialog?.();
 
@@ -167,6 +183,14 @@ const SettingDialog = ({ closeDialog }) => {
               rows={users}
               onChange={setUsers}
               addLabel={t("settings.users.add")}
+              disabled={saving}
+            />
+            <LabelListEditor
+              label={t("settings.labels")}
+              hint={t("settings.labels.hint")}
+              rows={labels}
+              onChange={setLabels}
+              addLabel={t("settings.labels.add")}
               disabled={saving}
             />
           </>

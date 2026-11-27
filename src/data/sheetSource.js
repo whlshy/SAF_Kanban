@@ -3,7 +3,7 @@ import { t } from '@/i18n'
 import { parseHistory } from '@/lib/history'
 import { DataError } from './errors'
 import { translateScriptError } from './scriptErrors'
-import { rowsToColumns, rowsToTasks, rowsToUsers, taskToScript } from './sheetFormat'
+import { rowsToColumns, rowsToLabels, rowsToTasks, rowsToUsers, taskToScript } from './sheetFormat'
 
 // Board data kept in the user's own Google Sheet. Reads use the Sheets API
 // with the project's shared key (the Sheet is shared as "anyone with the link
@@ -61,15 +61,24 @@ export const createSheetSource = ({ sheetId, scriptId }) => {
     needsNetwork: true,
 
     loadColumns: async () => rowsToColumns(await readRows(sheetId, "columns!A:B")),
-    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:I")),
+    loadTasks: async () => rowsToTasks(await readRows(sheetId, "kanban!A:J")),
     loadUsers: async () => rowsToUsers(await readRows(sheetId, "users!A:B")),
+    // Optional `labels` sheet ([name, color?]); a missing sheet is normal on
+    // older boards and resolves to an empty list without failing.
+    loadLabels: async () => {
+      const response = await fetchRange(sheetId, "labels!A:B").catch(() => null)
+      if (response?.ok && !response.body?.error) {
+        return rowsToLabels(response.body?.values || [])
+      }
+      return []
+    },
 
     // Deleted tasks, newest first. `missing`: there is no history sheet (an
     // older Apps Script, or nothing deleted yet), which isn't an error.
     loadHistory: async () => {
       // Raw values so the deletion time comes back as a date serial number (or
       // the text the script wrote) instead of a string in the Sheet's locale.
-      const response = await fetchRange(sheetId, "history!A:I", {
+      const response = await fetchRange(sheetId, "history!A:K", {
         valueRenderOption: "UNFORMATTED_VALUE",
         dateTimeRenderOption: "SERIAL_NUMBER",
       }).catch(() => null)

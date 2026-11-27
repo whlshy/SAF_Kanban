@@ -44,10 +44,10 @@
 ## 主要功能
 
 - **看板與任務管理**
-  - 新增、編輯、刪除 Task，設定 Priority、Assignee 與 Issue 連結（Jira、GitHub Issues 等）
+  - 新增、編輯、刪除 Task，設定 Priority、Assignee、Labels（常用標籤＋自由輸入，卡片依寬度動態摺疊 `+N`）與 Issue 連結（Jira、GitHub Issues 等）
   - 自訂欄位不限數量，支援同欄與跨欄拖曳排序（手機上長按拖曳，直式單欄左右滑動）
   - 自動記錄任務建立時間（`createdAt`）與最後移入目前欄位的時間（`movedAt`），停駐提示框、描述與編輯視窗皆可查看
-  - 即時搜尋與篩選（關鍵字、負責人、優先順序），篩選狀態下仍可拖曳排序
+  - 即時搜尋與篩選（關鍵字、負責人、優先順序、標籤，點擊卡片標籤可直接切換篩選），篩選狀態下仍可拖曳排序
 - **多看板、備份與歷史紀錄**
   - 同時管理多個看板，網址帶 `?board=<ID>` 可加書籤或多分頁並開
   - 一鍵匯出／匯入設定檔，並支援瀏覽器端 **AES-GCM 密碼加密**（PBKDF2-SHA256）
@@ -55,7 +55,7 @@
 - **跨裝置與桌面體驗**
   - 繁體中文 / English 切換、淺色 / 深色主題
   - 可安裝成 PWA 應用程式，離線可開啟檢視上次內容
-  - Windows 桌面版支援系統匣常駐、開機自動啟動、App 內自動更新與 AI Agent 整合
+  - Windows 桌面版支援系統匣常駐、開機自動啟動、視窗大小位置記憶、App 內自動更新與 AI Agent 整合
 
 ---
 
@@ -74,13 +74,13 @@
 > 網址會自動擷取成對應的 ID，不需要自己手動切字串。設定保存在目前瀏覽器的 Local Storage，建議設定好後先試著新增、拖曳與刪除一張測試卡確認讀寫正常。
 
 <details>
-<summary><strong>想自己從頭建立（或查看 Google Sheet 四張工作表的欄位規格）</strong></summary>
+<summary><strong>想自己從頭建立（或查看 Google Sheet 工作表的欄位規格）</strong></summary>
 
-### 1. 建立四張工作表
+### 1. 建立工作表
 
-新建一份 Google Sheet，建立以下四張工作表（名稱大小寫必須完全一致，**不要加標題列，資料直接從第 1 列開始**）：
+新建一份 Google Sheet，建立以下工作表（名稱大小寫必須完全一致，**不要加標題列，資料直接從第 1 列開始**）：
 
-- `kanban`：儲存任務，欄位固定為 `A:I`（可先留空）
+- `kanban`：儲存任務，欄位為 `A:J`（可先留空）
 
 | 欄位 | 內容 | 範例 |
 | --- | --- | --- |
@@ -93,10 +93,12 @@
 | G | Assignee | `王小明` |
 | H | 建立時間（Apps Script v3 起自動填入） | `2026-11-21 10:30:00` |
 | I | 移至此欄時間（Apps Script v4 起自動填入，跨欄時更新） | `2026-11-24 14:20:00` |
+| J | Labels（Apps Script v6 起，逗號分隔） | `Bug, Frontend` |
 
 - `columns`：A 欄依序填寫看板欄位名稱（例如 `Todo`、`In Progress`、`Testing`、`Done`），數量不限。
 - `users`：A 欄填寫可指派的負責人名稱（相容舊格式：若 B 欄有值會改取 B 欄）。
-- `history`：保留已刪除的任務（沒建時第一次刪除會自動建立）。A～G 欄同 `kanban`，H 欄為刪除時間，I 欄為建立時間，J 欄為移至此欄時間（v4 起）。
+- `labels`（選填）：A 欄填寫常用標籤名稱，B 欄填寫語意色名（`red`、`orange`、`amber`、`green`、`teal`、`blue`、`indigo`、`purple`、`pink`、`gray`）或 `#RRGGBB` 色碼（可留空，未建此工作表亦不影響使用）。
+- `history`：保留已刪除的任務（沒建時第一次刪除會自動建立）。A～G 欄同 `kanban`，H 欄為刪除時間，I 欄為建立時間，J 欄為移至此欄時間（v4 起），K 欄為 Labels（v6 起）。
 
 ### 2. 開放讀取權限並貼上 Apps Script
 
@@ -142,7 +144,7 @@
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
+裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上，標籤功能需 v6）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
 
 ---
 
@@ -157,7 +159,7 @@
 - 匯出時可勾選「**用密碼加密**」（至少 8 字元，以 `PBKDF2-SHA256` 60 萬次 + `AES-GCM` 加密，密碼不會上傳也無法救回；瀏覽器端需透過 HTTPS 或 `localhost` 開啟）。
 
 ### 搜尋與篩選
-點右上角放大鏡開啟搜尋列，可同時依關鍵字（比對標題、描述、Issue ID、負責人，空白分隔多詞且不分大小寫）、負責人（含「未指派」）與優先順序篩選。篩選期間欄位數字會顯示 `符合數 / 總數`，且仍可直接拖曳排序。
+點右上角放大鏡開啟搜尋列，可同時依關鍵字（比對標題、描述、Issue ID、負責人、標籤，空白分隔多詞且不分大小寫）、負責人（含「未指派」）、優先順序與標籤（含「無標籤」）篩選，也可直接點擊卡片上的標籤快速切換篩選。篩選期間欄位數字會顯示 `符合數 / 總數`，且仍可直接拖曳排序。
 
 ### 已刪除的任務
 點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）與 CLI（本機及 Apps Script v5 Google Sheet）皆支援直接原樣復原。

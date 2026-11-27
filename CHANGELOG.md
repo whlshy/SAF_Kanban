@@ -8,11 +8,25 @@
 
 | 版本 | 隨網站版本推出 | 內容 |
 | --- | --- | --- |
+| v6 | 1.22.0 | 支援任務標籤：`kanban` J 欄記錄標籤（逗號分隔）、`history` K 欄於刪除時保留標籤、選填 `labels` 工作表（`A:B`）設定常用標籤與顏色；`upsert` 新增 `addLabels`／`removeLabels` 原子加減標籤，並完整向下相容舊版 Sheet |
 | v5 | 1.21.0 | 新增 `doPost` JSON 介面、`action=read`（一次讀取欄位、任務、負責人與歷史紀錄）、`action=restore` 原樣復原，以及 `upsert` 內原子追加描述（`appendDes`），供 CLI 操作 Google Sheet 看板使用 |
 | v4 | 1.19.0 | 在 `kanban` 的 I 欄記錄任務最後一次移進目前欄位的時間（新增與跨欄移動時更新）；刪除時一併存到 `history` 的 J 欄 |
 | v3 | 1.18.0 | 新增的 Task 在 `kanban` 的 H 欄記錄建立時間；刪除時把建立時間存到 `history` 的 I 欄 |
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
+
+## 1.22.0 與桌面版／CLI 0.7.0 — 2026-11-27
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載；純 CLI 版可透過一鍵安裝腳本升級。Google Sheet 看板若要使用標籤功能，需更新至 **Apps Script v6**。
+
+### 新增
+
+- **任務標籤（Task Labels，混合模式）**：
+  - **卡片動態寬度單行顯示**：標籤顯示於卡片標題與描述之間，會依卡片實際寬度動態決定顯示數量，再加一個會超出時自動改以 `+N` 摺疊（滑鼠移上顯示隱藏標籤 Tooltip）；點選卡片上的標籤可直接開啟篩選並切換該標籤。完整描述視窗會展開顯示所有標籤。
+  - **看板常用標籤與自由輸入**：本機看板可在「設定 → 常用標籤」新增、拖曳排序、點色點挑選 10 色調色盤與改名（改名會自動同步更新既有任務上的標籤）；編輯任務時可點選常用標籤，也能直接輸入自由標籤（`Enter` 或 `,` 新增、`Backspace` 刪除，未定義顏色者會以穩定雜湊配對調色盤，淺色／深色模式皆自動調整對比）。
+  - **篩選與搜尋整合**：搜尋與篩選列新增單選「所有標籤／無標籤／標籤清單」下拉選單；關鍵字搜尋與已刪除任務搜尋皆涵蓋標籤，已刪除紀錄亦顯示標籤並於復原／重新建立時完整保留。
+  - **Google Sheet 與 Apps Script v6**：支援 `kanban` J 欄儲存標籤、`history` K 欄保留已刪除任務標籤，以及選填的 `labels` 工作表（A 欄名稱、B 欄語意色名或 `#RRGGBB` 色碼）；未建立 `labels` 工作表或舊資料皆完全相容，從 Google Sheet 複製為本機看板時亦會一併複製標籤。
+  - **CLI、MCP、HTTP API、Skill 與匯出／匯入完整支援**：`tasks` 新增 `--label`（支援 `__unlabeled__`），`add`／`edit` 新增 `--labels`、`--add-label`、`--remove-label`，`new-board`／`edit-board` 新增 `--labels` 與 `--rename-label`；MCP 工具、HTTP API、AI Skill 與本機看板匯出／匯入皆完整保留標籤。
 
 ## 桌面版 0.6.3 — 2026-11-27
 

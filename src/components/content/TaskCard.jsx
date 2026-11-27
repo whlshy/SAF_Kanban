@@ -7,12 +7,15 @@ import { useBoards } from '@/store/boards'
 import { useDialogStore } from '@/store'
 import { useT } from '@/i18n'
 import { PRIORITIES } from '@/lib/filter'
+import { parseLabels } from '@/lib/labels'
+import { CardLabelsRow, LabelBadge } from './LabelBadge'
 import { dialogAtom, taskTimes } from './taskDialog'
 
-// Read-only view of a task: an article-style info line, then the full description.
-export function DescriptionView({ task, jiraLink }) {
+// Read-only view of a task: an article-style info line, labels, then the full description.
+export function DescriptionView({ task, jiraLink, boardLabels = [] }) {
   const t = useT()
   const { created, moved } = taskTimes(task)
+  const labels = parseLabels(task?.labels)
   const parts = [
     task.column && <span key="column">{task.column}</span>,
     task.priority && <PriorityBadge key="priority" priority={task.priority} />,
@@ -34,6 +37,13 @@ export function DescriptionView({ task, jiraLink }) {
           </React.Fragment>
         ))}
       </div>
+      {labels.length > 0 && (
+        <div data-slot="description-labels" className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {labels.map((label) => (
+            <LabelBadge key={label} name={label} boardLabels={boardLabels} size="md" />
+          ))}
+        </div>
+      )}
       <hr className="my-4 border-border dark:border-white/15" />
       <div className="whitespace-pre-wrap break-words text-sm">{task.des}</div>
     </DialogContent>
@@ -63,7 +73,16 @@ export function PriorityBadge({ priority }) {
 
 // `disabled` (a load or save is running) dims the card; `locked` (offline)
 // only stops it from being dragged.
-export default function TaskCard({ task, asHandle, disabled, locked, ...props }) {
+export default function TaskCard({
+  task,
+  asHandle,
+  disabled,
+  locked,
+  boardLabels = [],
+  activeLabel = "",
+  onLabelClick,
+  ...props
+}) {
   const [, setDialog] = useAtom(dialogAtom)
   const { setDialog: setDefaultDialog } = useDialogStore()
   const t = useT()
@@ -71,6 +90,7 @@ export default function TaskCard({ task, asHandle, disabled, locked, ...props })
   const title = String(task.title ?? "").trim()
   const { created, moved } = taskTimes(task)
   const jiraLink = useBoards().currentBoard?.jiraLink || ""
+  const taskLabels = React.useMemo(() => parseLabels(task?.labels), [task?.labels])
 
   // Resting the mouse on the card shows its whole title and, when known, when
   // it was created and moved into this column. Not on touch screens (a long
@@ -93,7 +113,7 @@ export default function TaskCard({ task, asHandle, disabled, locked, ...props })
     setDefaultDialog({
       title: task.title,
       open: true, fullWidth: true, maxWidth: "md",
-      content: <DescriptionView task={task} jiraLink={jiraLink} />,
+      content: <DescriptionView task={task} jiraLink={jiraLink} boardLabels={boardLabels} />,
     })
   }
 
@@ -116,13 +136,22 @@ export default function TaskCard({ task, asHandle, disabled, locked, ...props })
         onPointerUp={() => { pressed.current = false }}
         onPointerLeave={() => { pressed.current = false }}
       >
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="line-clamp-2 font-medium text-sm">
               {task.title}
             </span>
             <PriorityBadge priority={task.priority} />
           </div>
+
+          {taskLabels.length > 0 && (
+            <CardLabelsRow
+              labels={taskLabels}
+              boardLabels={boardLabels}
+              activeLabel={activeLabel}
+              onLabelClick={onLabelClick}
+            />
+          )}
 
           {/* At most two lines; only text that runs past them ends with an ellipsis. */}
           {task?.des ? (
