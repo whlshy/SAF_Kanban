@@ -207,9 +207,23 @@ fn capture_and_flush(app: &AppHandle) {
     let Some(saved) = app.try_state::<SavedWindow>() else {
         return;
     };
-    if let Some(window) = app.get_window(WINDOW) {
-        if let Some(snapshot) = snapshot_window(&window) {
-            let _ = saved.0.record(snapshot);
+    if let Some(window) = app.get_webview_window(WINDOW) {
+        if let (Ok(visible), Ok(minimized), Ok(maximized), Ok(pos), Ok(size)) = (
+            window.is_visible(),
+            window.is_minimized(),
+            window.is_maximized(),
+            window.outer_position(),
+            window.inner_size(),
+        ) {
+            let _ = saved.0.record(WindowSnapshot {
+                x: pos.x,
+                y: pos.y,
+                width: size.width,
+                height: size.height,
+                maximized,
+                minimized,
+                visible,
+            });
         }
     }
     saved.0.flush();
