@@ -6,8 +6,8 @@ use crate::error::{ApiError, ApiResult};
 use crate::model::{Board, DeletedTask, Task};
 
 use super::{
-    check_column, find_task, new_id, now, parse_time_bound, valid_id, MoveInput, RestoreInput,
-    Store, TaskInput, TaskQuery, DEFAULT_PRIORITY,
+    apply_label_mutations, check_column, clean_labels, find_task, new_id, now, parse_time_bound,
+    valid_id, MoveInput, RestoreInput, Store, TaskInput, TaskQuery, DEFAULT_PRIORITY,
 };
 
 impl Store {
@@ -57,6 +57,17 @@ impl Store {
                     .as_ref()
                     .is_none_or(|priority| &task.priority == priority)
             })
+            .filter(|task| match query.label.as_deref() {
+                None => true,
+                Some(wanted) => {
+                    let needle = wanted.trim().to_lowercase();
+                    if needle.is_empty() || needle == "__unlabeled__" {
+                        task.labels.is_empty()
+                    } else {
+                        task.labels.iter().any(|l| l.to_lowercase() == needle)
+                    }
+                }
+            })
             .filter(|task| {
                 since
                     .as_ref()
@@ -68,9 +79,14 @@ impl Store {
                     .is_none_or(|bound| !task.moved_at.is_empty() && task.moved_at <= *bound)
             })
             .filter(|task| {
-                let haystack = [&task.title, &task.des, &task.issue_id, &task.assignee]
-                    .map(|field| field.to_lowercase())
-                    .join("\n");
+                let mut fields = vec![
+                    task.title.to_lowercase(),
+                    task.des.to_lowercase(),
+                    task.issue_id.to_lowercase(),
+                    task.assignee.to_lowercase(),
+                ];
+                fields.extend(task.labels.iter().map(|l| l.to_lowercase()));
+                let haystack = fields.join("\n");
                 terms.iter().all(|term| haystack.contains(term))
             })
             .collect();
@@ -133,6 +149,7 @@ impl Store {
                     task.des = input.des.unwrap_or_default();
                     task.priority = input.priority.unwrap_or_default();
                     task.assignee = input.assignee.unwrap_or_default();
+                    task.labels = clean_labels(input.labels.unwrap_or_default());
                     if task.column != column {
                         task.moved_at = time.clone();
                     }
@@ -189,6 +206,11 @@ impl Store {
             }
             if let Some(assignee) = input.assignee {
                 task.assignee = assignee;
+            }
+            if input.labels.is_some() || input.add_labels.is_some() || input.remove_labels.is_some()
+            {
+                let base = input.labels.unwrap_or_else(|| task.labels.clone());
+                task.labels = apply_label_mutations(base, input.add_labels, input.remove_labels);
             }
             task.updated_at = time;
             Ok(task.clone())
@@ -417,6 +439,11 @@ fn add_task(board: &mut Board, id: String, input: TaskInput) -> ApiResult<Task> 
             .filter(|priority| !priority.is_empty())
             .unwrap_or_else(|| DEFAULT_PRIORITY.to_string()),
         assignee: input.assignee.unwrap_or_default(),
+        labels: apply_label_mutations(
+            input.labels.unwrap_or_default(),
+            input.add_labels,
+            input.remove_labels,
+        ),
         created_at: time.clone(),
         updated_at: time.clone(),
         moved_at: time,

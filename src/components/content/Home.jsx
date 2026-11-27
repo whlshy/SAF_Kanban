@@ -7,6 +7,7 @@ import { useBoards } from '@/store/boards'
 import { t as translate, useT } from '@/i18n'
 import { useBoardData, useBoardWrite } from '@/data/useBoardData'
 import { EMPTY_FILTER, PRIORITIES, isFilterActive, taskMatcher } from '@/lib/filter'
+import { labelOptions } from '@/lib/labels'
 import useOnline from '@/lib/useOnline'
 import { filterAtom } from '@/store/filter'
 import { useDialogStore } from '@/store'
@@ -31,7 +32,7 @@ function Home() {
 
   // While a dialog is open nothing is fetched (typing a Sheet ID in Settings
   // shouldn't load every partial ID), and closing it refreshes the board.
-  const { source, columns, tasks, users, columnsLoaded, tasksLoading, reloadTasks } =
+  const { source, columns, tasks, users, labels: boardLabels, columnsLoaded, tasksLoading, reloadTasks } =
     useBoardData(currentBoard, { paused: open })
 
   // Each board starts unfiltered.
@@ -39,6 +40,14 @@ function Home() {
   useEffect(() => {
     setFilter({ open: false, ...EMPTY_FILTER })
   }, [boardId, setFilter])
+
+  // Clicking a label pill on a card opens the filter bar and toggles that label.
+  const handleToggleLabel = React.useCallback((labelName) => {
+    setFilter((f) => {
+      const same = String(f.label ?? "").trim().toLowerCase() === String(labelName ?? "").trim().toLowerCase()
+      return { ...f, open: true, label: same ? "" : labelName }
+    })
+  }, [setFilter])
 
   // A board on this computer works without a connection.
   const online = connected || source?.needsNetwork === false
@@ -71,6 +80,7 @@ function Home() {
           onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
           tasks={tasks}
           users={users}
+          boardLabels={boardLabels}
           shown={tasks.filter(taskMatcher(shownFilter)).length}
         />
       )}
@@ -84,7 +94,9 @@ function Home() {
             columnNames={columns}
             tasks={tasks}
             users={users}
+            boardLabels={boardLabels}
             filter={shownFilter}
+            onToggleLabel={handleToggleLabel}
             reloadTasks={reloadTasks}
             disabled={tasksLoading}
             locked={!online}
@@ -97,7 +109,7 @@ function Home() {
 
 export default Home
 
-function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, disabled, locked, notice }) {
+function WHLKanban({ source, columnNames, tasks, users, boardLabels, filter, onToggleLabel, reloadTasks, disabled, locked, notice }) {
   // What the board shows: column name -> its tasks that pass the filter.
   // Dragging and saving update it right away; reloading then confirms it.
   const [columns, setColumns] = React.useState({})
@@ -107,9 +119,10 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
 
   const filtering = isFilterActive(filter)
   const matches = React.useMemo(
-    () => taskMatcher({ query: filter.query, assignee: filter.assignee, priority: filter.priority }),
-    [filter.query, filter.assignee, filter.priority]
+    () => taskMatcher({ query: filter.query, assignee: filter.assignee, priority: filter.priority, label: filter.label }),
+    [filter.query, filter.assignee, filter.priority, filter.label]
   )
+  const allLabels = React.useMemo(() => labelOptions(boardLabels, tasks), [boardLabels, tasks])
 
   useEffect(() => {
     const newColumns = {}
@@ -240,6 +253,9 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
               total={filtering ? totals[columnValue] : undefined}
               disabled={disabled || write.isPending}
               locked={locked}
+              boardLabels={boardLabels}
+              activeLabel={filter.label}
+              onLabelClick={onToggleLabel}
             />
           ))}
         </KanbanBoard>
@@ -252,6 +268,7 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
                 <TaskColumn
                   value={value}
                   tasks={columnTasks}
+                  boardLabels={boardLabels}
                   isOverlay
                 />
               )
@@ -263,7 +280,7 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
 
             if (!task) return null
 
-            return <TaskCard task={task} />
+            return <TaskCard task={task} boardLabels={boardLabels} />
           }}
         </KanbanOverlay>
       </Kanban>}
@@ -281,6 +298,8 @@ function WHLKanban({ source, columnNames, tasks, users, filter, reloadTasks, dis
             <EditTask
               task={dialogProps.task}
               users={users}
+              boardLabels={boardLabels}
+              allLabels={allLabels}
               onClose={() => setDialog({ open: false })}
               onOk={handleEditTask}
               onDel={handleDelete}

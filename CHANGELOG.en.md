@@ -8,11 +8,25 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 
 | Version | Released with | Changes |
 | --- | --- | --- |
+| v6 | 1.22.0 | Adds task labels: column J of `kanban` (comma-separated), column K of `history` on delete, optional `labels` sheet (`A:B`) for preset labels and colors, and atomic `addLabels`/`removeLabels` in `upsert`; fully backwards-compatible with older Sheets |
 | v5 | 1.21.0 | Adds `doPost` JSON endpoint, `action=read` (fetches columns, tasks, users, and history in one call), `action=restore`, and atomic description appending (`appendDes`) in `upsert` for CLI access to Google Sheet boards |
 | v4 | 1.19.0 | Records when each task last moved into its current column in column I of `kanban` (on creation and cross-column moves); deleting a task keeps it in column J of `history` |
 | v3 | 1.18.0 | Records when each new task was created in column H of `kanban`; deleting a task keeps that time in column I of `history` |
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
+
+## 1.22.0 and desktop app / CLI 0.7.0 — 2026-11-27
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Google Sheet boards need **Apps Script v6** to save task labels.
+
+### Added
+
+- **Task Labels (hybrid preset + freeform)**:
+  - **Dynamic single-row card badges**: labels render between the task title and description and dynamically fit the card's width, collapsing overflow into a `+N` badge (hover to see hidden labels); clicking a label pill on any card opens the filter bar and toggles that label. The full description modal shows all labels unwrapped.
+  - **Board presets & freeform input**: local boards include a drag-reorderable Labels manager in Settings with a 10-color palette and live rename propagation to existing tasks; editing a task lets you pick preset chips or type any freeform label (`Enter` or `,` to add, `Backspace` to remove, deterministic hash colors with light/dark theme contrast).
+  - **Filter & search integration**: single-select Label filter dropdown (`All labels` / `Unlabeled` / board & task labels) in the filter bar; keyword search in both the board and deleted-task history matches labels, and labels are preserved when restoring or recreating deleted tasks.
+  - **Google Sheets & Apps Script v6**: stores comma-separated labels in `kanban` column J and `history` column K, with an optional `labels` sheet (`A:B` for name and semantic color or `#RRGGBB` hex); copying a Google Sheet board to a local board preserves both preset definitions and task labels.
+  - **Full CLI, MCP, HTTP API, Skill & import/export parity**: adds `--label` (including `__unlabeled__`) to `tasks`, `--labels`/`--add-label`/`--remove-label` to `add`/`edit`, and `--labels`/`--rename-label` to `new-board`/`edit-board`, with matching MCP tool schemas, HTTP API fields, AI Skill docs, and local board export/import preservation.
 
 ## Desktop app 0.6.3 — 2026-11-27
 

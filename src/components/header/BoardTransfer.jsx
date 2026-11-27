@@ -41,9 +41,9 @@ export function useStartImport() {
     // already in use gets a number, like any new board.
     if (result.localBoard) {
       if (!localAvailable()) return message.error(t("transfer.error.desktopOnly"), 8)
-      const { title, issueLink, columns, users, tasks, history } = result.localBoard
+      const { title, issueLink, columns, users, labels, tasks, history } = result.localBoard
       try {
-        const board = await addBoard({ type: "local", title, jiraLink: issueLink, columns, users, tasks, history })
+        const board = await addBoard({ type: "local", title, jiraLink: issueLink, columns, users, labels, tasks, history })
         message.success(t("transfer.boardImported", { name: boardTitle(board) }))
       } catch (error) {
         message.error(error?.userMessage || t("common.apiError"), 8)

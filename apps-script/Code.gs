@@ -6,7 +6,7 @@
  */
 
 // 新版 Script 會在回應中帶上版本號，前端與 CLI 可據此判斷能使用哪些功能。
-const SCRIPT_VERSION = 5;
+const SCRIPT_VERSION = 6;
 
 // 通常留空：會使用這個 Apps Script 所屬的 Google Sheet。
 // 只有 Script 不是從 Sheet 的「擴充功能 → Apps Script」建立時，才需要填入 Sheet ID。
@@ -15,13 +15,16 @@ const SPREADSHEET_ID = "";
 const KANBAN_SHEET_NAME = "kanban";
 const COLUMNS_SHEET_NAME = "columns";
 const USERS_SHEET_NAME = "users";
+const LABELS_SHEET_NAME = "labels";
 const HISTORY_SHEET_NAME = "history";
 // kanban 的 A～G 欄是 Task 的內容；H 欄是建立時間（只在新增時寫入），
-// I 欄是最後一次移進目前欄位的時間（新增與跨欄移動時寫入）。
+// I 欄是最後一次移進目前欄位的時間（新增與跨欄移動時寫入），
+// J 欄是逗號分隔的標籤（v6+）。
 const COLUMN_COUNT = 7;
 const CREATED_AT_COLUMN = 8;
 const MOVED_AT_COLUMN = 9;
-const HISTORY_COLUMN_COUNT = 10;
+const LABELS_COLUMN = 10;
+const HISTORY_COLUMN_COUNT = 11;
 
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
@@ -168,7 +171,28 @@ function handleRead(spreadsheet, kanbanSheet) {
     }
   }
 
-  var taskRows = readDisplayRows(kanbanSheet, MOVED_AT_COLUMN);
+  var labelRows = readDisplayRows(spreadsheet.getSheetByName(LABELS_SHEET_NAME), 2);
+  var labels = [];
+  var seenLabels = {};
+  for (var l = 0; l < labelRows.length; l++) {
+    var labelName = normalizeValue(labelRows[l][0]).replace(/,/g, " ").trim();
+    if (!labelName) {
+      continue;
+    }
+    var labelKey = labelName.toLowerCase();
+    if (seenLabels[labelKey]) {
+      continue;
+    }
+    seenLabels[labelKey] = true;
+    var labelColor = labelRows[l].length >= 2 ? normalizeValue(labelRows[l][1]).trim() : "";
+    var def = { name: labelName };
+    if (labelColor) {
+      def.color = labelColor;
+    }
+    labels.push(def);
+  }
+
+  var taskRows = readDisplayRows(kanbanSheet, LABELS_COLUMN);
   var tasks = [];
   for (var t = 0; t < taskRows.length; t++) {
     var r = taskRows[t];
@@ -191,6 +215,12 @@ function handleRead(spreadsheet, kanbanSheet) {
     }
     if (r.length >= MOVED_AT_COLUMN && normalizeValue(r[8])) {
       item.movedAt = normalizeValue(r[8]);
+    }
+    if (r.length >= LABELS_COLUMN) {
+      var taskLabels = parseLabelsValue(r[9]);
+      if (taskLabels.length) {
+        item.labels = taskLabels;
+      }
     }
     tasks.push(item);
   }
@@ -220,6 +250,12 @@ function handleRead(spreadsheet, kanbanSheet) {
     if (hr.length >= 10 && normalizeValue(hr[9])) {
       hitem.movedAt = normalizeValue(hr[9]);
     }
+    if (hr.length >= 11) {
+      var historyLabels = parseLabelsValue(hr[10]);
+      if (historyLabels.length) {
+        hitem.labels = historyLabels;
+      }
+    }
     history.push(hitem);
   }
 
@@ -231,6 +267,7 @@ function handleRead(spreadsheet, kanbanSheet) {
     name: spreadsheet.getName(),
     columns: columns,
     users: users,
+    labels: labels,
     tasks: tasks,
     history: history
   });
@@ -259,6 +296,7 @@ function handleUpsert(sheet, params) {
   }
 
   var rowNumber = findTaskRow(sheet, task.id);
+  var hasLabelsPatch = task.labels !== undefined || task.addLabels !== undefined || task.removeLabels !== undefined;
 
   if (rowNumber) {
     if (task.appendDes !== undefined && task.appendDes !== null && String(task.appendDes) !== "") {
@@ -274,6 +312,15 @@ function handleUpsert(sheet, params) {
         .setNumberFormat("@")
         .setValue(formatNow(sheet.getParent()));
     }
+    if (hasLabelsPatch) {
+      var baseLabels = task.labels !== undefined
+        ? parseLabelsValue(task.labels)
+        : parseLabelsValue(sheet.getRange(rowNumber, LABELS_COLUMN).getDisplayValue());
+      var finalLabels = applyLabelMutations(baseLabels, task.addLabels, task.removeLabels);
+      sheet.getRange(rowNumber, LABELS_COLUMN)
+        .setNumberFormat("@")
+        .setValue(finalLabels.join(", "));
+    }
   } else {
     if ((task.des === undefined || task.des === null || task.des === "") && task.appendDes) {
       task.des = String(task.appendDes);
@@ -282,10 +329,11 @@ function handleUpsert(sheet, params) {
     sheet.appendRow(newRowData);
     rowNumber = sheet.getLastRow();
     var now = formatNow(sheet.getParent());
+    var initialLabels = applyLabelMutations(parseLabelsValue(task.labels), task.addLabels, task.removeLabels);
     // 設成純文字，Sheet 才不會把時間改成依地區顯示的日期格式。
-    sheet.getRange(rowNumber, CREATED_AT_COLUMN, 1, 2)
+    sheet.getRange(rowNumber, CREATED_AT_COLUMN, 1, 3)
       .setNumberFormat("@")
-      .setValues([[now, now]]);
+      .setValues([[now, now, initialLabels.join(", ")]]);
   }
 
   SpreadsheetApp.flush();
@@ -391,15 +439,16 @@ function handleDelete(spreadsheet, sheet, params) {
     fail("TASK_NOT_FOUND", { id: taskId });
   }
 
-  // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間，J 欄是移入目前欄位的時間。
-  var lastState = sheet.getRange(rowNumber, 1, 1, MOVED_AT_COLUMN).getDisplayValues()[0];
+  // 刪除前把最後的狀態存到 history：A～G 同 kanban，H 欄是刪除時間，I 欄是建立時間，J 欄是移入目前欄位的時間，K 欄是標籤（v6+）。
+  var lastState = sheet.getRange(rowNumber, 1, 1, LABELS_COLUMN).getDisplayValues()[0];
+  var labels = lastState.pop();
   var movedAt = lastState.pop();
   var createdAt = lastState.pop();
   var historySheet = getOrCreateSheet(spreadsheet, HISTORY_SHEET_NAME);
   var newHistoryRow = historySheet.getLastRow() + 1;
   historySheet.getRange(newHistoryRow, 1, 1, HISTORY_COLUMN_COUNT)
     .setNumberFormat("@")
-    .setValues([lastState.concat([formatNow(spreadsheet), createdAt, movedAt])]);
+    .setValues([lastState.concat([formatNow(spreadsheet), createdAt, movedAt, labels])]);
 
   sheet.deleteRow(rowNumber);
   SpreadsheetApp.flush();
@@ -444,6 +493,7 @@ function handleRestore(spreadsheet, sheet, params) {
   var createdAt = (row.length >= 9 && normalizeValue(row[8])) ? normalizeValue(row[8]) : now;
   var originalMovedAt = (row.length >= 10 && normalizeValue(row[9])) ? normalizeValue(row[9]) : createdAt;
   var movedAt = (targetColumn !== normalizeValue(row[4])) ? now : originalMovedAt;
+  var labels = (row.length >= 11) ? parseLabelsValue(row[10]).join(", ") : "";
 
   var restoredRow = [
     normalizeValue(row[0]),
@@ -456,9 +506,9 @@ function handleRestore(spreadsheet, sheet, params) {
   ];
   sheet.appendRow(restoredRow);
   var insertedRow = sheet.getLastRow();
-  sheet.getRange(insertedRow, CREATED_AT_COLUMN, 1, 2)
+  sheet.getRange(insertedRow, CREATED_AT_COLUMN, 1, 3)
     .setNumberFormat("@")
-    .setValues([[createdAt, movedAt]]);
+    .setValues([[createdAt, movedAt, labels]]);
 
   var beforeId = normalizeValue(params.beforeId);
   var afterId = normalizeValue(params.afterId);
@@ -484,6 +534,66 @@ function handleRestore(spreadsheet, sheet, params) {
     column: targetColumn,
     version: SCRIPT_VERSION
   });
+}
+
+function parseLabelsValue(value) {
+  var raw = [];
+  if (Array.isArray(value)) {
+    for (var i = 0; i < value.length; i++) {
+      var parts = normalizeValue(value[i]).split(",");
+      for (var p = 0; p < parts.length; p++) {
+        raw.push(parts[p]);
+      }
+    }
+  } else if (value !== null && value !== undefined) {
+    raw = normalizeValue(value).split(",");
+  }
+
+  var result = [];
+  var seen = {};
+  for (var j = 0; j < raw.length; j++) {
+    var clean = raw[j].trim();
+    if (!clean) {
+      continue;
+    }
+    var key = clean.toLowerCase();
+    if (seen[key]) {
+      continue;
+    }
+    seen[key] = true;
+    result.push(clean);
+  }
+  return result;
+}
+
+function applyLabelMutations(baseLabels, addLabels, removeLabels) {
+  var list = parseLabelsValue(baseLabels);
+  var toAdd = parseLabelsValue(addLabels);
+  var toRemove = parseLabelsValue(removeLabels);
+  var removeSet = {};
+  for (var r = 0; r < toRemove.length; r++) {
+    removeSet[toRemove[r].toLowerCase()] = true;
+  }
+
+  var filtered = [];
+  var seen = {};
+  for (var i = 0; i < list.length; i++) {
+    var key = list[i].toLowerCase();
+    if (removeSet[key] || seen[key]) {
+      continue;
+    }
+    seen[key] = true;
+    filtered.push(list[i]);
+  }
+  for (var a = 0; a < toAdd.length; a++) {
+    var addKey = toAdd[a].toLowerCase();
+    if (removeSet[addKey] || seen[addKey]) {
+      continue;
+    }
+    seen[addKey] = true;
+    filtered.push(toAdd[a]);
+  }
+  return filtered;
 }
 
 function taskToRow(task) {

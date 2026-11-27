@@ -6,7 +6,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::model::SheetBoard;
+use crate::model::{LabelDef, SheetBoard};
 use crate::store::{parse_time_bound, DEFAULT_PRIORITY};
 
 pub const REQUIRED_SCRIPT_VERSION: u64 = 5;
@@ -28,6 +28,7 @@ pub struct SheetTask {
     pub column: String,
     pub priority: String,
     pub assignee: String,
+    pub labels: Vec<String>,
     pub created_at: String,
     pub moved_at: String,
 }
@@ -42,6 +43,7 @@ pub struct SheetDeletedTask {
     pub column: String,
     pub priority: String,
     pub assignee: String,
+    pub labels: Vec<String>,
     pub deleted_at: String,
     pub created_at: String,
     pub moved_at: String,
@@ -51,6 +53,7 @@ pub struct SheetDeletedTask {
 pub struct SheetSnapshot {
     pub columns: Vec<String>,
     pub users: Vec<String>,
+    pub labels: Vec<LabelDef>,
     pub tasks: Vec<SheetTask>,
     pub history: Vec<SheetDeletedTask>,
 }
@@ -212,12 +215,14 @@ pub fn read_board(board: &SheetBoard) -> Result<SheetSnapshot, String> {
     let body = post_script(board, json!({ "action": "read" }))?;
     let columns: Vec<String> = serde_json::from_value(body["columns"].clone()).unwrap_or_default();
     let users: Vec<String> = serde_json::from_value(body["users"].clone()).unwrap_or_default();
+    let labels: Vec<LabelDef> = serde_json::from_value(body["labels"].clone()).unwrap_or_default();
     let tasks: Vec<SheetTask> = serde_json::from_value(body["tasks"].clone()).unwrap_or_default();
     let history: Vec<SheetDeletedTask> =
         serde_json::from_value(body["history"].clone()).unwrap_or_default();
     Ok(SheetSnapshot {
         columns,
         users,
+        labels,
         tasks,
         history,
     })
@@ -232,6 +237,7 @@ pub fn task_to_json(task: &SheetTask) -> Value {
         "column": task.column,
         "priority": task.priority,
         "assignee": task.assignee,
+        "labels": task.labels,
         "createdAt": task.created_at,
         "updatedAt": task.moved_at,
     });
@@ -250,6 +256,7 @@ pub fn deleted_to_json(task: &SheetDeletedTask) -> Value {
         "column": task.column,
         "priority": task.priority,
         "assignee": task.assignee,
+        "labels": task.labels,
         "deletedAt": task.deleted_at,
         "createdAt": task.created_at,
     });
@@ -292,6 +299,7 @@ pub fn snapshot_to_board_json(board: &SheetBoard, snapshot: &SheetSnapshot) -> V
         "title": board_title_display(board),
         "issueLink": board.jira_link,
         "users": snapshot.users,
+        "labels": snapshot.labels,
         "columns": columns,
     })
 }
@@ -310,6 +318,7 @@ pub struct SheetTaskFilter<'a> {
     pub column: Option<&'a str>,
     pub assignee: Option<&'a str>,
     pub priority: Option<&'a str>,
+    pub label: Option<&'a str>,
     pub query: Option<&'a str>,
     pub since: Option<&'a str>,
     pub until: Option<&'a str>,
@@ -360,12 +369,25 @@ pub fn filter_tasks(
                     return false;
                 }
             }
+            if let Some(label) = filter.label {
+                let needle = label.trim().to_lowercase();
+                if needle.is_empty() || needle == "__unlabeled__" {
+                    if !task.labels.is_empty() {
+                        return false;
+                    }
+                } else if !task.labels.iter().any(|l| l.to_lowercase() == needle) {
+                    return false;
+                }
+            }
             if !terms.is_empty() {
-                let hay = format!(
-                    "{}\n{}\n{}\n{}",
-                    task.title, task.des, task.issue_id, task.assignee
-                )
-                .to_lowercase();
+                let mut parts = vec![
+                    task.title.to_lowercase(),
+                    task.des.to_lowercase(),
+                    task.issue_id.to_lowercase(),
+                    task.assignee.to_lowercase(),
+                ];
+                parts.extend(task.labels.iter().map(|l| l.to_lowercase()));
+                let hay = parts.join("\n");
                 if !terms.iter().all(|term| hay.contains(term)) {
                     return false;
                 }
@@ -433,6 +455,7 @@ pub struct SheetTaskCreate<'a> {
     pub assignee: Option<&'a str>,
     pub issue_id: Option<&'a str>,
     pub des: Option<&'a str>,
+    pub labels: Option<Vec<String>>,
 }
 
 pub fn add_task(board: &SheetBoard, input: &SheetTaskCreate<'_>) -> Result<Value, String> {
@@ -457,7 +480,7 @@ pub fn add_task(board: &SheetBoard, input: &SheetTaskCreate<'_>) -> Result<Value
     };
     let priority = check_priority(input.priority.unwrap_or(DEFAULT_PRIORITY))?;
     let id = new_task_id();
-    let task_payload = json!({
+    let mut task_payload = json!({
         "id": id,
         "title": title,
         "jiraId": input.issue_id.unwrap_or(""),
@@ -466,6 +489,9 @@ pub fn add_task(board: &SheetBoard, input: &SheetTaskCreate<'_>) -> Result<Value
         "priority": priority,
         "assignee": input.assignee.unwrap_or(""),
     });
+    if let Some(ref labels) = input.labels {
+        task_payload["labels"] = json!(labels);
+    }
     post_script(
         board,
         json!({
@@ -481,10 +507,11 @@ pub fn add_task(board: &SheetBoard, input: &SheetTaskCreate<'_>) -> Result<Value
         "id": id,
         "title": title,
         "issueId": input.issue_id.unwrap_or(""),
-        "des": input.des.unwrap_or(""),
+        "description": input.des.unwrap_or(""),
         "column": column,
         "priority": priority,
         "assignee": input.assignee.unwrap_or(""),
+        "labels": input.labels.clone().unwrap_or_default(),
     }))
 }
 
@@ -495,6 +522,9 @@ pub struct SheetTaskEdit<'a> {
     pub issue_id: Option<&'a str>,
     pub des: Option<&'a str>,
     pub append_des: Option<&'a str>,
+    pub labels: Option<Vec<String>>,
+    pub add_labels: Option<Vec<String>>,
+    pub remove_labels: Option<Vec<String>>,
 }
 
 pub fn edit_task(
@@ -547,6 +577,15 @@ pub fn edit_task(
             task_payload["appendDes"] = json!(append);
         }
     }
+    if let Some(ref labels) = patch.labels {
+        task_payload["labels"] = json!(labels);
+    }
+    if let Some(ref add_labels) = patch.add_labels {
+        task_payload["addLabels"] = json!(add_labels);
+    }
+    if let Some(ref remove_labels) = patch.remove_labels {
+        task_payload["removeLabels"] = json!(remove_labels);
+    }
     post_script(
         board,
         json!({
@@ -562,10 +601,11 @@ pub fn edit_task(
         "id": existing.id,
         "title": title,
         "issueId": issue_id,
-        "des": des,
+        "description": des,
         "column": existing.column,
         "priority": priority,
         "assignee": assignee,
+        "labels": existing.labels,
     }))
 }
 

@@ -513,3 +513,90 @@ async fn the_token_can_be_replaced() {
         .unwrap();
     assert_eq!(app.send(request).await.0, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn labels_work_through_mcp_tools() {
+    let app = app();
+
+    let (err, created_board) = app
+        .tool(
+            "create_board",
+            json!({
+                "title": "MCP Labels",
+                "labels": [
+                    { "name": "Bug", "color": "red" },
+                    { "name": "Backend", "color": "indigo" }
+                ]
+            }),
+        )
+        .await;
+    assert!(!err);
+    let board_id = created_board["id"].as_str().unwrap().to_string();
+    assert_eq!(created_board["labels"][0]["name"], "Bug");
+
+    let (err, task) = app
+        .tool(
+            "create_task",
+            json!({
+                "board": board_id,
+                "title": "MCP task",
+                "labels": ["Bug", "API"]
+            }),
+        )
+        .await;
+    assert!(!err);
+    let task_id = task["id"].as_str().unwrap().to_string();
+    assert_eq!(task["labels"], json!(["Bug", "API"]));
+
+    let (err, updated) = app
+        .tool(
+            "update_task",
+            json!({
+                "board": board_id,
+                "task": task_id,
+                "addLabels": ["Urgent"],
+                "removeLabels": ["API"]
+            }),
+        )
+        .await;
+    assert!(!err);
+    assert_eq!(updated["labels"], json!(["Bug", "Urgent"]));
+
+    let (err, listed) = app
+        .tool(
+            "list_tasks",
+            json!({
+                "board": board_id,
+                "label": "urgent"
+            }),
+        )
+        .await;
+    assert!(!err);
+    assert_eq!(listed.as_array().unwrap().len(), 1);
+    assert_eq!(listed[0]["id"], task_id);
+
+    let (err, _) = app
+        .tool(
+            "update_board",
+            json!({
+                "board": board_id,
+                "labels": [{ "name": "Defect", "color": "red" }],
+                "renameLabels": { "Bug": "Defect" }
+            }),
+        )
+        .await;
+    assert!(!err);
+
+    let (err, after) = app
+        .tool(
+            "get_task",
+            json!({
+                "board": board_id,
+                "task": task_id
+            }),
+        )
+        .await;
+    assert!(!err);
+    assert_eq!(after["labels"], json!(["Defect", "Urgent"]));
+}
+

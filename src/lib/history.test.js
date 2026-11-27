@@ -38,3 +38,13 @@ test('the creation time in column I is kept, whether text or a date the Sheet re
     ['c', ''],
   ])
 })
+
+test('labels in column K are parsed and searchable in history', () => {
+  const records = parseHistory([
+    ['a', 'Old bug', '', '', 'Todo', 'high', 'Amy', '2026-11-26 10:00:00', '2026-11-25 09:00:00', '2026-11-25 10:00:00', 'bug, frontend'],
+    ['b', 'Plain', '', '', 'Todo', 'low', '', '2026-11-26 09:00:00'],
+  ])
+  assert.deepEqual(records[0].labels, ['bug', 'frontend'])
+  assert.equal('labels' in records[1], false)
+  assert.deepEqual(filterHistory(records, 'frontend').map((r) => r.id), ['a'])
+})

@@ -117,6 +117,7 @@ const toLocalBoard = (info) => ({
   jiraLink: info.issueLink,
   columns: info.columns,
   users: info.users,
+  labels: info.labels || [],
 })
 
 const toSheetBoard = (info) => createBoard(info.id, {
@@ -253,6 +254,7 @@ export function useBoards() {
         issueLink: fields.jiraLink || "",
         columns: fields.columns,
         users: fields.users,
+        labels: fields.labels,
         tasks: fields.tasks,
         history: fields.history,
       }).then(async (info) => {

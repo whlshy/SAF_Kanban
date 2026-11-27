@@ -169,7 +169,8 @@ fn tools() -> Vec<Value> {
                 "column": text("Only tasks in this column (exact name)."),
                 "assignee": text("Only tasks assigned to this name. An empty string finds unassigned tasks."),
                 "priority": text("Only tasks with this priority."),
-                "query": text("Words that must all appear in the title, description, issue id or assignee (case-insensitive)."),
+                "label": text("Only tasks with this label (case-insensitive). An empty string finds unlabeled tasks."),
+                "query": text("Words that must all appear in the title, description, issue id, assignee or labels (case-insensitive)."),
                 "since": text("Only tasks moved into their current column at or after this time (YYYY-MM-DD or ISO timestamp)."),
                 "until": text("Only tasks moved into their current column at or before this time (YYYY-MM-DD, inclusive, or ISO timestamp)."),
                 "limit": { "type": "integer", "minimum": 0, "description": "At most this many tasks, most recently moved into their current column first." },
@@ -190,13 +191,14 @@ fn tools() -> Vec<Value> {
                 "priority": priority,
                 "assignee": text("Who it is assigned to. Normally one of the board's users."),
                 "issueId": text("Id in an issue tracker, e.g. SAF-12 or 42."),
+                "labels": names("Labels to attach to the task."),
             }),
             &["board", "title"],
         ),
         tool(
             "update_task",
             "Update a task",
-            "Changes the given fields of a task and leaves the others as they are. Use `appendDescription` to add to the existing description without overwriting it. To change its column or position use move_task.",
+            "Changes the given fields of a task and leaves the others as they are. Use `appendDescription` to add to the existing description without overwriting it, and `addLabels`/`removeLabels` to update individual labels. To change its column or position use move_task.",
             false,
             json!({
                 "board": board,
@@ -207,6 +209,9 @@ fn tools() -> Vec<Value> {
                 "priority": priority,
                 "assignee": text("New assignee; an empty string unassigns the task."),
                 "issueId": text("New issue id; an empty string clears it."),
+                "labels": names("Replace all labels on the task; an empty array clears them."),
+                "addLabels": names("Labels to add without removing existing ones."),
+                "removeLabels": names("Labels to remove (case-insensitive)."),
             }),
             &["board", "task"],
         ),
@@ -256,13 +261,30 @@ fn tools() -> Vec<Value> {
                 "title": text("Name of the board."),
                 "columns": names("Column names, in order from left to right."),
                 "users": names("Names tasks can be assigned to."),
+                "labels": {
+                    "type": "array",
+                    "description": "Preset labels for the board: strings or { name, color } objects (palette name or #RRGGBB).",
+                    "items": {
+                        "oneOf": [
+                            { "type": "string" },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "color": { "type": "string" }
+                                },
+                                "required": ["name"]
+                            }
+                        ]
+                    }
+                },
             }),
             &["title"],
         ),
         tool(
             "update_board",
             "Update a board",
-            "Renames a board or changes its columns or assignee names. `columns` is the complete new list in order; a column that still has tasks can't be left out. To rename a column, list its new name in `columns` and map old name to new name in `renameColumns`; its tasks follow.",
+            "Renames a board or changes its columns, assignees or preset labels. `columns` is the complete new list in order; a column that still has tasks can't be left out. To rename a column, list its new name in `columns` and map old name to new name in `renameColumns`; its tasks follow. Use `renameLabels` to rename a label across existing tasks.",
             false,
             json!({
                 "board": board,
@@ -270,6 +292,24 @@ fn tools() -> Vec<Value> {
                 "columns": names("The complete list of column names, in order."),
                 "renameColumns": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Old column name -> new column name." },
                 "users": names("The complete list of names tasks can be assigned to."),
+                "labels": {
+                    "type": "array",
+                    "description": "The complete list of preset labels: strings or { name, color } objects.",
+                    "items": {
+                        "oneOf": [
+                            { "type": "string" },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string" },
+                                    "color": { "type": "string" }
+                                },
+                                "required": ["name"]
+                            }
+                        ]
+                    }
+                },
+                "renameLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Old label name -> new label name." },
             }),
             &["board"],
         ),
@@ -286,6 +326,7 @@ pub(crate) fn task_view(task: &Task) -> Value {
         "priority": task.priority,
         "assignee": task.assignee,
         "issueId": task.issue_id,
+        "labels": task.labels,
         "createdAt": task.created_at,
         "updatedAt": task.updated_at,
         "movedAt": task.moved_at,
@@ -304,7 +345,14 @@ fn board_view(board: &Board) -> Value {
         .iter()
         .map(|name| json!({ "name": name, "tasks": board.tasks.iter().filter(|task| &task.column == name).map(task_view).collect::<Vec<_>>() }))
         .collect();
-    json!({ "id": board.id, "title": board.title, "issueLink": board.issue_link, "users": board.users, "columns": columns })
+    json!({
+        "id": board.id,
+        "title": board.title,
+        "issueLink": board.issue_link,
+        "users": board.users,
+        "labels": board.labels,
+        "columns": columns,
+    })
 }
 
 struct Arguments<'a>(&'a Map<String, Value>);
@@ -351,6 +399,59 @@ impl Arguments<'_> {
             Some(_) => Err(format!("`{name}` must be a list of strings.")),
         }
     }
+
+    fn label_defs(&self, name: &str) -> Result<Option<Vec<crate::model::LabelDef>>, String> {
+        match self.0.get(name) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::Array(items)) => items
+                .iter()
+                .map(|item| match item {
+                    Value::String(s) => Ok(crate::model::LabelDef {
+                        name: s.clone(),
+                        color: String::new(),
+                    }),
+                    Value::Object(map) => {
+                        let Some(label_name) = map.get("name").and_then(Value::as_str) else {
+                            return Err(format!("Each entry in `{name}` needs a string `name`."));
+                        };
+                        let color = match map.get("color") {
+                            None | Some(Value::Null) => String::new(),
+                            Some(Value::String(c)) => c.clone(),
+                            Some(_) => {
+                                return Err(format!("`color` in `{name}` must be a string."))
+                            }
+                        };
+                        Ok(crate::model::LabelDef {
+                            name: label_name.to_string(),
+                            color,
+                        })
+                    }
+                    _ => Err(format!(
+                        "`{name}` must be a list of strings or {{ name, color }} objects."
+                    )),
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(Some),
+            Some(_) => Err(format!(
+                "`{name}` must be a list of strings or {{ name, color }} objects."
+            )),
+        }
+    }
+
+    fn string_map(&self, name: &str) -> Result<std::collections::HashMap<String, String>, String> {
+        match self.0.get(name) {
+            None | Some(Value::Null) => Ok(Default::default()),
+            Some(Value::Object(map)) => map
+                .iter()
+                .map(|(from, to)| {
+                    to.as_str()
+                        .map(|to| (from.clone(), to.to_string()))
+                        .ok_or_else(|| format!("`{name}` must map names to names."))
+                })
+                .collect(),
+            Some(_) => Err(format!("`{name}` must be an object.")),
+        }
+    }
 }
 
 fn failed(error: ApiError) -> String {
@@ -388,6 +489,7 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 column: arguments.text("column")?,
                 assignee: arguments.text("assignee")?,
                 priority: arguments.text("priority")?,
+                label: arguments.text("label")?,
                 q: arguments.text("query")?,
                 since: arguments.text("since")?,
                 until: arguments.text("until")?,
@@ -410,6 +512,9 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 priority: arguments.text("priority")?,
                 assignee: arguments.text("assignee")?,
                 issue_id: arguments.text("issueId")?,
+                labels: arguments.names("labels")?,
+                add_labels: None,
+                remove_labels: None,
             };
             task_view(&store.create_task(&board()?, input).map_err(failed)?)
         }
@@ -422,6 +527,9 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 priority: arguments.text("priority")?,
                 assignee: arguments.text("assignee")?,
                 issue_id: arguments.text("issueId")?,
+                labels: arguments.names("labels")?,
+                add_labels: arguments.names("addLabels")?,
+                remove_labels: arguments.names("removeLabels")?,
             };
             task_view(
                 &store
@@ -469,29 +577,20 @@ fn run_tool(store: &Store, name: &str, arguments: &Arguments) -> Result<Value, S
                 issue_link: arguments.text("issueLink")?.unwrap_or_default(),
                 columns: arguments.names("columns")?,
                 users: arguments.names("users")?.unwrap_or_default(),
+                labels: arguments.label_defs("labels")?.unwrap_or_default(),
                 ..NewBoard::default()
             };
             json!(store.create_board(input).map_err(failed)?)
         }
         "update_board" => {
-            let renames = match arguments.0.get("renameColumns") {
-                None | Some(Value::Null) => Default::default(),
-                Some(Value::Object(map)) => map
-                    .iter()
-                    .map(|(from, to)| {
-                        to.as_str()
-                            .map(|to| (from.clone(), to.to_string()))
-                            .ok_or_else(|| "`renameColumns` must map names to names.".to_string())
-                    })
-                    .collect::<Result<_, _>>()?,
-                Some(_) => return Err("`renameColumns` must be an object.".to_string()),
-            };
             let patch = BoardPatch {
                 title: arguments.text("title")?,
                 issue_link: arguments.text("issueLink")?,
                 columns: arguments.names("columns")?,
                 users: arguments.names("users")?,
-                renames,
+                labels: arguments.label_defs("labels")?,
+                renames: arguments.string_map("renameColumns")?,
+                label_renames: arguments.string_map("renameLabels")?,
             };
             json!(store.update_board(&board()?, patch).map_err(failed)?)
         }

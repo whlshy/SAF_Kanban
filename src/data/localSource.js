@@ -24,6 +24,7 @@ export const createLocalSource = ({ id }) => {
 
     loadColumns: async () => (await localRequest("GET", board)).columns,
     loadUsers: async () => (await localRequest("GET", board)).users,
+    loadLabels: async () => (await localRequest("GET", board)).labels || [],
     loadTasks: () => localRequest("GET", `${board}/tasks`),
 
     // The server lists deleted tasks newest first.

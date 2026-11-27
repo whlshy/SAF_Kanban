@@ -881,3 +881,136 @@ async fn in_app_updater_endpoints_work_when_attached() {
     assert_eq!(installing["downloaded"], 50);
     assert_eq!(installing["total"], 100);
 }
+
+#[tokio::test]
+async fn labels_on_boards_and_tasks_work_through_the_api() {
+    let app = app();
+
+    let (status, board) = app
+        .call(
+            Method::POST,
+            "/api/boards",
+            json!({
+                "title": "Labeled Board",
+                "labels": [
+                    { "name": "Bug", "color": "red" },
+                    { "name": "Feature", "color": "green" }
+                ]
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let board_id = board["id"].as_str().unwrap().to_string();
+    assert_eq!(
+        board["labels"],
+        json!([
+            { "name": "Bug", "color": "red" },
+            { "name": "Feature", "color": "green" }
+        ])
+    );
+
+    let (status, task1) = app
+        .call(
+            Method::POST,
+            &format!("/api/boards/{board_id}/tasks"),
+            json!({
+                "title": "Fix login",
+                "labels": ["Bug", "bug", "API"]
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let task1_id = task1["id"].as_str().unwrap().to_string();
+    assert_eq!(task1["labels"], json!(["Bug", "API"]));
+
+    let (status, task2) = app
+        .call(
+            Method::POST,
+            &format!("/api/boards/{board_id}/tasks"),
+            json!({ "title": "Plain task" }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let task2_id = task2["id"].as_str().unwrap().to_string();
+    assert!(task2.get("labels").is_none());
+
+    // Atomic addLabels / removeLabels on PATCH.
+    let (status, patched) = app
+        .call(
+            Method::PATCH,
+            &format!("/api/boards/{board_id}/tasks/{task1_id}"),
+            json!({
+                "addLabels": ["Urgent", "bug"],
+                "removeLabels": ["api"]
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(patched["labels"], json!(["Bug", "Urgent"]));
+
+    // Filter by label, unlabeled, and keyword search on labels.
+    let by_label = app
+        .get(&format!("/api/boards/{board_id}/tasks?label=urgent"))
+        .await;
+    assert_eq!(by_label.as_array().unwrap().len(), 1);
+    assert_eq!(by_label[0]["id"], task1_id);
+
+    let unlabeled = app
+        .get(&format!("/api/boards/{board_id}/tasks?label=__unlabeled__"))
+        .await;
+    assert_eq!(unlabeled.as_array().unwrap().len(), 1);
+    assert_eq!(unlabeled[0]["id"], task2_id);
+
+    let searched = app
+        .get(&format!("/api/boards/{board_id}/tasks?q=urgent"))
+        .await;
+    assert_eq!(searched.as_array().unwrap().len(), 1);
+    assert_eq!(searched[0]["id"], task1_id);
+
+    // Rename a board label and confirm existing tasks follow.
+    let (status, updated_board) = app
+        .call(
+            Method::PATCH,
+            &format!("/api/boards/{board_id}"),
+            json!({
+                "labels": [
+                    { "name": "Defect", "color": "red" },
+                    { "name": "Feature", "color": "green" }
+                ],
+                "labelRenames": { "Bug": "Defect" }
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated_board["labels"][0]["name"], "Defect");
+
+    let renamed_task = app
+        .get(&format!("/api/boards/{board_id}/tasks/{task1_id}"))
+        .await;
+    assert_eq!(renamed_task["labels"], json!(["Defect", "Urgent"]));
+
+    // Delete and restore preserves labels.
+    assert_eq!(
+        app.call(
+            Method::DELETE,
+            &format!("/api/boards/{board_id}/tasks/{task1_id}"),
+            Value::Null
+        )
+        .await
+        .0,
+        StatusCode::NO_CONTENT
+    );
+    let history = app.get(&format!("/api/boards/{board_id}/history")).await;
+    assert_eq!(history[0]["labels"], json!(["Defect", "Urgent"]));
+
+    let (status, restored) = app
+        .call(
+            Method::POST,
+            &format!("/api/boards/{board_id}/history/{task1_id}/restore"),
+            json!({}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(restored["labels"], json!(["Defect", "Urgent"]));
+}
+

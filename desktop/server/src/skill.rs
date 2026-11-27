@@ -155,14 +155,15 @@ Below it is written as `saf-kanban-cli`; always type the full command above inst
 saf-kanban-cli boards                     List local and Google Sheet boards
 saf-kanban-cli board <board> [--column C] [--limit N]
                                           Columns with their tasks in order, and the assignees
-saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--label L] [--search WORDS]
                      [--since TIME] [--until TIME] [--limit N]
-                                          Find tasks (--assignee "" finds unassigned ones)
+                                          Find tasks (--assignee "" finds unassigned, --label "" finds unlabeled)
 saf-kanban-cli task <board> <task>        One task, with its whole description
-saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID]
+saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--labels A,B]
                    [--description TEXT | --description-file FILE]
                                           Add a task at the end of a column (default: the first)
 saf-kanban-cli edit <board> <task> [--title T] [--priority P] [--assignee A] [--issue ID]
+                    [--labels A,B] [--add-label L] [--remove-label L]
                     [--description TEXT | --description-file FILE |
                      --append-description TEXT | --append-description-file FILE]
                                           Change some fields; an empty value ("") clears one
@@ -173,10 +174,11 @@ saf-kanban-cli deleted <board>            Deleted tasks, newest first, with thei
 saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
                                           Put a deleted task back as it was: same id and
                                           contents, in its old column and place
-saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--issue-link URL]
+saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--labels "bug:red,feat:blue"] [--issue-link URL]
                          [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                           Create a local board, or add a Google Sheet board (--script)
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
+                          [--labels "bug:red,feat:blue"] [--rename-label OLD=NEW]
                           [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                           --columns and --users are the complete new lists (local boards)
 saf-kanban-cli delete-board <board>       Delete a local board, or remove a Google Sheet board from the list

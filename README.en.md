@@ -44,10 +44,10 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 ## Key Features
 
 - **Boards & Tasks**
-  - Create, edit, and delete tasks with priority, assignee, and issue tracker links (Jira, GitHub Issues, etc.)
+  - Create, edit, and delete tasks with priority, assignee, labels (preset + freeform with dynamic width `+N` overflow on cards), and issue tracker links (Jira, GitHub Issues, etc.)
   - Unlimited custom columns with within-column and cross-column drag-and-drop (long-press to drag on phones; swipe column-by-column on portrait screens)
   - Automatically tracks creation time (`createdAt`) and last column entry time (`movedAt`), visible in hover tooltips, task details, and the edit dialog
-  - Live search and filters (keyword, assignee, priority) — dragging still works while filtering
+  - Live search and filters (keyword, assignee, priority, label — click any label on a card to toggle filtering) — dragging still works while filtering
 - **Multiple Boards, Backups & History**
   - Switch between multiple boards with `?board=<ID>` URLs for bookmarking or side-by-side tabs
   - Export and import board settings as JSON, with optional in-browser **AES-GCM password encryption** (PBKDF2-SHA256)
@@ -55,7 +55,7 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 - **Cross-Device & Desktop Experience**
   - Traditional Chinese and English UI; light and dark themes
   - Installable as a PWA with offline viewing of last loaded data
-  - Windows desktop app with system tray mode, autostart on sign-in, in-app updates, and AI agent tooling
+  - Windows desktop app with system tray mode, autostart on sign-in, remembered window size & position, in-app updates, and AI agent tooling
 
 ---
 
@@ -76,11 +76,11 @@ Starting from the template is the fastest way — no sheets to create and no cod
 <details>
 <summary><strong>Manual setup from scratch (and Google Sheet column specifications)</strong></summary>
 
-### 1. Create four sheets
+### 1. Create the sheets
 
-Create a new Google Sheet with four sheets named exactly as below (case-sensitive, **no header rows — data starts on row 1**):
+Create a new Google Sheet with the sheets named exactly as below (case-sensitive, **no header rows — data starts on row 1**):
 
-- `kanban`: stores tasks in columns `A:I` (can start empty)
+- `kanban`: stores tasks in columns `A:J` (can start empty)
 
 | Column | Content | Example |
 | --- | --- | --- |
@@ -93,10 +93,12 @@ Create a new Google Sheet with four sheets named exactly as below (case-sensitiv
 | G | Assignee | `Alice` |
 | H | Creation time (filled by Apps Script v3+) | `2026-11-21 10:30:00` |
 | I | Last moved into current column (Apps Script v4+, updated on cross-column moves) | `2026-11-24 14:20:00` |
+| J | Labels (Apps Script v6+, comma-separated) | `Bug, Frontend` |
 
 - `columns`: list column names in order in column A (e.g. `Todo`, `In Progress`, `Testing`, `Done`).
 - `users`: list assignee names in column A (legacy format with user ID in A and name in B still works).
-- `history`: keeps deleted tasks (created automatically on first deletion if absent). Columns A–G match `kanban`; H is deletion time, I is creation time, J is column move time (v4+).
+- `labels` (optional): list preset label names in column A and semantic color names (`red`, `orange`, `amber`, `green`, `teal`, `blue`, `indigo`, `purple`, `pink`, `gray`) or `#RRGGBB` hex in column B (leave empty or omit the tab completely if not needed).
+- `history`: keeps deleted tasks (created automatically on first deletion if absent). Columns A–G match `kanban`; H is deletion time, I is creation time, J is column move time (v4+), and K is labels (v6+).
 
 ### 2. Share and paste Apps Script
 
@@ -142,7 +144,7 @@ If you only need terminal or AI agent access (Claude Code, Codex, Cursor, Antigr
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
+Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+; labels require v6). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
 
 ---
 
@@ -157,7 +159,7 @@ Click the board name → **Export settings** to save selected boards as a JSON f
 - Check **Protect with a password** (at least 8 characters) to encrypt with `PBKDF2-SHA256` (600,000 iterations) + `AES-GCM`. Passwords never leave your device and cannot be recovered; browser encryption requires HTTPS or `localhost`.
 
 ### Search & filter
-Click the magnifier at the top right to filter by keyword (matches title, description, Issue ID, and assignee; space-separated words must all match, case-insensitive), assignee (including Unassigned), and priority. Column counts switch to `matching / total`, and drag-and-drop continues to work.
+Click the magnifier at the top right to filter by keyword (matches title, description, Issue ID, assignee, and labels; space-separated words must all match, case-insensitive), assignee (including Unassigned), priority, and label (including Unlabeled) — or click a label pill directly on any card to toggle it. Column counts switch to `matching / total`, and drag-and-drop continues to work.
 
 ### Deleted tasks
 Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards and the CLI (both local boards and Apps Script v5 Google Sheet boards) support full in-place **Restore**.

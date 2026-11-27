@@ -27,7 +27,7 @@ use format::{
 };
 
 const USAGE: &str = "\
-SAF Kanban from the command line. Works on local boards and Google Sheet boards (Apps Script v5+).
+SAF Kanban from the command line. Works on local boards and Google Sheet boards (Apps Script v5+; labels require v6+).
 
 Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
        saf-kanban-cli --version
@@ -35,14 +35,15 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
   boards                          List local and Google Sheet boards
   board <board> [--column C] [--limit N]
                                   Columns with their tasks, and the assignees
-  tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+  tasks <board> [--column C] [--assignee A] [--priority P] [--label L] [--search WORDS]
                 [--since TIME] [--until TIME] [--limit N]
-                                  Find tasks (--assignee \"\" finds unassigned ones)
+                                  Find tasks (--assignee \"\" finds unassigned, --label \"\" finds unlabeled)
   task <board> <task>             One task, with its whole description
-  add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID]
+  add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID] [--labels A,B]
                       [--description TEXT | --description-file FILE]
                                   Add a task at the end of a column (default: the first)
   edit <board> <task> [--title T] [--priority P] [--assignee A] [--issue ID]
+                      [--labels A,B] [--add-label L] [--remove-label L]
                       [--description TEXT | --description-file FILE |
                        --append-description TEXT | --append-description-file FILE]
                                   Change some fields; an empty value clears one
@@ -53,10 +54,11 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
   restore <board> <task> [--column C] [--before TASK | --after TASK]
                                   Put a deleted task back as it was: same id and
                                   contents, in its old column and place
-  new-board <name> [--columns A,B,C] [--users A,B] [--issue-link URL]
+  new-board <name> [--columns A,B,C] [--users A,B] [--labels \"bug:red,feat:blue\"] [--issue-link URL]
                    [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                   Create a local board, or add a Google Sheet board (--script)
   edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
+                     [--labels \"bug:red,feat:blue\"] [--rename-label OLD=NEW]
                      [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                   Update a board's settings
   delete-board <board>            Delete a local board, or remove a Google Sheet board from the list
@@ -109,6 +111,10 @@ fn read_text_option(args: &Args, inline: &str, file_opt: &str) -> Result<Option<
         return read_file_text(path, "the description").map(Some);
     }
     Ok(None)
+}
+
+fn split_label_values(values: &[&str]) -> Vec<String> {
+    crate::store::clean_labels(values.iter().copied())
 }
 
 /// Runs the command; returns what to print.
@@ -185,7 +191,7 @@ fn run(args: &Args) -> Result<String, Failure> {
             args.expect(
                 &["board"],
                 &[
-                    "column", "assignee", "priority", "search", "since", "until", "limit",
+                    "column", "assignee", "priority", "label", "search", "since", "until", "limit",
                 ],
             )?;
             let limit = parse_limit(args)?;
@@ -200,6 +206,7 @@ fn run(args: &Args) -> Result<String, Failure> {
                             ("column", "column"),
                             ("assignee", "assignee"),
                             ("priority", "priority"),
+                            ("label", "label"),
                             ("search", "query"),
                             ("since", "since"),
                             ("until", "until"),
@@ -218,6 +225,7 @@ fn run(args: &Args) -> Result<String, Failure> {
                             column: args.option("column"),
                             assignee: args.option("assignee"),
                             priority: args.option("priority"),
+                            label: args.option("label"),
                             query: args.option("search"),
                             since: args.option("since"),
                             until: args.option("until"),
@@ -253,6 +261,7 @@ fn run(args: &Args) -> Result<String, Failure> {
                     "priority",
                     "assignee",
                     "issue",
+                    "labels",
                     "description",
                     "description-file",
                 ],
@@ -262,6 +271,10 @@ fn run(args: &Args) -> Result<String, Failure> {
                     "Give either --description or --description-file, not both.",
                 ));
             }
+            let labels_opt = {
+                let raw = args.all("labels");
+                (!raw.is_empty()).then(|| split_label_values(&raw))
+            };
             let task = match find_board(&store, &args.words[0])? {
                 BoardRef::Local(id) => {
                     let mut arguments = Map::new();
@@ -278,6 +291,9 @@ fn run(args: &Args) -> Result<String, Failure> {
                             ("description", "description"),
                         ],
                     )?;
+                    if let Some(labels) = labels_opt {
+                        arguments.insert("labels".into(), json!(labels));
+                    }
                     if let Some(path) = args.option("description-file") {
                         arguments.insert(
                             "description".into(),
@@ -297,6 +313,7 @@ fn run(args: &Args) -> Result<String, Failure> {
                             assignee: args.option("assignee"),
                             issue_id: args.option("issue"),
                             des: des.as_deref(),
+                            labels: labels_opt,
                         },
                     )
                     .map_err(Failure::Failed)?
@@ -312,6 +329,9 @@ fn run(args: &Args) -> Result<String, Failure> {
                     "priority",
                     "assignee",
                     "issue",
+                    "labels",
+                    "add-label",
+                    "remove-label",
                     "description",
                     "description-file",
                     "append-description",
@@ -335,6 +355,18 @@ fn run(args: &Args) -> Result<String, Failure> {
                     "Use at most one of --description, --description-file, --append-description, --append-description-file.",
                 ));
             }
+            let labels_opt = {
+                let raw = args.all("labels");
+                (!raw.is_empty()).then(|| split_label_values(&raw))
+            };
+            let add_labels_opt = {
+                let raw = args.all("add-label");
+                (!raw.is_empty()).then(|| split_label_values(&raw))
+            };
+            let remove_labels_opt = {
+                let raw = args.all("remove-label");
+                (!raw.is_empty()).then(|| split_label_values(&raw))
+            };
             let task = match find_board(&store, &args.words[0])? {
                 BoardRef::Local(id) => {
                     let mut arguments = Map::new();
@@ -352,6 +384,15 @@ fn run(args: &Args) -> Result<String, Failure> {
                             ("append-description", "appendDescription"),
                         ],
                     )?;
+                    if let Some(labels) = labels_opt {
+                        arguments.insert("labels".into(), json!(labels));
+                    }
+                    if let Some(add_labels) = add_labels_opt {
+                        arguments.insert("addLabels".into(), json!(add_labels));
+                    }
+                    if let Some(remove_labels) = remove_labels_opt {
+                        arguments.insert("removeLabels".into(), json!(remove_labels));
+                    }
                     if let Some(path) = args.option("description-file") {
                         arguments.insert(
                             "description".into(),
@@ -380,6 +421,9 @@ fn run(args: &Args) -> Result<String, Failure> {
                             issue_id: args.option("issue"),
                             des: des.as_deref(),
                             append_des: append_des.as_deref(),
+                            labels: labels_opt,
+                            add_labels: add_labels_opt,
+                            remove_labels: remove_labels_opt,
                         },
                     )
                     .map_err(Failure::Failed)?

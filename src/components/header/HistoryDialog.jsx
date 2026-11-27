@@ -5,7 +5,9 @@ import { message } from '@/lib/notify'
 
 import { useBoardSource } from '@/data/useBoardData'
 import { dialogAtom, PriorityBadge } from '@/components/content/Home'
+import { LabelBadge } from '@/components/content/LabelBadge'
 import { PRIORITIES } from '@/lib/filter'
+import { parseLabels } from '@/lib/labels'
 import { langAtom, useT } from '@/i18n'
 import { filterHistory } from '@/lib/history'
 import { createdAtParts } from '@/lib/createdAt'
@@ -27,6 +29,7 @@ export default function HistoryDialog({ closeDialog }) {
   const queryClient = useQueryClient()
   const t = useT()
   const [state, setState] = React.useState({ status: "loading", records: [] })
+  const [boardLabels, setBoardLabels] = React.useState(() => currentBoard?.labels || [])
   const [query, setQuery] = React.useState("")
   const [limit, setLimit] = React.useState(PAGE_SIZE)
   const [restoringKey, setRestoringKey] = React.useState(null)
@@ -43,7 +46,12 @@ export default function HistoryDialog({ closeDialog }) {
     Promise.resolve(source?.loadHistory())
       .catch(() => null)
       .then((result) => setState(result || { status: "error", records: [] }))
-  }, [source])
+    if (source?.loadLabels) {
+      Promise.resolve(source.loadLabels())
+        .catch(() => currentBoard?.labels || [])
+        .then((defs) => setBoardLabels(defs || []))
+    }
+  }, [source, currentBoard?.labels])
 
   React.useEffect(() => { load() }, [load])
   React.useEffect(() => { setLimit(PAGE_SIZE) }, [deferredQuery])
@@ -65,6 +73,7 @@ export default function HistoryDialog({ closeDialog }) {
         column: "",
         priority: PRIORITIES.includes(record.priority) ? record.priority : "high",
         assignee: record.assignee,
+        labels: parseLabels(record.labels),
       },
     })
   }
@@ -159,6 +168,7 @@ export default function HistoryDialog({ closeDialog }) {
 
           {shown.map((record) => {
             const rowKey = `${record.row}-${record.id}`
+            const recordLabels = parseLabels(record.labels)
             return (
             <Box
               key={rowKey}
@@ -178,6 +188,13 @@ export default function HistoryDialog({ closeDialog }) {
                   </Typography>
                 </Box>
               </Box>
+              {recordLabels.length > 0 && (
+                <Box className="mt-1.5 flex flex-wrap items-center gap-1">
+                  {recordLabels.map((label) => (
+                    <LabelBadge key={label} name={label} boardLabels={boardLabels} size="sm" />
+                  ))}
+                </Box>
+              )}
               <Box className="flex items-center gap-2" sx={{ mt: 0.25 }}>
               <Typography variant="caption" color="text.secondary" component="div" sx={{ flex: 1, minWidth: 0 }}>
                 {[

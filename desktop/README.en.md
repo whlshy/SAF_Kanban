@@ -102,12 +102,13 @@ saf-kanban-cli --version                  Print the CLI version
 saf-kanban-cli boards                     List local and Google Sheet boards
 saf-kanban-cli board <board> [--column C] [--limit N]
                                           Columns, tasks, and assignees
-saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--search WORDS]
+saf-kanban-cli tasks <board> [--column C] [--assignee A] [--priority P] [--label L] [--search WORDS]
                      [--since TIME] [--until TIME] [--limit N]
 saf-kanban-cli task <board> <task>        Full details of one task
 saf-kanban-cli add <board> <title> [--column C] [--priority P] [--assignee A] [--issue ID]
-                   [--description TEXT | --description-file FILE]
+                   [--labels A,B] [--description TEXT | --description-file FILE]
 saf-kanban-cli edit <board> <task> [--title T] [--priority P] [--assignee A] [--issue ID]
+                    [--labels A,B] [--add-label L] [--remove-label L]
                     [--description TEXT | --description-file FILE |
                      --append-description TEXT | --append-description-file FILE]
 saf-kanban-cli move <board> <task>... <column> [--before TASK | --after TASK]
@@ -115,10 +116,11 @@ saf-kanban-cli delete <board> <task>      Delete a task (kept in deleted tasks)
 saf-kanban-cli deleted <board>            List deleted tasks (newest first)
 saf-kanban-cli restore <board> <task> [--column C] [--before TASK | --after TASK]
                                           Restore a deleted task in place
-saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--issue-link URL]
+saf-kanban-cli new-board <name> [--columns A,B,C] [--users A,B] [--labels NAME:COLOR,...] [--issue-link URL]
                          [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                           Create a local board, or add a Google Sheet board (--script)
 saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW] [--users A,B]
+                          [--labels NAME:COLOR,...] [--rename-label OLD=NEW]
                           [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
 saf-kanban-cli delete-board <board>       Delete a local board (to trash/), or remove a Google Sheet board from the list
 saf-kanban-cli import <file> [--password PWD]

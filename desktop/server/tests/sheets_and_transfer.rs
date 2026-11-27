@@ -74,6 +74,7 @@ struct MockSheetState {
     spreadsheet_id: String,
     columns: Vec<String>,
     users: Vec<String>,
+    labels: Vec<Value>,
     tasks: Vec<Value>,
     history: Vec<Value>,
     /// Stores POST results so the 302 redirect target `/echo?key=...` can return them via GET.
@@ -87,6 +88,10 @@ impl MockSheetState {
             spreadsheet_id: "SHEET_ID_12345".to_string(),
             columns: vec!["Todo".into(), "Doing".into(), "Done".into()],
             users: vec!["Alice".into(), "Bob".into()],
+            labels: vec![
+                json!({ "name": "Bug", "color": "red" }),
+                json!({ "name": "CLI", "color": "blue" }),
+            ],
             tasks: vec![],
             history: vec![],
             echo: HashMap::new(),
@@ -146,6 +151,43 @@ async fn mock_exec_post(State(state): State<Arc<Mutex<MockSheetState>>>, body: S
         .into_response()
 }
 
+fn parse_mock_labels(value: &Value) -> Vec<String> {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect(),
+        Value::String(text) => text
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn apply_mock_label_mutations(
+    existing: &[String],
+    replace: Option<Vec<String>>,
+    add: Vec<String>,
+    remove: Vec<String>,
+) -> Vec<String> {
+    let mut out = replace.unwrap_or_else(|| existing.to_vec());
+    if !remove.is_empty() {
+        out.retain(|item| !remove.iter().any(|rem| rem.eq_ignore_ascii_case(item)));
+    }
+    for item in add {
+        if !out.iter().any(|cur| cur.eq_ignore_ascii_case(&item)) {
+            out.push(item);
+        }
+    }
+    out
+}
+
 fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Value {
     let version = st.version;
     if version < 5 && (action == "read" || action == "restore") {
@@ -165,6 +207,7 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
             "name": "Team Sheet",
             "columns": st.columns,
             "users": st.users,
+            "labels": st.labels,
             "tasks": st.tasks,
             "history": st.history,
         }),
@@ -182,13 +225,35 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
                         format!("{prev}\n\n{append}")
                     };
                 }
+                let prev_labels = parse_mock_labels(&row["labels"]);
+                let replace = task
+                    .as_object()
+                    .and_then(|o| o.get("labels"))
+                    .map(parse_mock_labels);
+                let add = task
+                    .as_object()
+                    .and_then(|o| o.get("addLabels"))
+                    .map(parse_mock_labels)
+                    .unwrap_or_default();
+                let remove = task
+                    .as_object()
+                    .and_then(|o| o.get("removeLabels"))
+                    .map(parse_mock_labels)
+                    .unwrap_or_default();
+                let labels = apply_mock_label_mutations(&prev_labels, replace, add, remove);
                 row["title"] = json!(task["title"].as_str().unwrap_or(""));
                 row["issueId"] = json!(task["jiraId"].as_str().unwrap_or(""));
                 row["des"] = json!(des);
                 row["column"] = json!(task["task"].as_str().unwrap_or(""));
                 row["priority"] = json!(task["priority"].as_str().unwrap_or("medium"));
                 row["assignee"] = json!(task["assignee"].as_str().unwrap_or(""));
+                row["labels"] = json!(labels);
             } else {
+                let labels = task
+                    .as_object()
+                    .and_then(|o| o.get("labels"))
+                    .map(parse_mock_labels)
+                    .unwrap_or_default();
                 st.tasks.push(json!({
                     "id": id,
                     "title": task["title"].as_str().unwrap_or(""),
@@ -197,6 +262,7 @@ fn run_mock_action(st: &mut MockSheetState, action: &str, payload: &Value) -> Va
                     "column": task["task"].as_str().unwrap_or("Todo"),
                     "priority": task["priority"].as_str().unwrap_or("medium"),
                     "assignee": task["assignee"].as_str().unwrap_or(""),
+                    "labels": labels,
                     "createdAt": "2026-11-25 10:00:00",
                     "movedAt": "2026-11-25 10:00:00",
                 }));
@@ -393,7 +459,7 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     assert_eq!(listed_json[0]["hasScript"], true);
     assert!(listed_json[0].get("scriptId").is_none());
 
-    // Add, read, edit (with atomic appendDes), move, delete, deleted, restore!
+    // Add, read, edit (with atomic appendDes and labels), move, delete, deleted, restore!
     let added: Value = serde_json::from_str(&ok(cli(
         dir.path(),
         &[
@@ -404,6 +470,8 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
             "high",
             "--assignee",
             "Alice",
+            "--labels",
+            "CLI,Bug",
             "--description",
             "Line one",
             "--json",
@@ -412,6 +480,7 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     .unwrap();
     let task_id = added["id"].as_str().unwrap().to_string();
     assert_eq!(added["column"], "Todo");
+    assert_eq!(added["labels"], json!(["CLI", "Bug"]));
 
     let edited: Value = serde_json::from_str(&ok(cli(
         dir.path(),
@@ -421,15 +490,29 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
             &task_id,
             "--append-description",
             "Line two",
+            "--add-label",
+            "Urgent",
+            "--remove-label",
+            "Bug",
             "--json",
         ],
     )))
     .unwrap();
     assert_eq!(edited["description"], "Line one\n\nLine two");
+    assert_eq!(edited["labels"], json!(["CLI", "Urgent"]));
+
+    let by_label: Value = serde_json::from_str(&ok(cli(
+        dir.path(),
+        &["tasks", "Team Sheet", "--label", "urgent", "--json"],
+    )))
+    .unwrap();
+    assert_eq!(by_label.as_array().unwrap().len(), 1);
+    assert_eq!(by_label[0]["id"], task_id);
 
     let board_text = ok(cli(dir.path(), &["board", "Team Sheet"]));
     assert!(board_text.contains("Ship pure CLI"));
     assert!(board_text.contains("Alice"));
+    assert!(board_text.contains("#CLI"));
 
     let moved: Value = serde_json::from_str(&ok(cli(
         dir.path(),
@@ -457,6 +540,7 @@ async fn google_sheet_boards_work_end_to_end_via_apps_script_v5() {
     )))
     .unwrap();
     assert_eq!(restored["column"], "Doing");
+    assert_eq!(restored["labels"], json!(["CLI", "Urgent"]));
 
     // edit-board updates title, rejects --columns cleanly.
     let err = fail(cli(
@@ -485,14 +569,29 @@ fn export_and_import_local_and_encrypted_sheets_and_watcher_sync() {
     let dir_b = TempDir::new("import-dst");
     let files = TempDir::new("export-files");
 
-    // 1. Local board export -> import -> delete-board.
+    // 1. Local board export -> import -> delete-board (preserving board & task labels).
     ok(cli(
         dir_a.path(),
-        &["new-board", "Local Work", "--columns", "Backlog,Done"],
+        &[
+            "new-board",
+            "Local Work",
+            "--columns",
+            "Backlog,Done",
+            "--labels",
+            "Bug:red,Backend:indigo",
+        ],
     ));
     ok(cli(
         dir_a.path(),
-        &["add", "Local Work", "Keep me", "--description", "Saved!"],
+        &[
+            "add",
+            "Local Work",
+            "Keep me",
+            "--labels",
+            "Bug,Backend",
+            "--description",
+            "Saved!",
+        ],
     ));
     let local_export = files.path().join("local-board.json");
     ok(cli(
@@ -511,6 +610,8 @@ fn export_and_import_local_and_encrypted_sheets_and_watcher_sync() {
     assert!(imported_local.contains("Imported local board"));
     let board_b = ok(cli(dir_b.path(), &["board", "Local Work"]));
     assert!(board_b.contains("Keep me"));
+    assert!(board_b.contains("#Bug"));
+    assert!(board_b.contains("Labels: Bug (red), Backend (indigo)"));
 
     let deleted_local = ok(cli(dir_a.path(), &["delete-board", "Local Work"]));
     assert!(deleted_local.contains("Deleted local board"));

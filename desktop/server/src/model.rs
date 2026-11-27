@@ -6,6 +6,14 @@ use serde::{Deserialize, Serialize};
 /// Bumped when the file layout changes in a way older versions can't read.
 pub const FILE_VERSION: u32 = 1;
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LabelDef {
+    pub name: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub color: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Task {
@@ -17,6 +25,9 @@ pub struct Task {
     pub column: String,
     pub priority: String,
     pub assignee: String,
+    /// Labels attached to this task.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
     /// UTC, like `2026-11-16T08:30:00.000Z`.
     pub created_at: String,
     pub updated_at: String,
@@ -55,6 +66,8 @@ pub struct Board {
     pub created_at: String,
     pub columns: Vec<String>,
     pub users: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<LabelDef>,
     pub tasks: Vec<Task>,
     /// Deleted tasks, oldest first.
     pub history: Vec<DeletedTask>,
@@ -69,6 +82,8 @@ pub struct BoardInfo {
     pub issue_link: String,
     pub columns: Vec<String>,
     pub users: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<LabelDef>,
     pub task_count: usize,
 }
 
@@ -80,6 +95,7 @@ impl From<&Board> for BoardInfo {
             issue_link: board.issue_link.clone(),
             columns: board.columns.clone(),
             users: board.users.clone(),
+            labels: board.labels.clone(),
             task_count: board.tasks.len(),
         }
     }

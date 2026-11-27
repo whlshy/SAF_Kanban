@@ -102,12 +102,13 @@ saf-kanban-cli --version                  顯示 CLI 版本
 saf-kanban-cli boards                     列出本機與 Google Sheet 看板
 saf-kanban-cli board <看板> [--column C] [--limit N]
                                           欄位、任務與負責人
-saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--search 關鍵字]
+saf-kanban-cli tasks <看板> [--column C] [--assignee A] [--priority P] [--label L] [--search 關鍵字]
                      [--since 時間] [--until 時間] [--limit N]
 saf-kanban-cli task <看板> <任務>         查看單一任務完整內容
 saf-kanban-cli add <看板> <標題> [--column C] [--priority P] [--assignee A] [--issue ID]
-                   [--description 描述 | --description-file 檔案]
+                   [--labels A,B] [--description 描述 | --description-file 檔案]
 saf-kanban-cli edit <看板> <任務> [--title T] [--priority P] [--assignee A] [--issue ID]
+                    [--labels A,B] [--add-label L] [--remove-label L]
                     [--description 描述 | --description-file 檔案 |
                      --append-description 描述 | --append-description-file 檔案]
 saf-kanban-cli move <看板> <任務>... <欄位> [--before 任務 | --after 任務]
@@ -115,10 +116,11 @@ saf-kanban-cli delete <看板> <任務>       刪除任務（保留在歷史紀�
 saf-kanban-cli deleted <看板>             列出已刪除的任務（由新到舊）
 saf-kanban-cli restore <看板> <任務> [--column C] [--before 任務 | --after 任務]
                                           原樣復原已刪除的任務
-saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B] [--issue-link 網址]
+saf-kanban-cli new-board <名稱> [--columns A,B,C] [--users A,B] [--labels 名稱:顏色,...] [--issue-link 網址]
                          [--sheet 網址或ID] [--script 網址或ID] [--user 名稱]
                                           建立本機看板，或帶 --script 新增 Google Sheet 看板
 saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=新] [--users A,B]
+                          [--labels 名稱:顏色,...] [--rename-label 舊=新]
                           [--issue-link 網址] [--sheet 網址或ID] [--script 網址或ID] [--user 名稱]
 saf-kanban-cli delete-board <看板>        刪除本機看板（移至 trash/），或從清單移除 Google Sheet 看板（不動雲端試算表）
 saf-kanban-cli import <檔案> [--password 密碼]
