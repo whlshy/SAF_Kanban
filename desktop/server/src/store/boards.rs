@@ -105,7 +105,7 @@ impl Store {
             while self.path(&id).exists() {
                 id = new_id();
             }
-            let board = Board {
+            let mut board = Board {
                 version: FILE_VERSION,
                 id,
                 title: input.title.trim().to_string(),
@@ -117,6 +117,12 @@ impl Store {
                 tasks,
                 history,
             };
+            let task_labels: Vec<String> = board
+                .tasks
+                .iter()
+                .flat_map(|task| task.labels.iter().cloned())
+                .collect();
+            super::sync_board_labels(&mut board, &task_labels);
             self.write(&board)?;
             board
         };
@@ -207,7 +213,27 @@ impl Store {
                 }
             }
             if let Some(labels) = patch.labels {
-                board.labels = clean_label_defs(labels)?;
+                let cleaned = clean_label_defs(labels)?;
+                let allowed: HashSet<String> = cleaned
+                    .iter()
+                    .map(|def| def.name.trim().to_lowercase())
+                    .collect();
+                for task in &board.tasks {
+                    for label in &task.labels {
+                        let key = label.trim().to_lowercase();
+                        if !allowed.contains(&key) {
+                            let count = board
+                                .tasks
+                                .iter()
+                                .filter(|t| {
+                                    t.labels.iter().any(|l| l.trim().to_lowercase() == key)
+                                })
+                                .count();
+                            return Err(ApiError::label_in_use(label, count));
+                        }
+                    }
+                }
+                board.labels = cleaned;
             }
             Ok(BoardInfo::from(&*board))
         })?;

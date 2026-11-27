@@ -404,6 +404,48 @@ fn normalize_label_color(color: &str) -> String {
     String::new()
 }
 
+/// Stable FNV-1a hash matching JS `hashLabelColor` (UTF-16 code units).
+pub(crate) fn hash_label_color(name: &str) -> &'static str {
+    const HASH_COLORS: [&str; 9] = [
+        "red", "orange", "amber", "green", "teal", "blue", "indigo", "purple", "pink",
+    ];
+    let lower = name.trim().to_lowercase();
+    let mut hash: i32 = 2166136261u32 as i32;
+    for unit in lower.encode_utf16() {
+        hash ^= i32::from(unit);
+        hash = hash.wrapping_mul(16777619);
+    }
+    let idx = (hash.unsigned_abs() as usize) % HASH_COLORS.len();
+    HASH_COLORS[idx]
+}
+
+/// Ensures every label in `labels` exists in `board.labels` (case-insensitively),
+/// appending missing ones with their deterministic hash color. Returns `true` if
+/// `board.labels` grew.
+pub(crate) fn sync_board_labels(board: &mut Board, labels: &[String]) -> bool {
+    let mut added = false;
+    for raw in labels {
+        let name = raw.replace(',', " ").trim().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let key = name.to_lowercase();
+        if board
+            .labels
+            .iter()
+            .any(|def| def.name.trim().to_lowercase() == key)
+        {
+            continue;
+        }
+        board.labels.push(LabelDef {
+            color: hash_label_color(&name).to_string(),
+            name,
+        });
+        added = true;
+    }
+    added
+}
+
 /// Trims board label definitions, drops empty names, and refuses case-insensitive duplicates.
 pub(crate) fn clean_label_defs(defs: Vec<LabelDef>) -> ApiResult<Vec<LabelDef>> {
     let mut seen = HashSet::new();

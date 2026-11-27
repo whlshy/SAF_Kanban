@@ -160,12 +160,12 @@ Available MCP tools:
 
 | Tool | Description |
 | --- | --- |
-| `list_boards` / `get_board` | List boards / get columns and tasks of one board |
-| `list_tasks` / `get_task` | Filter tasks (supports `since`, `until`, `limit`) / get one task |
-| `create_task` / `update_task` | Create a task / update fields (supports `appendDescription`) |
+| `list_boards` / `get_board` | List boards / get columns, tasks, assignees, and preset labels of one board |
+| `list_tasks` / `get_task` | Filter tasks (supports `label`, `since`, `until`, `limit`) / get one task |
+| `create_task` / `update_task` | Create a task / update fields (supports `appendDescription`, `labels`, `addLabels`, `removeLabels`) |
 | `move_task` | Move a task to a column and position (`beforeTask` / `afterTask`) |
 | `delete_task` / `list_deleted_tasks` / `restore_task` | Delete a task / view history / restore in place with original ID |
-| `create_board` / `update_board` | Create a board / edit title, columns, and assignees (board deletion is UI-only) |
+| `create_board` / `update_board` | Create a board / edit title, columns, assignees, and preset labels (including `renameLabels`; board deletion is UI-only) |
 
 > Note: MCP tools use `description`, while the HTTP API uses `des`.
 

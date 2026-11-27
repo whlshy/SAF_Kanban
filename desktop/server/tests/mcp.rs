@@ -575,12 +575,26 @@ async fn labels_work_through_mcp_tools() {
     assert_eq!(listed.as_array().unwrap().len(), 1);
     assert_eq!(listed[0]["id"], task_id);
 
+    let (in_use_err, _) = app
+        .tool(
+            "update_board",
+            json!({
+                "board": board_id,
+                "labels": [{ "name": "Bug", "color": "red" }]
+            }),
+        )
+        .await;
+    assert!(in_use_err);
+
     let (err, _) = app
         .tool(
             "update_board",
             json!({
                 "board": board_id,
-                "labels": [{ "name": "Defect", "color": "red" }],
+                "labels": [
+                    { "name": "Defect", "color": "red" },
+                    { "name": "Urgent", "color": "orange" }
+                ],
                 "renameLabels": { "Bug": "Defect" }
             }),
         )

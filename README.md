@@ -97,7 +97,7 @@
 
 - `columns`：A 欄依序填寫看板欄位名稱（例如 `Todo`、`In Progress`、`Testing`、`Done`），數量不限。
 - `users`：A 欄填寫可指派的負責人名稱（相容舊格式：若 B 欄有值會改取 B 欄）。
-- `labels`（選填）：A 欄填寫常用標籤名稱，B 欄填寫語意色名（`red`、`orange`、`amber`、`green`、`teal`、`blue`、`indigo`、`purple`、`pink`、`gray`）或 `#RRGGBB` 色碼（可留空，未建此工作表亦不影響使用）。
+- `labels`（選填，Apps Script v7 起可由網頁設定或 CLI 直接編輯並自動同步任務新標籤）：A 欄填寫常用標籤名稱，B 欄填寫語意色名（`red`、`orange`、`amber`、`green`、`teal`、`blue`、`indigo`、`purple`、`pink`、`gray`）或 `#RRGGBB` 色碼（可留空，未建此工作表亦不影響使用）。
 - `history`：保留已刪除的任務（沒建時第一次刪除會自動建立）。A～G 欄同 `kanban`，H 欄為刪除時間，I 欄為建立時間，J 欄為移至此欄時間（v4 起），K 欄為 Labels（v6 起）。
 
 ### 2. 開放讀取權限並貼上 Apps Script
@@ -144,7 +144,7 @@
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上，標籤功能需 v6）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
+裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上，任務標籤需 v6，編輯常用標籤與自動同步需 v7）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
 
 ---
 
@@ -172,7 +172,7 @@
 
 ## 更新 Apps Script
 
-[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊版 Script 仍可相容運作，但不會有新功能（各版差異見[版本紀錄](CHANGELOG.md#apps-script-版本)）。目前最新版（v5）提供：CLI 專用的 `doPost`、`action=read`、`action=restore` 與原子追加描述（`appendDes`），並包含既有 v4 功能（刪除保留到 `history`、寫入前檢查是否為對應 Sheet、多語錯誤訊息、建立時間 H 欄與移入欄位時間 I 欄）。
+[`apps-script/Code.gs`](apps-script/Code.gs) 更新後，舊版 Script 仍可相容運作，但不會有新功能（各版差異見[版本紀錄](CHANGELOG.md#apps-script-版本)）。目前最新版（v7）提供：網頁設定與 CLI 編輯常用標籤／顏色與同步更名（`action=saveLabels`、禁止刪除使用中標籤）、任務新標籤自動同步至 `labels` 工作表，並包含既有 v6（任務標籤 `kanban` J 欄／`history` K 欄）、v5（CLI `doPost`、`action=read`、`action=restore`、`appendDes`）與 v4（刪除保留至 `history`、建立時間 H 欄、移入欄位時間 I 欄）等完整功能。
 
 更新步驟（部署 ID 不會改變，SAF Kanban 設定不需修改）：
 

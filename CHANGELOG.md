@@ -8,12 +8,28 @@
 
 | 版本 | 隨網站版本推出 | 內容 |
 | --- | --- | --- |
+| v7 | 1.22.1 | 新增 `action=saveLabels` 支援於網頁設定／CLI 直接編輯 `labels` 工作表顏色、排序與同步更名任務標籤，並禁止刪除仍有任務使用中的標籤；`upsert`／`restore` 自動將任務上的新標籤同步至 `labels` 工作表並自動擴充缺少的欄位 |
 | v6 | 1.22.0 | 支援任務標籤：`kanban` J 欄記錄標籤（逗號分隔）、`history` K 欄於刪除時保留標籤、選填 `labels` 工作表（`A:B`）設定常用標籤與顏色；`upsert` 新增 `addLabels`／`removeLabels` 原子加減標籤，並完整向下相容舊版 Sheet |
 | v5 | 1.21.0 | 新增 `doPost` JSON 介面、`action=read`（一次讀取欄位、任務、負責人與歷史紀錄）、`action=restore` 原樣復原，以及 `upsert` 內原子追加描述（`appendDes`），供 CLI 操作 Google Sheet 看板使用 |
 | v4 | 1.19.0 | 在 `kanban` 的 I 欄記錄任務最後一次移進目前欄位的時間（新增與跨欄移動時更新）；刪除時一併存到 `history` 的 J 欄 |
 | v3 | 1.18.0 | 新增的 Task 在 `kanban` 的 H 欄記錄建立時間；刪除時把建立時間存到 `history` 的 I 欄 |
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
+
+## 1.22.1 與桌面版／CLI 0.7.1 — 2026-11-27
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載；純 CLI 版可透過一鍵安裝腳本升級。Google Sheet 看板若要在網頁設定／CLI 編輯標籤顏色並自動同步新標籤，需更新至 **Apps Script v7**。
+
+### 新增與改善
+
+- **Google Sheet 看板於網頁設定編輯常用標籤與顏色（Apps Script v7）**：網頁版與桌面版的 Google Sheet 看板設定對話框現皆內建常用標籤編輯器（10 色調色盤、拖曳排序、更名同步更新所有任務），CLI `edit-board --labels`／`--rename-label` 亦同步支援 Google Sheet 看板。
+- **任務新標籤自動同步至全域常用標籤**：不論本機看板或 Google Sheet 看板（v7+），在任務新增尚未登錄的標籤時會自動寫入全域常用標籤清單（本機 `board.labels`／Sheet `labels` 工作表），並以跨端一致的雜湊色保持顏色不跳變。
+- **保護使用中的全域標籤不可刪除**：前端設定頁會停用仍有任務使用中標籤的刪除按鈕並顯示使用數提示；本機後端（`409 LABEL_IN_USE`）與 Apps Script v7 同步阻擋移除使用中的標籤。
+- **補齊 AI Skill 與 MCP 標籤文件與 Schema**：更新內建 `SKILL.md`、MCP tool 說明與參數描述（含 10 個合法調色盤名稱、`__unlabeled__` 篩選與 v6/v7 說明）及桌面版 README。
+
+### 修正
+
+- **修正舊版 Apps Script（< v6）儲存標籤時誤報成功並殘留假標籤**：當後端 Apps Script 版本低於 v6 時，不再顯示綠色成功或讓未寫入的標籤留在卡片上（並修正 React Query structural sharing 造成重整前不還原的問題），改以清楚的警告提示引導更新至 v6 以上；Apps Script 亦新增自動補齊欄位保護，避免工作表曾刪減空欄時寫入失敗。
 
 ## 1.22.0 與桌面版／CLI 0.7.0 — 2026-11-27
 

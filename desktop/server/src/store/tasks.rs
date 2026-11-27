@@ -113,13 +113,19 @@ impl Store {
     /// Adds a task at the end of the board order, in the first column unless
     /// one is given.
     pub fn create_task(&self, board_id: &str, input: TaskInput) -> ApiResult<Task> {
-        self.update(board_id, |board| {
+        let (task, labels_grew) = self.update(board_id, |board| {
             let mut id = new_id();
             while board.tasks.iter().any(|task| task.id == id) {
                 id = new_id();
             }
-            add_task(board, id, input)
-        })
+            let task = add_task(board, id, input)?;
+            let grew = super::sync_board_labels(board, &task.labels);
+            Ok((task, grew))
+        })?;
+        if labels_grew {
+            self.announce("boards", Some(board_id));
+        }
+        Ok(task)
     }
 
     /// Replaces the task with this id, or creates it. Used by the web UI,
@@ -131,9 +137,13 @@ impl Store {
                 "A task id may only contain letters, digits, `-` and `_` (at most 64).",
             ));
         }
-        self.update(board_id, |board| {
+        let (task, labels_grew) = self.update(board_id, |board| {
             match board.tasks.iter().position(|task| task.id == task_id) {
-                None => add_task(board, task_id.to_string(), input),
+                None => {
+                    let task = add_task(board, task_id.to_string(), input)?;
+                    let grew = super::sync_board_labels(board, &task.labels);
+                    Ok((task, grew))
+                }
                 Some(index) => {
                     let column = match input.column.filter(|column| !column.is_empty()) {
                         Some(column) => {
@@ -143,22 +153,31 @@ impl Store {
                         None => board.tasks[index].column.clone(),
                     };
                     let time = now();
-                    let task = &mut board.tasks[index];
-                    task.title = input.title.unwrap_or_default();
-                    task.issue_id = input.issue_id.unwrap_or_default();
-                    task.des = input.des.unwrap_or_default();
-                    task.priority = input.priority.unwrap_or_default();
-                    task.assignee = input.assignee.unwrap_or_default();
-                    task.labels = clean_labels(input.labels.unwrap_or_default());
-                    if task.column != column {
-                        task.moved_at = time.clone();
-                    }
-                    task.column = column;
-                    task.updated_at = time;
-                    Ok(task.clone())
+                    let new_labels = clean_labels(input.labels.unwrap_or_default());
+                    let task_clone = {
+                        let task = &mut board.tasks[index];
+                        task.title = input.title.unwrap_or_default();
+                        task.issue_id = input.issue_id.unwrap_or_default();
+                        task.des = input.des.unwrap_or_default();
+                        task.priority = input.priority.unwrap_or_default();
+                        task.assignee = input.assignee.unwrap_or_default();
+                        task.labels = new_labels;
+                        if task.column != column {
+                            task.moved_at = time.clone();
+                        }
+                        task.column = column;
+                        task.updated_at = time;
+                        task.clone()
+                    };
+                    let grew = super::sync_board_labels(board, &task_clone.labels);
+                    Ok((task_clone, grew))
                 }
             }
-        })
+        })?;
+        if labels_grew {
+            self.announce("boards", Some(board_id));
+        }
+        Ok(task)
     }
 
     /// Changes only the fields that are given.
@@ -169,52 +188,63 @@ impl Store {
                 "Give either `description` or `appendDescription`, not both.",
             ));
         }
-        self.update(board_id, |board| {
+        let (task, labels_grew) = self.update(board_id, |board| {
             let index = find_task(board, task_id)?;
             if let Some(column) = &input.column {
                 check_column(board, column)?;
             }
             let time = now();
-            let task = &mut board.tasks[index];
-            if let Some(title) = input.title {
-                task.title = title;
-            }
-            if let Some(issue_id) = input.issue_id {
-                task.issue_id = issue_id;
-            }
-            if let Some(des) = input.des {
-                task.des = des;
-            }
-            if let Some(append) = input.append_des {
-                if !append.is_empty() {
-                    let existing = task.des.trim_end_matches(['\r', '\n']);
-                    if existing.is_empty() {
-                        task.des = append;
-                    } else {
-                        task.des = format!("{existing}\n\n{append}");
+            let task_clone = {
+                let task = &mut board.tasks[index];
+                if let Some(title) = input.title {
+                    task.title = title;
+                }
+                if let Some(issue_id) = input.issue_id {
+                    task.issue_id = issue_id;
+                }
+                if let Some(des) = input.des {
+                    task.des = des;
+                }
+                if let Some(append) = input.append_des {
+                    if !append.is_empty() {
+                        let existing = task.des.trim_end_matches(['\r', '\n']);
+                        if existing.is_empty() {
+                            task.des = append;
+                        } else {
+                            task.des = format!("{existing}\n\n{append}");
+                        }
                     }
                 }
-            }
-            if let Some(column) = input.column {
-                if task.column != column {
-                    task.moved_at = time.clone();
+                if let Some(column) = input.column {
+                    if task.column != column {
+                        task.moved_at = time.clone();
+                    }
+                    task.column = column;
                 }
-                task.column = column;
-            }
-            if let Some(priority) = input.priority {
-                task.priority = priority;
-            }
-            if let Some(assignee) = input.assignee {
-                task.assignee = assignee;
-            }
-            if input.labels.is_some() || input.add_labels.is_some() || input.remove_labels.is_some()
-            {
-                let base = input.labels.unwrap_or_else(|| task.labels.clone());
-                task.labels = apply_label_mutations(base, input.add_labels, input.remove_labels);
-            }
-            task.updated_at = time;
-            Ok(task.clone())
-        })
+                if let Some(priority) = input.priority {
+                    task.priority = priority;
+                }
+                if let Some(assignee) = input.assignee {
+                    task.assignee = assignee;
+                }
+                if input.labels.is_some()
+                    || input.add_labels.is_some()
+                    || input.remove_labels.is_some()
+                {
+                    let base = input.labels.unwrap_or_else(|| task.labels.clone());
+                    task.labels =
+                        apply_label_mutations(base, input.add_labels, input.remove_labels);
+                }
+                task.updated_at = time;
+                task.clone()
+            };
+            let grew = super::sync_board_labels(board, &task_clone.labels);
+            Ok((task_clone, grew))
+        })?;
+        if labels_grew {
+            self.announce("boards", Some(board_id));
+        }
+        Ok(task)
     }
 
     pub fn move_task(&self, board_id: &str, task_id: &str, input: MoveInput) -> ApiResult<Task> {
@@ -354,7 +384,7 @@ impl Store {
         task_id: &str,
         input: RestoreInput,
     ) -> ApiResult<Task> {
-        self.update(board_id, |board| {
+        let (task, labels_grew) = self.update(board_id, |board| {
             // The latest deletion, if the same id was deleted more than once.
             let at = board
                 .history
@@ -402,9 +432,14 @@ impl Store {
             }
             task.column = column;
             task.updated_at = time;
+            let grew = super::sync_board_labels(board, &task.labels);
             board.tasks.insert(target, task.clone());
-            Ok(task)
-        })
+            Ok((task, grew))
+        })?;
+        if labels_grew {
+            self.announce("boards", Some(board_id));
+        }
+        Ok(task)
     }
 
     /// Deleted tasks, newest first.

@@ -16,8 +16,8 @@ use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInp
 const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 const INSTRUCTIONS: &str = "SAF Kanban boards kept on this computer. Start with list_boards to get board ids, \
-then get_board to see a board's columns and tasks. Tasks belong to a column (by name) and are ordered within the board; \
-use move_task to change a task's column or position and update_task to change its text, priority or assignee. \
+then get_board to see a board's columns, tasks, assignees and preset labels. Tasks belong to a column (by name) and are ordered within the board; \
+use move_task to change a task's column or position and update_task to change its text, priority, assignee or labels (prefer addLabels/removeLabels to avoid overwriting existing labels). \
 Deleted tasks are kept: list_deleted_tasks shows them, and restore_task puts one back as it was (same id and contents). \
 If a task was deleted by mistake, restore it rather than creating it again.";
 
@@ -149,12 +149,35 @@ fn tools() -> Vec<Value> {
     let names = |description: &str| json!({ "type": "array", "items": { "type": "string" }, "description": description });
     let text = |description: &str| json!({ "type": "string", "description": description });
 
+    let label_def_schema = |description: &str| {
+        json!({
+            "type": "array",
+            "description": description,
+            "items": {
+                "oneOf": [
+                    { "type": "string" },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "color": {
+                                "type": "string",
+                                "description": "One of red, orange, amber, green, teal, blue, indigo, purple, pink, gray, or a #RRGGBB hex code."
+                            }
+                        },
+                        "required": ["name"]
+                    }
+                ]
+            }
+        })
+    };
+
     vec![
-        tool("list_boards", "List boards", "Lists the boards on this computer with their id, title, columns, assignee names and task count.", true, json!({}), &[]),
+        tool("list_boards", "List boards", "Lists the boards on this computer with their id, title, columns, assignee names, preset labels and task count.", true, json!({}), &[]),
         tool(
             "get_board",
             "Get a board",
-            "Returns one board: its columns in order, each with its tasks in order, and the names tasks can be assigned to.",
+            "Returns one board: its columns in order, each with its tasks in order, the names tasks can be assigned to, and its preset labels.",
             true,
             json!({ "board": board }),
             &["board"],
@@ -169,7 +192,7 @@ fn tools() -> Vec<Value> {
                 "column": text("Only tasks in this column (exact name)."),
                 "assignee": text("Only tasks assigned to this name. An empty string finds unassigned tasks."),
                 "priority": text("Only tasks with this priority."),
-                "label": text("Only tasks with this label (case-insensitive). An empty string finds unlabeled tasks."),
+                "label": text("Only tasks with this label (case-insensitive). An empty string or \"__unlabeled__\" finds unlabeled tasks."),
                 "query": text("Words that must all appear in the title, description, issue id, assignee or labels (case-insensitive)."),
                 "since": text("Only tasks moved into their current column at or after this time (YYYY-MM-DD or ISO timestamp)."),
                 "until": text("Only tasks moved into their current column at or before this time (YYYY-MM-DD, inclusive, or ISO timestamp)."),
@@ -191,7 +214,7 @@ fn tools() -> Vec<Value> {
                 "priority": priority,
                 "assignee": text("Who it is assigned to. Normally one of the board's users."),
                 "issueId": text("Id in an issue tracker, e.g. SAF-12 or 42."),
-                "labels": names("Labels to attach to the task."),
+                "labels": names("Labels to attach to the task (preset or freeform)."),
             }),
             &["board", "title"],
         ),
@@ -261,23 +284,7 @@ fn tools() -> Vec<Value> {
                 "title": text("Name of the board."),
                 "columns": names("Column names, in order from left to right."),
                 "users": names("Names tasks can be assigned to."),
-                "labels": {
-                    "type": "array",
-                    "description": "Preset labels for the board: strings or { name, color } objects (palette name or #RRGGBB).",
-                    "items": {
-                        "oneOf": [
-                            { "type": "string" },
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "name": { "type": "string" },
-                                    "color": { "type": "string" }
-                                },
-                                "required": ["name"]
-                            }
-                        ]
-                    }
-                },
+                "labels": label_def_schema("Preset labels for the board: strings or { name, color } objects. Valid palette colors: red, orange, amber, green, teal, blue, indigo, purple, pink, gray, or #RRGGBB."),
             }),
             &["title"],
         ),
@@ -292,23 +299,7 @@ fn tools() -> Vec<Value> {
                 "columns": names("The complete list of column names, in order."),
                 "renameColumns": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Old column name -> new column name." },
                 "users": names("The complete list of names tasks can be assigned to."),
-                "labels": {
-                    "type": "array",
-                    "description": "The complete list of preset labels: strings or { name, color } objects.",
-                    "items": {
-                        "oneOf": [
-                            { "type": "string" },
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "name": { "type": "string" },
-                                    "color": { "type": "string" }
-                                },
-                                "required": ["name"]
-                            }
-                        ]
-                    }
-                },
+                "labels": label_def_schema("The complete list of preset labels: strings or { name, color } objects. Valid palette colors: red, orange, amber, green, teal, blue, indigo, purple, pink, gray, or #RRGGBB."),
                 "renameLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Old label name -> new label name." },
             }),
             &["board"],

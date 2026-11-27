@@ -967,7 +967,33 @@ async fn labels_on_boards_and_tasks_work_through_the_api() {
     assert_eq!(searched.as_array().unwrap().len(), 1);
     assert_eq!(searched[0]["id"], task1_id);
 
-    // Rename a board label and confirm existing tasks follow.
+    // Freeform task labels are automatically synced into board.labels.
+    let board_after_tasks = app.get(&format!("/api/boards/{board_id}")).await;
+    let board_label_names: Vec<&str> = board_after_tasks["labels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["name"].as_str().unwrap())
+        .collect();
+    assert!(board_label_names.contains(&"Urgent"), "{board_label_names:?}");
+
+    // Removing a label still used by a task is rejected with LABEL_IN_USE.
+    let (status, in_use_err) = app
+        .call(
+            Method::PATCH,
+            &format!("/api/boards/{board_id}"),
+            json!({
+                "labels": [
+                    { "name": "Bug", "color": "red" },
+                    { "name": "Feature", "color": "green" }
+                ]
+            }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(code(&in_use_err), "LABEL_IN_USE");
+
+    // Rename a board label (keeping Urgent) and confirm existing tasks follow.
     let (status, updated_board) = app
         .call(
             Method::PATCH,
@@ -975,7 +1001,8 @@ async fn labels_on_boards_and_tasks_work_through_the_api() {
             json!({
                 "labels": [
                     { "name": "Defect", "color": "red" },
-                    { "name": "Feature", "color": "green" }
+                    { "name": "Feature", "color": "green" },
+                    { "name": "Urgent", "color": "orange" }
                 ],
                 "labelRenames": { "Bug": "Defect" }
             }),
