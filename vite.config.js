@@ -63,7 +63,7 @@ export default defineConfig(({
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
-          globIgnores: ['404.html'],
+          globIgnores: ['404.html', 'assets/mermaid/**'],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
@@ -74,6 +74,18 @@ export default defineConfig(({
               options: {
                 cacheName: 'sheets-data',
                 expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [200] },
+              },
+            },
+            {
+              // Mermaid diagram chunks are loaded on demand when a task uses
+              // ```mermaid and cached after first use so offline works without
+              // bloating the initial PWA precache.
+              urlPattern: /\/assets\/mermaid\/.*\.js$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'mermaid-chunks',
+                expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 90 },
                 cacheableResponse: { statuses: [200] },
               },
             },
@@ -98,12 +110,21 @@ export default defineConfig(({
     assetsInclude: ['**/*.svg', '**/*.png', '**/*.mp4'], // 包括圖像資產
     build: {
       outDir,
-      chunkSizeWarningLimit: 1500,
+      chunkSizeWarningLimit: 1600,
       rollupOptions: {
         output: {
+          chunkFileNames(chunkInfo) {
+            if (isMermaidRuntimeChunk(chunkInfo)) {
+              return 'assets/mermaid/[name]-[hash].js';
+            }
+            return 'assets/[name]-[hash].js';
+          },
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              return id.toString().split("node_modules/")[1].split("/")[0].toString();
+              const pkg = id.toString().split("node_modules/")[1].split("/")[0].toString();
+              if (isMarkdownChunkPackage(pkg)) return "markdown";
+              if (isMermaidChunkPackage(pkg)) return undefined;
+              return pkg;
             }
           },
         },
@@ -111,6 +132,99 @@ export default defineConfig(({
     },
   }
 });
+
+const MARKDOWN_PREFIXES = [
+  "remark-",
+  "rehype-",
+  "mdast-",
+  "hast-",
+  "micromark",
+  "unist-",
+  "vfile",
+  "character-entities",
+  "estree-util-",
+];
+
+const MARKDOWN_PACKAGES = new Set([
+  "react-markdown",
+  "unified",
+  "@ungap",
+  "bail",
+  "ccount",
+  "character-reference-invalid",
+  "comma-separated-tokens",
+  "debug",
+  "decode-named-character-reference",
+  "dequal",
+  "devlop",
+  "escape-string-regexp",
+  "extend",
+  "html-url-attributes",
+  "inline-style-parser",
+  "is-alphabetical",
+  "is-alphanumerical",
+  "is-decimal",
+  "is-hexadecimal",
+  "is-plain-obj",
+  "longest-streak",
+  "markdown-table",
+  "ms",
+  "parse-entities",
+  "property-information",
+  "space-separated-tokens",
+  "stringify-entities",
+  "style-to-object",
+  "trim-lines",
+  "trough",
+  "zwitch",
+]);
+
+function isMarkdownChunkPackage(pkg) {
+  return MARKDOWN_PACKAGES.has(pkg) || MARKDOWN_PREFIXES.some((prefix) => pkg.startsWith(prefix));
+}
+
+const MERMAID_PREFIXES = ["d3-", "@chevrotain", "@mermaid-js", "@iconify", "cytoscape"];
+const MERMAID_PACKAGES = new Set([
+  "mermaid",
+  "d3",
+  "dagre-d3-es",
+  "elkjs",
+  "katex",
+  "khroma",
+  "lodash-es",
+  "marked",
+  "dompurify",
+  "dayjs",
+  "chevrotain",
+  "cose-base",
+  "layout-base",
+  "roughjs",
+  "hachure-fill",
+  "points-on-curve",
+  "points-on-path",
+  "path-data-parser",
+  "delaunator",
+  "robust-predicates",
+  "internmap",
+  "es-toolkit",
+  "ts-dedent",
+  "@braintree",
+  "@upsetjs",
+]);
+
+function isMermaidChunkPackage(pkg) {
+  return MERMAID_PACKAGES.has(pkg) || MERMAID_PREFIXES.some((prefix) => pkg.startsWith(prefix));
+}
+
+function isMermaidRuntimeChunk(chunkInfo) {
+  const ids = chunkInfo.moduleIds || [];
+  if (chunkInfo.facadeModuleId) ids.push(chunkInfo.facadeModuleId);
+  return ids.some((id) => {
+    if (!id.includes("node_modules/")) return false;
+    const pkg = id.split("node_modules/")[1].split("/")[0];
+    return isMermaidChunkPackage(pkg);
+  });
+}
 
 // 自動複製 index.html 為 404.html，並同步輸出純 CLI 一鍵安裝腳本至 GitHub Pages 根目錄
 function create404Plugin() {

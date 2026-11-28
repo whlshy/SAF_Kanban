@@ -289,3 +289,138 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* Task description Markdown rendering (layered over @tailwindcss/typography). */
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body :not(pre) > code::before,
+.markdown-body :not(pre) > code::after,
+.markdown-body blockquote p:first-of-type::before,
+.markdown-body blockquote p:last-of-type::after {
+  content: none;
+}
+
+.markdown-body :not(pre) > code {
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.06);
+  padding: 0.15em 0.35em;
+  font-weight: 500;
+  font-size: 0.875em;
+}
+
+.dark .markdown-body :not(pre) > code {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e6edf3;
+}
+
+.markdown-body pre {
+  background-color: #f6f8fa;
+  color: #1f2328;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem 2.5rem 0.75rem 0.9rem;
+  overflow-x: auto;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.dark .markdown-body pre {
+  background-color: #15191f;
+  color: #e6edf3;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.markdown-body a {
+  color: #2563eb;
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.dark .markdown-body a {
+  color: #58a6ff;
+}
+
+.markdown-body ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.125rem;
+}
+
+.markdown-body li.task-list-item {
+  padding-left: 0;
+}
+
+.markdown-body li.task-list-item > input[type="checkbox"] {
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #e5e7eb;
+  padding: 0.4rem 0.65rem;
+}
+
+.markdown-body th {
+  background-color: rgba(0, 0, 0, 0.03);
+  font-weight: 600;
+}
+
+.dark .markdown-body th,
+.dark .markdown-body td {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dark .markdown-body th {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.markdown-body blockquote {
+  border-left-color: #d1d5db;
+  color: #4b5563;
+  font-style: normal;
+}
+
+.dark .markdown-body blockquote {
+  border-left-color: #3d444d;
+  color: #9198a1;
+}
+
+.markdown-body hr {
+  border-color: #e5e7eb;
+}
+
+.dark .markdown-body hr {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.markdown-body .mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
