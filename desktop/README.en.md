@@ -134,7 +134,7 @@ saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into DI
 - `<board>` accepts a board ID or exact name; `<task>` is the task ID shown in brackets. `move` accepts multiple task IDs.
 - Every command supports `--json` and `--data-dir <DIR>`; `boards` never prints `scriptId` (plain or `--json`) so deployment URLs aren't leaked into AI transcripts.
 - `--description -` / `--append-description -` reads from stdin (handling UTF-8 BOM and UTF-16 automatically); in PowerShell, prefer `--description-file` / `--append-description-file`.
-- `--append-description` appends after a blank line safely under the lock (both local boards and Apps Script v5).
+- `--append-description` appends after a blank line safely under the lock (both local boards and Apps Script v5+).
 - `--since` and `--until` (`YYYY-MM-DD` or ISO timestamp) filter by `movedAt`; `--limit N` returns the `N` tasks most recently moved into their column.
 - Errors print to stderr with exit code `1` (`2` for usage mistakes).
 

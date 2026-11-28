@@ -35,8 +35,8 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 | Where data lives | Your own Google Sheet | Local JSON files + shared Google Sheet list | Shares the exact same local files & Google Sheet list as desktop |
 | Installation | None — open in browser (optional PWA install) | Single installer (GUI + CLI), no admin rights needed | One-line command, single binary, no GUI app needed |
 | Offline use | Read-only view of last loaded boards | **Full offline read & write** for local boards | **Full offline read & write** for local boards (Sheets require network) |
-| AI agent integration | Pair with standalone CLI (needs Apps Script v5) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI / MCP / HTTP API) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI) |
-| Deleted task recovery | Recreate from history | Local boards can **restore in place** with original ID & column | Both local & Google Sheet (v5) boards can **restore in place** |
+| AI agent integration | Pair with standalone CLI (needs Apps Script v5+) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI / MCP / HTTP API) | Claude Code, Codex, Cursor, Antigravity, etc. (Skill / CLI) |
+| Deleted task recovery | Recreate from history | Local boards can **restore in place** with original ID & column | Both local & Google Sheet (v5+) boards can **restore in place** |
 | Updates | Reload prompt when the site updates | **In-app update check, verification, and install** (v0.5.0+) | Re-run the same install command to upgrade |
 
 ---
@@ -44,7 +44,7 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 ## Key Features
 
 - **Boards & Tasks**
-  - Create, edit, and delete tasks with priority, assignee, labels (preset + freeform with dynamic width `+N` overflow on cards), and issue tracker links (Jira, GitHub Issues, etc.)
+  - Create, edit, and delete tasks with priority, assignee, labels (preset + freeform with dynamic width `+N` overflow on cards), Markdown & Mermaid diagram descriptions (with Write / Preview tabs), and issue tracker links (Jira, GitHub Issues, etc.)
   - Unlimited custom columns with within-column and cross-column drag-and-drop (long-press to drag on phones; swipe column-by-column on portrait screens)
   - Automatically tracks creation time (`createdAt`) and last column entry time (`movedAt`), visible in hover tooltips, task details, and the edit dialog
   - Live search and filters (keyword, assignee, priority, label — click any label on a card to toggle filtering) — dragging still works while filtering
@@ -144,7 +144,7 @@ If you only need terminal or AI agent access (Claude Code, Codex, Cursor, Antigr
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+; task labels require v6; editing preset labels & auto-sync require v7). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
+Then run `saf-kanban-cli skill --install` to set up your AI agents, or `saf-kanban-cli import <exported.json>` to import Google Sheet boards exported from the web app (Google Sheet CLI operations require Apps Script v5+; task labels require v6+; editing preset labels & auto-sync require v7+). See the **[Desktop App & CLI Guide (desktop/README.en.md)](desktop/README.en.md)** for full details.
 
 ---
 
@@ -162,7 +162,7 @@ Click the board name → **Export settings** to save selected boards as a JSON f
 Click the magnifier at the top right to filter by keyword (matches title, description, Issue ID, assignee, and labels; space-separated words must all match, case-insensitive), assignee (including Unassigned), priority, and label (including Unlabeled) — or click a label pill directly on any card to toggle it. Column counts switch to `matching / total`, and drag-and-drop continues to work.
 
 ### Deleted tasks
-Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards and the CLI (both local boards and Apps Script v5 Google Sheet boards) support full in-place **Restore**.
+Click the clock icon at the top right to browse and search deleted tasks (newest first). Web boards let you **Recreate** a task in the first column with its old content; desktop local boards and the CLI (both local boards and Apps Script v5+ Google Sheet boards) support full in-place **Restore**.
 
 ### Install as an app (PWA) & offline viewing
 - Install via **Install app** in the top-left board menu on Chrome/Edge (desktop & Android), or **Share → Add to Home Screen** on iOS Safari.

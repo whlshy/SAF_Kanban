@@ -8,6 +8,7 @@ import { dialogAtom, PriorityBadge } from '@/components/content/Home'
 import { LabelBadge } from '@/components/content/LabelBadge'
 import { PRIORITIES } from '@/lib/filter'
 import { parseLabels } from '@/lib/labels'
+import { markdownToPlainText } from '@/lib/markdown'
 import { langAtom, useT } from '@/i18n'
 import { filterHistory } from '@/lib/history'
 import { createdAtParts } from '@/lib/createdAt'
@@ -249,7 +250,7 @@ export default function HistoryDialog({ closeDialog }) {
                   color="text.secondary"
                   sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}
                 >
-                  {record.des}
+                  {markdownToPlainText(record.des) || record.des}
                 </Typography>
               )}
             </Box>

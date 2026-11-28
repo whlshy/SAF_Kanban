@@ -35,8 +35,8 @@
 | 資料存放 | 你自己的 Google Sheet | 本機 JSON 檔案＋共用 Google Sheet 清單 | 與桌面版共用同一份本機檔案與 Google Sheet 清單 |
 | 需要安裝嗎 | 不用，開網頁即可（也可安裝成 PWA） | 單一安裝檔（內含 GUI 與 CLI），免管理員權限 | 一行指令安裝單一執行檔，免裝桌面 App |
 | 離線使用 | 可唯讀檢視上次載入內容 | 本機看板**完全離線讀寫** | 本機看板**完全離線讀寫**（Sheet 看板需網路） |
-| AI Agent 整合 | 可搭配純 CLI 操作（需 Apps Script v5） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI / MCP / HTTP API） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI） |
-| 刪除復原 | 從歷史紀錄重新建立 | 本機看板可直接**原樣復原**到原欄位與原位置 | 本機與 Google Sheet（v5）看板皆可**原樣復原** |
+| AI Agent 整合 | 可搭配純 CLI 操作（需 Apps Script v5 或以上） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI / MCP / HTTP API） | 支援 Claude Code、Codex、Cursor、Antigravity 等（Skill / CLI） |
+| 刪除復原 | 從歷史紀錄重新建立 | 本機看板可直接**原樣復原**到原欄位與原位置 | 本機與 Google Sheet（v5 或以上）看板皆可**原樣復原** |
 | 更新方式 | 網站更新後自動提示重新整理 | 0.5.0 起支援 **App 內一鍵檢查、驗證並安裝更新** | 重跑同一行安裝指令即可升級 |
 
 ---
@@ -44,7 +44,7 @@
 ## 主要功能
 
 - **看板與任務管理**
-  - 新增、編輯、刪除 Task，設定 Priority、Assignee、Labels（常用標籤＋自由輸入，卡片依寬度動態摺疊 `+N`）與 Issue 連結（Jira、GitHub Issues 等）
+  - 新增、編輯、刪除 Task，設定 Priority、Assignee、Labels（常用標籤＋自由輸入，卡片依寬度動態摺疊 `+N`）、Markdown 與 Mermaid 流程圖描述（含編輯／預覽切換）與 Issue 連結（Jira、GitHub Issues 等）
   - 自訂欄位不限數量，支援同欄與跨欄拖曳排序（手機上長按拖曳，直式單欄左右滑動）
   - 自動記錄任務建立時間（`createdAt`）與最後移入目前欄位的時間（`movedAt`），停駐提示框、描述與編輯視窗皆可查看
   - 即時搜尋與篩選（關鍵字、負責人、優先順序、標籤，點擊卡片標籤可直接切換篩選），篩選狀態下仍可拖曳排序
@@ -144,7 +144,7 @@
   curl -fsSL https://whlshy.github.io/SAF_Kanban/install.sh | sh
   ```
 
-裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 以上，任務標籤需 v6，編輯常用標籤與自動同步需 v7）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
+裝好後執行 `saf-kanban-cli skill --install` 即可讓 AI 工具讀寫看板，也可執行 `saf-kanban-cli import <匯出檔.json>` 直接匯入網頁版的 Google Sheet 看板（Google Sheet 看板需 Apps Script v5 或以上，任務標籤需 v6 或以上，編輯常用標籤與自動同步需 v7 或以上）。完整說明請見 **[桌面版與 CLI 說明（desktop/README.md）](desktop/README.md)**。
 
 ---
 
@@ -162,7 +162,7 @@
 點右上角放大鏡開啟搜尋列，可同時依關鍵字（比對標題、描述、Issue ID、負責人、標籤，空白分隔多詞且不分大小寫）、負責人（含「未指派」）、優先順序與標籤（含「無標籤」）篩選，也可直接點擊卡片上的標籤快速切換篩選。篩選期間欄位數字會顯示 `符合數 / 總數`，且仍可直接拖曳排序。
 
 ### 已刪除的任務
-點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）與 CLI（本機及 Apps Script v5 Google Sheet）皆支援直接原樣復原。
+點右上角時鐘圖示可瀏覽目前看板已刪除的任務（由新到舊、支援搜尋）。網頁版可點右側「重新建立」帶入原內容另建新任務；桌面版（本機看板）與 CLI（本機及 Apps Script v5 或以上 Google Sheet）皆支援直接原樣復原。
 
 ### 安裝成應用程式（PWA）與離線使用
 - 支援 Chrome / Edge（電腦與 Android）從左上角選單點「安裝應用程式」，以及 iOS Safari 的「分享 → 加入主畫面」。

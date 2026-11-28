@@ -4,6 +4,7 @@ import { useAlertStore } from '@/store'
 import { useT } from '@/i18n'
 import { parseLabels } from '@/lib/labels'
 import { DialogFooter } from '@/components/elements/dialog/Dialog'
+import MarkdownContent from '@/components/elements/MarkdownContent'
 import { LabelBadge } from './LabelBadge'
 import { taskTimes } from './taskDialog'
 
@@ -15,6 +16,7 @@ export default function EditTask({
   onClose, onOk, onDel,
 }) {
   const [data, setData] = useState(() => ({ ...task, labels: parseLabels(task?.labels) }))
+  const [desTab, setDesTab] = useState("write")
   const [labelInput, setLabelInput] = useState("")
   const [loading, setLoading] = useState(false)
   const { setAlert } = useAlertStore()
@@ -25,7 +27,7 @@ export default function EditTask({
     moved && <span key="moved" data-slot="task-moved">{t("task.movedAt", { time: moved.full })}</span>,
   ].filter(Boolean)
 
-  const selectedLabels = data?.labels || []
+  const selectedLabels = React.useMemo(() => data?.labels || [], [data?.labels])
   const selectedKeys = React.useMemo(
     () => new Set(selectedLabels.map((l) => l.toLowerCase())),
     [selectedLabels]
@@ -93,16 +95,81 @@ export default function EditTask({
           disabled={loading}
           fullWidth
         />
-        <TextField
-          label={t("task.description")}
-          variant="standard"
-          defaultValue={data?.des || ""}
-          onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
-          disabled={loading}
-          fullWidth
-          multiline
-          maxRows={6}
-        />
+        <Box data-slot="task-description-editor" sx={{ mb: 2.5 }}>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <Typography variant="caption" color="text.secondary" component="label" htmlFor="task-description-input">
+              {t("task.description")}
+            </Typography>
+            <div
+              role="tablist"
+              aria-label={t("task.description")}
+              className="inline-flex rounded-md border border-border bg-muted/60 p-0.5 text-xs dark:border-white/15 dark:bg-white/[0.04]"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={desTab === "write"}
+                onClick={() => setDesTab("write")}
+                className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
+                  desTab === "write"
+                    ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t("task.descriptionWrite")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={desTab === "preview"}
+                onClick={() => setDesTab("preview")}
+                className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
+                  desTab === "preview"
+                    ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t("task.descriptionPreview")}
+              </button>
+            </div>
+          </div>
+
+          {desTab === "write" ? (
+            <TextField
+              id="task-description-input"
+              variant="outlined"
+              size="small"
+              value={data?.des || ""}
+              onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
+              placeholder={t("task.descriptionPlaceholder")}
+              disabled={loading}
+              fullWidth
+              multiline
+              minRows={4}
+              maxRows={12}
+              sx={{
+                mb: '0 !important',
+                '& .MuiOutlinedInput-root': {
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                },
+              }}
+            />
+          ) : (
+            <div
+              data-slot="task-description-preview"
+              className="min-h-[116px] max-h-[320px] overflow-y-auto rounded border border-border bg-background/60 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/[0.02]"
+            >
+              {String(data?.des ?? "").trim() ? (
+                <MarkdownContent text={data.des} />
+              ) : (
+                <Typography variant="body2" color="text.disabled">
+                  {t("task.descriptionEmptyPreview")}
+                </Typography>
+              )}
+            </div>
+          )}
+        </Box>
         <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
           <InputLabel>{t("task.priority")}</InputLabel>
           <Select

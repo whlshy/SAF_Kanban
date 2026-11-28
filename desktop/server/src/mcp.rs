@@ -18,6 +18,7 @@ const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", 
 const INSTRUCTIONS: &str = "SAF Kanban boards kept on this computer. Start with list_boards to get board ids, \
 then get_board to see a board's columns, tasks, assignees and preset labels. Tasks belong to a column (by name) and are ordered within the board; \
 use move_task to change a task's column or position and update_task to change its text, priority, assignee or labels (prefer addLabels/removeLabels to avoid overwriting existing labels). \
+Task descriptions are rendered as GitHub Flavored Markdown (including ```mermaid diagrams) in the UI. \
 Deleted tasks are kept: list_deleted_tasks shows them, and restore_task puts one back as it was (same id and contents). \
 If a task was deleted by mistake, restore it rather than creating it again.";
 

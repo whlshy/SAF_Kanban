@@ -16,6 +16,20 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.23.0 and desktop app / CLI 0.8.0 — 2026-11-28
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Data format is 100% backwards-compatible — **no Apps Script update needed**.
+
+### Added
+
+- **GitHub Flavored Markdown (GFM) task descriptions**:
+  - **Full description rendering**: supports headings, bold/italic/strikethrough, ordered & unordered lists, crisp read-only task checklists (`- [ ]` / `- [x]`), horizontally scrollable tables, blockquotes, inline code, fenced code blocks with a hover copy button, safe links (`http`/`https`/`mailto`, opening in a new tab or the desktop default browser), and `http`/`https` images; preserves single line breaks for backwards compatibility with existing plain-text descriptions and adapts cleanly to light & dark themes.
+  - **Mermaid diagrams**: ```` ```mermaid ```` blocks render flowcharts, sequence diagrams, state diagrams, ER diagrams, etc., in strict security mode (`securityLevel: 'strict'`), automatically matching light/dark theme with source/diagram toggle, copy button, and graceful syntax-error fallback.
+  - **Write / Preview tabs in Edit Task**: taller multiline description editor (4–12 rows) with live Write / Preview tab switching.
+  - **Clean plain-text 2-line previews**: task cards and deleted-task history rows strip Markdown syntax and collapse Mermaid blocks to `[Mermaid]`, while search and CLI `task` keep full raw text.
+  - **On-demand lazy loading & lean PWA caching**: Markdown (`~51 KB` gzip single chunk) and Mermaid diagram engines load strictly on demand (`+0 KB` on initial board load); Mermaid chunks are excluded from upfront PWA precache and cached on first use via Workbox `CacheFirst` for offline viewing.
+  - **AI Skill & MCP docs**: updated embedded `SKILL.md` and MCP instructions to note GFM Markdown and ```` ```mermaid ```` support in descriptions.
+
 ## 1.22.1 and desktop app / CLI 0.7.1 — 2026-11-27
 
 Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Google Sheet boards need **Apps Script v7** to edit preset labels & colors in Settings/CLI and auto-sync new task labels.

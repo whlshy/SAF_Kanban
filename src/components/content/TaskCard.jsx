@@ -8,6 +8,8 @@ import { useDialogStore } from '@/store'
 import { useT } from '@/i18n'
 import { PRIORITIES } from '@/lib/filter'
 import { parseLabels } from '@/lib/labels'
+import { markdownToPlainText } from '@/lib/markdown'
+import MarkdownContent from '@/components/elements/MarkdownContent'
 import { CardLabelsRow, LabelBadge } from './LabelBadge'
 import { dialogAtom, taskTimes } from './taskDialog'
 
@@ -45,7 +47,7 @@ export function DescriptionView({ task, jiraLink, boardLabels = [] }) {
         </div>
       )}
       <hr className="my-4 border-border dark:border-white/15" />
-      <div className="whitespace-pre-wrap break-words text-sm">{task.des}</div>
+      <MarkdownContent text={task.des} />
     </DialogContent>
   )
 }
@@ -91,6 +93,10 @@ export default function TaskCard({
   const { created, moved } = taskTimes(task)
   const jiraLink = useBoards().currentBoard?.jiraLink || ""
   const taskLabels = React.useMemo(() => parseLabels(task?.labels), [task?.labels])
+  const previewDes = React.useMemo(
+    () => (task?.des ? (markdownToPlainText(task.des) || task.des) : ""),
+    [task?.des]
+  )
 
   // Resting the mouse on the card shows its whole title and, when known, when
   // it was created and moved into this column. Not on touch screens (a long
@@ -154,7 +160,7 @@ export default function TaskCard({
           )}
 
           {/* At most two lines; only text that runs past them ends with an ellipsis. */}
-          {task?.des ? (
+          {previewDes ? (
             <div
               role="button"
               tabIndex={0}
@@ -163,7 +169,7 @@ export default function TaskCard({
               onKeyDown={(e) => e.key === "Enter" && openDescription(e)}
               className="line-clamp-2 break-words text-muted-foreground text-xs cursor-pointer underline-offset-2 hover:underline"
             >
-              {task.des}
+              {previewDes}
             </div>
           ) : (
             <div className="line-clamp-2 break-words text-muted-foreground text-xs" />

@@ -134,7 +134,7 @@ saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into �
 - `<看板>` 可填 ID 或名稱；`<任務>` 為方括號內的任務 ID。`move` 可一次指定多個任務 ID。
 - 所有指令皆支援 `--json`（輸出 JSON）與 `--data-dir <資料夾>`；`boards` 預設與 JSON 輸出皆不會印出 Google Sheet 的 `scriptId`，避免外洩寫入網址。
 - `--description -`／`--append-description -` 從標準輸入讀取（自動處理 UTF-8 BOM 與 UTF-16）；PowerShell 建議改用 `--description-file`／`--append-description-file`。
-- `--append-description` 會在鎖內空一行接在原本描述後面，不覆蓋原內容（本機與 Apps Script v5 皆支援）。
+- `--append-description` 會在鎖內空一行接在原本描述後面，不覆蓋原內容（本機與 Apps Script v5 或以上皆支援）。
 - `--since`、`--until`（`YYYY-MM-DD` 或 ISO 時間）依 `movedAt` 篩選；`--limit N` 依 `movedAt` 取最近移入的 N 張。
 - 失敗時錯誤輸出到 stderr，結束碼為 `1`（語法錯誤為 `2`）。
 

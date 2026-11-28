@@ -199,6 +199,7 @@ saf-kanban-cli export [board...] [--sheets] [--out FILE] [--password PWD]
 
 - Start with `boards`, then `board <board>`: it shows the column names, each column's tasks in order, the assignee names, and any preset labels. Use those exact names.
 - Each task is in one column. Priorities are `high`, `medium` and `low`.
+- Task descriptions are rendered as GitHub Flavored Markdown (headings, lists, checklists `- [ ]`, tables, code blocks, links, and ```` ```mermaid ```` diagrams) in the web and desktop UI; `task` still prints the raw text for easy reading and editing.
 - Labels are hybrid and synced: tasks can use the board's preset labels or any new label name (matched case-insensitively, comma-separated). Saving a new label on a task automatically adds it to the board's global preset labels (local boards and Google Sheet boards with Apps Script v7+) with a deterministic color. On `edit`, prefer `--add-label` / `--remove-label` when adding or removing individual labels so existing labels aren't overwritten (`--labels` replaces the entire label list; `--labels ""` clears all labels).
 - Preset label colors accept these 10 palette names — `red`, `orange`, `amber`, `green`, `teal`, `blue`, `indigo`, `purple`, `pink`, `gray` — or a `#RRGGBB` hex code (omit the color for an automatic deterministic color).
 - Removing a preset label via `edit-board --labels` is rejected (`LABEL_IN_USE`) if any task on the board still uses it; remove it from those tasks first (or rename it with `--rename-label OLD=NEW`, which updates all tasks).

@@ -1,6 +1,6 @@
 {
   "name": "saf_kanban",
-  "version": "1.22.1",
+  "version": "1.23.0",
   "description": "",
   "main": "index.jsx",
   "private": true,
@@ -33,14 +33,19 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jotai": "^2.18.0",
+    "mermaid": "^12.4.0",
     "postcss": "^8.5.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.17.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/typography": "^0.5.20",
     "@tauri-apps/cli": "^2.12.5",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "eslint": "^10.15.0",
