@@ -1,26 +1,58 @@
 import React, { useState } from 'react'
-import { Box, DialogContent, TextField, Button as MuiButton, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material'
+import { Box, CircularProgress, DialogContent, IconButton, TextField, Tooltip, Button as MuiButton, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material'
+import { AddPhotoAlternateOutlined as UploadImageIcon } from '@mui/icons-material'
 import { useAlertStore } from '@/store'
 import { useT } from '@/i18n'
 import { parseLabels } from '@/lib/labels'
+import { message } from '@/lib/notify'
+import { localAvailable, uploadLocalAttachment } from '@/data/localApi'
 import { DialogFooter } from '@/components/elements/dialog/Dialog'
 import MarkdownContent from '@/components/elements/MarkdownContent'
 import { LabelBadge } from './LabelBadge'
 import { taskTimes } from './taskDialog'
+
+let nextUploadToken = 1
+
+function extractImageFiles(fileList) {
+  return Array.from(fileList || []).filter((file) => (
+    file && (
+      String(file.type || "").startsWith("image/")
+      || /\.(png|jpe?g|webp|gif)$/i.test(file.name || "")
+    )
+  ))
+}
+
+function extractClipboardImages(clipboardData) {
+  if (!clipboardData) return []
+  const fromItems = Array.from(clipboardData.items || [])
+    .filter((item) => item.kind === "file" && String(item.type || "").startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter(Boolean)
+  if (fromItems.length) return fromItems
+  return extractImageFiles(clipboardData.files)
+}
 
 export default function EditTask({
   task = { id: null, title: "", issueId: "", des: "", column: "", priority: "high", assignee: "", labels: [] },
   users = [],
   boardLabels = [],
   allLabels = [],
+  boardId,
+  canUploadImages = false,
   onClose, onOk, onDel,
 }) {
   const [data, setData] = useState(() => ({ ...task, labels: parseLabels(task?.labels) }))
   const [desTab, setDesTab] = useState("write")
   const [labelInput, setLabelInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [uploadingCount, setUploadingCount] = useState(0)
+  const [dragOver, setDragOver] = useState(false)
+  const textareaRef = React.useRef(null)
+  const selectionRef = React.useRef(null)
+  const fileInputRef = React.useRef(null)
   const { setAlert } = useAlertStore()
   const t = useT()
+  const uploadsEnabled = Boolean(canUploadImages && boardId && localAvailable())
   const { created, moved } = taskTimes(task)
   const timeParts = [
     created && <span key="created" data-slot="task-created">{t("task.createdAt", { time: created.full })}</span>,
@@ -56,6 +88,98 @@ export default function EditTask({
     [allLabels, selectedKeys, query]
   )
 
+  const rememberSelection = (e) => {
+    const el = e?.target
+    if (typeof el?.selectionStart === "number" && typeof el?.selectionEnd === "number") {
+      selectionRef.current = { start: el.selectionStart, end: el.selectionEnd }
+    }
+  }
+
+  const handleUploadFiles = async (files) => {
+    if (!uploadsEnabled || loading) return
+    const images = extractImageFiles(files)
+    if (!images.length) return
+
+    const el = textareaRef.current
+    const focused = Boolean(el && document.activeElement === el)
+    const start = focused && typeof el.selectionStart === "number"
+      ? el.selectionStart
+      : (selectionRef.current?.start ?? null)
+    const end = focused && typeof el.selectionEnd === "number"
+      ? el.selectionEnd
+      : (selectionRef.current?.end ?? null)
+
+    const entries = images.map((file) => {
+      const token = nextUploadToken++
+      return {
+        file,
+        placeholder: `![${t("task.uploadingImage")}](uploading-${token})`,
+      }
+    })
+    const block = entries.map((entry) => entry.placeholder).join("\n")
+
+    setData((prev) => {
+      const current = String(prev?.des || "")
+      if (start !== null && end !== null && start <= current.length && end <= current.length) {
+        const before = current.slice(0, start)
+        const after = current.slice(end)
+        const lead = before && !before.endsWith("\n") ? "\n" : ""
+        const trail = after && !after.startsWith("\n") ? "\n" : ""
+        return { ...prev, des: `${before}${lead}${block}${trail}${after}` }
+      }
+      const sep = current && !current.endsWith("\n") ? "\n" : ""
+      return { ...prev, des: `${current}${sep}${block}` }
+    })
+
+    setUploadingCount((n) => n + entries.length)
+    await Promise.all(entries.map(async ({ file, placeholder }) => {
+      try {
+        const saved = await uploadLocalAttachment(boardId, file)
+        setData((prev) => ({
+          ...prev,
+          des: String(prev?.des || "").replace(placeholder, saved.markdown),
+        }))
+      } catch (error) {
+        setData((prev) => ({
+          ...prev,
+          des: String(prev?.des || "")
+            .replace(`${placeholder}\n`, "")
+            .replace(`\n${placeholder}`, "")
+            .replace(placeholder, ""),
+        }))
+        message.error(error?.userMessage || t("common.apiError"), 6)
+      } finally {
+        setUploadingCount((n) => Math.max(0, n - 1))
+      }
+    }))
+  }
+
+  const handlePaste = (e) => {
+    if (!uploadsEnabled || loading) return
+    const images = extractClipboardImages(e.clipboardData)
+    if (!images.length) return
+    e.preventDefault()
+    handleUploadFiles(images)
+  }
+
+  const handleDragOver = (e) => {
+    if (!uploadsEnabled || loading) return
+    if (Array.from(e.dataTransfer?.types || []).includes("Files")) {
+      e.preventDefault()
+      setDragOver(true)
+    }
+  }
+
+  const handleDrop = (e) => {
+    if (!uploadsEnabled || loading) return
+    setDragOver(false)
+    const images = extractImageFiles(e.dataTransfer?.files)
+    if (!images.length) return
+    e.preventDefault()
+    setDesTab("write")
+    handleUploadFiles(images)
+  }
+
   const handleCallback = (tf) => {
     setLoading(false)
     if (tf)
@@ -63,6 +187,7 @@ export default function EditTask({
   }
 
   const handleSubmit = () => {
+    if (uploadingCount > 0) return
     const pending = parseLabels(labelInput).map(canonicalize).filter(Boolean)
     const nextData = pending.length
       ? { ...data, labels: parseLabels([...(data.labels || []), ...pending]) }
@@ -95,73 +220,132 @@ export default function EditTask({
           disabled={loading}
           fullWidth
         />
-        <Box data-slot="task-description-editor" sx={{ mb: 2.5 }}>
+        <Box
+          data-slot="task-description-editor"
+          sx={{ mb: 2.5 }}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+        >
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <Typography variant="caption" color="text.secondary" component="label" htmlFor="task-description-input">
-              {t("task.description")}
-            </Typography>
-            <div
-              role="tablist"
-              aria-label={t("task.description")}
-              className="inline-flex rounded-md border border-border bg-muted/60 p-0.5 text-xs dark:border-white/15 dark:bg-white/[0.04]"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={desTab === "write"}
-                onClick={() => setDesTab("write")}
-                className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
-                  desTab === "write"
-                    ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+            <div className="flex items-center gap-2">
+              <Typography variant="caption" color="text.secondary" component="label" htmlFor="task-description-input">
+                {t("task.description")}
+              </Typography>
+              {uploadingCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <CircularProgress size={12} />
+                  {t("task.uploadingImage")}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {uploadsEnabled && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files
+                      if (files?.length) {
+                        setDesTab("write")
+                        handleUploadFiles(files)
+                      }
+                      e.target.value = ""
+                    }}
+                  />
+                  <Tooltip title={t("task.uploadImageHint")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={loading}
+                        aria-label={t("task.uploadImage")}
+                        onClick={() => fileInputRef.current?.click()}
+                        sx={{ p: 0.5 }}
+                      >
+                        <UploadImageIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </>
+              )}
+              <div
+                role="tablist"
+                aria-label={t("task.description")}
+                className="inline-flex rounded-md border border-border bg-muted/60 p-0.5 text-xs dark:border-white/15 dark:bg-white/[0.04]"
               >
-                {t("task.descriptionWrite")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={desTab === "preview"}
-                onClick={() => setDesTab("preview")}
-                className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
-                  desTab === "preview"
-                    ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("task.descriptionPreview")}
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={desTab === "write"}
+                  onClick={() => setDesTab("write")}
+                  className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
+                    desTab === "write"
+                      ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t("task.descriptionWrite")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={desTab === "preview"}
+                  onClick={() => setDesTab("preview")}
+                  className={`rounded px-2.5 py-0.5 font-medium transition-colors ${
+                    desTab === "preview"
+                      ? "bg-background text-foreground shadow-2xs dark:bg-white/12 dark:text-white"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t("task.descriptionPreview")}
+                </button>
+              </div>
             </div>
           </div>
 
           {desTab === "write" ? (
-            <TextField
-              id="task-description-input"
-              variant="outlined"
-              size="small"
-              value={data?.des || ""}
-              onChange={(e) => setData(d => ({ ...d, des: e.target.value }))}
-              placeholder={t("task.descriptionPlaceholder")}
-              disabled={loading}
-              fullWidth
-              multiline
-              minRows={4}
-              maxRows={12}
-              sx={{
-                mb: '0 !important',
-                '& .MuiOutlinedInput-root': {
-                  fontSize: '0.875rem',
-                  lineHeight: 1.6,
-                },
-              }}
-            />
+            <div className={dragOver ? "rounded ring-2 ring-blue-500/60" : undefined}>
+              <TextField
+                id="task-description-input"
+                inputRef={textareaRef}
+                variant="outlined"
+                size="small"
+                value={data?.des || ""}
+                onChange={(e) => { rememberSelection(e); setData(d => ({ ...d, des: e.target.value })) }}
+                onPaste={handlePaste}
+                inputProps={{
+                  onSelect: rememberSelection,
+                  onClick: rememberSelection,
+                  onKeyUp: rememberSelection,
+                }}
+                placeholder={t(uploadsEnabled ? "task.descriptionPlaceholderLocal" : "task.descriptionPlaceholder")}
+                disabled={loading}
+                fullWidth
+                multiline
+                minRows={4}
+                maxRows={12}
+                sx={{
+                  mb: '0 !important',
+                  '& .MuiOutlinedInput-root': {
+                    fontSize: '0.875rem',
+                    lineHeight: 1.6,
+                  },
+                }}
+              />
+            </div>
           ) : (
             <div
               data-slot="task-description-preview"
-              className="min-h-[116px] max-h-[320px] overflow-y-auto rounded border border-border bg-background/60 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/[0.02]"
+              className={`min-h-[116px] max-h-[320px] overflow-y-auto rounded border border-border bg-background/60 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/[0.02] ${
+                dragOver ? "ring-2 ring-blue-500/60" : ""
+              }`}
             >
               {String(data?.des ?? "").trim() ? (
-                <MarkdownContent text={data.des} />
+                <MarkdownContent text={data.des} boardId={uploadsEnabled ? boardId : undefined} />
               ) : (
                 <Typography variant="body2" color="text.disabled">
                   {t("task.descriptionEmptyPreview")}
@@ -298,7 +482,7 @@ export default function EditTask({
         <MuiButton
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || uploadingCount > 0}
           sx={{ textTransform: 'none', ml: 'auto' }}
         >
           {t("task.ok")}

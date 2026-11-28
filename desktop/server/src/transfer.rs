@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use sha2::Sha256;
 use time::{OffsetDateTime, UtcOffset};
 
-use crate::model::{Board, SheetBoard};
-use crate::store::{normalize_script_id, normalize_sheet_id};
+use crate::model::SheetBoard;
+use crate::store::{normalize_script_id, normalize_sheet_id, ExportedBoard};
 
 pub const FILE_APP: &str = "saf-kanban";
 pub const FILE_VERSION: u32 = 1;
@@ -48,7 +48,7 @@ struct ExportedSheetBoard {
 #[derive(Debug)]
 pub enum ImportedFile {
     Sheets(Vec<SheetBoard>),
-    LocalBoard(Board),
+    LocalBoard(ExportedBoard),
     /// Password-protected settings file; call [`decrypt_import`] with the
     /// user's password to obtain [`ImportedFile::Sheets`].
     Encrypted {
@@ -199,9 +199,9 @@ pub fn parse_import_file(text: &str) -> Result<ImportedFile, String> {
         if !board_val.get("tasks").is_some_and(Value::is_array) {
             return Err("This board export file has invalid board data.".to_string());
         }
-        let board: Board = serde_json::from_value(board_val.clone())
+        let exported: ExportedBoard = serde_json::from_value(board_val.clone())
             .map_err(|e| format!("Couldn't read board data: {e}"))?;
-        return Ok(ImportedFile::LocalBoard(board));
+        return Ok(ImportedFile::LocalBoard(exported));
     }
 
     let Some(boards_arr) = obj.get("boards").and_then(Value::as_array) else {
@@ -234,7 +234,7 @@ pub fn parse_import_file(text: &str) -> Result<ImportedFile, String> {
 }
 
 /// Builds a single local board export JSON string matching `exportLocalBoard`.
-pub fn export_local_board_json(board: &Board) -> Result<String, String> {
+pub fn export_local_board_json(board: &ExportedBoard) -> Result<String, String> {
     let payload = json!({
         "app": FILE_APP,
         "kind": BOARD_KIND,

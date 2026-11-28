@@ -49,7 +49,10 @@ use tokio_stream::{Stream, StreamExt};
 use crate::error::{ApiError, ApiResult};
 use crate::mcp;
 use crate::model::{Board, BoardInfo, DeletedTask, SheetBoard, Task};
-use crate::store::{BoardPatch, MoveInput, NewBoard, RestoreInput, Store, TaskInput, TaskQuery};
+use crate::store::{
+    AttachmentInfo, BoardPatch, ExportedBoard, MoveInput, NewBoard, RestoreInput, Store, TaskInput,
+    TaskQuery,
+};
 use crate::updater::{UpdateHandle, UpdateState};
 
 pub struct AppState {
@@ -76,6 +79,11 @@ pub fn router(state: Shared) -> Router {
             get(get_board).patch(update_board).delete(delete_board),
         )
         .route("/boards/{board}/export", get(export_board))
+        .route("/boards/{board}/attachments", post(upload_attachment))
+        .route(
+            "/boards/{board}/attachments/{filename}",
+            get(get_attachment),
+        )
         .route("/boards/{board}/tasks", get(list_tasks).post(create_task))
         .route(
             "/boards/{board}/tasks/{task}",
@@ -98,7 +106,7 @@ pub fn router(state: Shared) -> Router {
             ApiError::invalid("UNKNOWN_ENDPOINT", "No such API endpoint.")
                 .into_response_with(StatusCode::NOT_FOUND)
         })
-        // A board sent whole, with its tasks, can be large.
+        // A board sent whole, with its tasks and embedded attachments, can be large.
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), require_token));
 
@@ -375,13 +383,72 @@ async fn get_board(
     Ok(Json(BoardInfo::from(&board)))
 }
 
-/// The whole board as it is kept: settings, tasks and deleted tasks. Sending
-/// it to `POST /api/boards` makes a new board with the same content.
+/// The whole board as it is kept: settings, tasks, deleted tasks, and Base64
+/// copies of referenced attachments. Sending it to `POST /api/boards` makes a
+/// new board with the same content.
 async fn export_board(
     State(state): State<Shared>,
     Path(board): Path<String>,
-) -> ApiResult<Json<Board>> {
-    state.store.get_board(&board).map(Json)
+) -> ApiResult<Json<ExportedBoard>> {
+    state.store.export_board(&board).map(Json)
+}
+
+fn decode_percent_utf8(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(val) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(val);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|_| raw.to_string())
+}
+
+async fn upload_attachment(
+    State(state): State<Shared>,
+    Path(board): Path<String>,
+    headers: axum::http::HeaderMap,
+    body: Bytes,
+) -> ApiResult<(StatusCode, Json<AttachmentInfo>)> {
+    let original_name = headers
+        .get("x-filename")
+        .and_then(|v| v.to_str().ok())
+        .map(decode_percent_utf8);
+    let saved = state
+        .store
+        .save_attachment(&board, &body, original_name.as_deref())?;
+    Ok((StatusCode::CREATED, Json(saved)))
+}
+
+async fn get_attachment(
+    State(state): State<Shared>,
+    Path((board, filename)): Path<(String, String)>,
+) -> ApiResult<Response> {
+    let (bytes, mime) = state.store.read_attachment(&board, &filename)?;
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, HeaderValue::from_static(mime)),
+            (
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("private, max-age=31536000, immutable"),
+            ),
+            (
+                header::X_CONTENT_TYPE_OPTIONS,
+                HeaderValue::from_static("nosniff"),
+            ),
+        ],
+        Body::from(bytes),
+    )
+        .into_response())
 }
 
 async fn update_board(

@@ -25,10 +25,26 @@ const KNOWN_CODES = [
   "COLUMN_NOT_EMPTY",
   "DUPLICATE_COLUMN",
   "DUPLICATE_USER",
+  "DUPLICATE_LABEL",
+  "LABEL_IN_USE",
   "EMPTY_COLUMN_NAME",
   "UNSUPPORTED_BOARD_FILE",
   "STORAGE_ERROR",
+  "UNSUPPORTED_IMAGE_TYPE",
+  "ATTACHMENT_TOO_LARGE",
+  "ATTACHMENT_NOT_FOUND",
+  "INVALID_ATTACHMENT",
 ]
+
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
+function toApiError(data, status) {
+  const error = data?.error || {}
+  const message = KNOWN_CODES.includes(error.code)
+    ? t(`localError.${error.code}`, error.params || {})
+    : t("local.error", { message: error.message || `HTTP ${status}` })
+  return Object.assign(new DataError(message), { code: error.code, status })
+}
 
 // Calls the local API. Resolves with the JSON answer (null when there is
 // none) and rejects with a DataError the user can read.
@@ -50,11 +66,69 @@ export async function localRequest(method, path, body) {
   const data = response.status === 204 ? null : await response.json().catch(() => null)
   if (response.ok) return data
 
-  const error = data?.error || {}
-  const message = KNOWN_CODES.includes(error.code)
-    ? t(`localError.${error.code}`, error.params || {})
-    : t("local.error", { message: error.message || `HTTP ${response.status}` })
-  throw Object.assign(new DataError(message), { code: error.code, status: response.status })
+  throw toApiError(data, response.status)
+}
+
+// Uploads a raster image (PNG/JPEG/WebP/GIF) to a local board's attachment
+// folder and returns `{ filename, markdown, mime, size }`.
+export async function uploadLocalAttachment(boardId, file) {
+  if (!file) throw new DataError(t("localError.UNSUPPORTED_IMAGE_TYPE"))
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    throw Object.assign(new DataError(t("localError.ATTACHMENT_TOO_LARGE")), {
+      code: "ATTACHMENT_TOO_LARGE",
+    })
+  }
+  let response
+  try {
+    response = await fetch(`/api/boards/${encodeURIComponent(boardId)}/attachments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${settings()?.token}`,
+        "Content-Type": file.type || "application/octet-stream",
+        "X-Filename": encodeURIComponent(file.name || "image.png"),
+      },
+      body: file,
+    })
+  } catch {
+    throw new DataError(t("local.unreachable"))
+  }
+
+  const data = await response.json().catch(() => null)
+  if (response.ok) return data
+  throw toApiError(data, response.status)
+}
+
+// Fetches a local board attachment using the Bearer token and caches its
+// in-memory `blob:` URL so reopening tasks or toggling Preview is instant.
+const attachmentUrlCache = new Map()
+const attachmentInflight = new Map()
+
+export function fetchLocalAttachmentUrl(boardId, filename) {
+  const key = `${boardId}/${filename}`
+  if (attachmentUrlCache.has(key)) {
+    return Promise.resolve(attachmentUrlCache.get(key))
+  }
+  if (attachmentInflight.has(key)) {
+    return attachmentInflight.get(key)
+  }
+  const promise = fetch(
+    `/api/boards/${encodeURIComponent(boardId)}/attachments/${encodeURIComponent(filename)}`,
+    {
+      headers: { Authorization: `Bearer ${settings()?.token}` },
+    }
+  )
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      attachmentUrlCache.set(key, url)
+      return url
+    })
+    .finally(() => {
+      attachmentInflight.delete(key)
+    })
+  attachmentInflight.set(key, promise)
+  return promise
 }
 
 // One event stream for the page, opened when something first listens. The

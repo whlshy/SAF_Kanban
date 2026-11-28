@@ -14,7 +14,7 @@ import { CardLabelsRow, LabelBadge } from './LabelBadge'
 import { dialogAtom, taskTimes } from './taskDialog'
 
 // Read-only view of a task: an article-style info line, labels, then the full description.
-export function DescriptionView({ task, jiraLink, boardLabels = [] }) {
+export function DescriptionView({ task, jiraLink, boardLabels = [], boardId }) {
   const t = useT()
   const { created, moved } = taskTimes(task)
   const labels = parseLabels(task?.labels)
@@ -47,7 +47,7 @@ export function DescriptionView({ task, jiraLink, boardLabels = [] }) {
         </div>
       )}
       <hr className="my-4 border-border dark:border-white/15" />
-      <MarkdownContent text={task.des} />
+      <MarkdownContent text={task.des} boardId={boardId} />
     </DialogContent>
   )
 }
@@ -91,7 +91,9 @@ export default function TaskCard({
   // Only tasks made since creation/move times were kept have them.
   const title = String(task.title ?? "").trim()
   const { created, moved } = taskTimes(task)
-  const jiraLink = useBoards().currentBoard?.jiraLink || ""
+  const currentBoard = useBoards().currentBoard
+  const jiraLink = currentBoard?.jiraLink || ""
+  const localBoardId = currentBoard?.type === "local" ? currentBoard.id : undefined
   const taskLabels = React.useMemo(() => parseLabels(task?.labels), [task?.labels])
   const previewDes = React.useMemo(
     () => (task?.des ? (markdownToPlainText(task.des) || task.des) : ""),
@@ -119,7 +121,7 @@ export default function TaskCard({
     setDefaultDialog({
       title: task.title,
       open: true, fullWidth: true, maxWidth: "md",
-      content: <DescriptionView task={task} jiraLink={jiraLink} boardLabels={boardLabels} />,
+      content: <DescriptionView task={task} jiraLink={jiraLink} boardLabels={boardLabels} boardId={localBoardId} />,
     })
   }
 

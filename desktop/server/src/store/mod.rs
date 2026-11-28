@@ -11,10 +11,15 @@
 //! one is never lost to another's. The app looks for changes made by the
 //! others (see [`Store::notice_outside_changes`]) to show them right away.
 
+mod attachments;
 mod boards;
 mod sheets;
 mod tasks;
 
+pub use attachments::{
+    detect_image_type, extract_attachment_refs, mime_for_filename, valid_attachment_name,
+    AttachmentInfo, MAX_ATTACHMENT_BYTES,
+};
 pub use sheets::{
     normalize_script_id, normalize_sheet_id, unique_title, SheetBoardPatch, DEFAULT_SHEET_BOARD_ID,
 };
@@ -45,6 +50,17 @@ pub struct Change {
     pub board_id: Option<String>,
 }
 
+/// Complete exported local board, including Base64 copies of any local image
+/// attachments referenced in its tasks or deleted history.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedBoard {
+    #[serde(flatten)]
+    pub board: Board,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attachments: HashMap<String, String>,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NewBoard {
@@ -60,6 +76,8 @@ pub struct NewBoard {
     pub tasks: Vec<Task>,
     /// Deleted tasks to start with, oldest first.
     pub history: Vec<DeletedTask>,
+    /// Optional Base64-encoded image attachments from an exported board file.
+    pub attachments: HashMap<String, String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

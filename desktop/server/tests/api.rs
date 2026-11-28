@@ -1041,3 +1041,121 @@ async fn labels_on_boards_and_tasks_work_through_the_api() {
     assert_eq!(restored["labels"], json!(["Defect", "Urgent"]));
 }
 
+#[tokio::test]
+async fn attachments_upload_download_export_import_and_trash() {
+    let app = app();
+    let board = app.board().await;
+
+    // Minimal valid 1x1 PNG bytes.
+    let png: &[u8] = &[
+        0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, b'I', b'H', b'D',
+        b'R', 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+        0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0a, b'I', b'D', b'A', b'T', 0x78, 0x9c, 0x63, 0x00,
+        0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, b'I',
+        b'E', b'N', b'D', 0xae, 0x42, 0x60, 0x82,
+    ];
+
+    let upload = |bytes: Vec<u8>, filename: &str| {
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(format!("/api/boards/{board}/attachments"))
+            .header(header::HOST, format!("127.0.0.1:{PORT}"))
+            .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+            .header("x-filename", filename)
+            .body(Body::from(bytes))
+            .unwrap();
+        app.send(req)
+    };
+
+    // 1. Valid PNG upload returns 201 + markdown snippet + deterministic hash name.
+    let (status, raw) = upload(png.to_vec(), "screen%20shot.png").await;
+    assert_eq!(status, StatusCode::CREATED);
+    let saved: Value = serde_json::from_slice(&raw).unwrap();
+    let filename = saved["filename"].as_str().unwrap().to_string();
+    assert!(filename.ends_with(".png"), "{saved}");
+    assert_eq!(saved["mime"], "image/png");
+    assert_eq!(saved["markdown"], format!("![screen shot.png](attachment:{filename})"));
+
+    // 2. Identical upload deduplicates to the exact same filename.
+    let (status2, raw2) = upload(png.to_vec(), "dup.png").await;
+    assert_eq!(status2, StatusCode::CREATED);
+    let saved2: Value = serde_json::from_slice(&raw2).unwrap();
+    assert_eq!(saved2["filename"], filename);
+
+    // 3. Rejects SVG / non-image bytes and oversized payloads.
+    let (bad_status, bad_raw) = upload(b"<svg><script>alert(1)</script></svg>".to_vec(), "x.svg").await;
+    let bad_json: Value = serde_json::from_slice(&bad_raw).unwrap();
+    assert_eq!((bad_status, code(&bad_json)), (StatusCode::BAD_REQUEST, "UNSUPPORTED_IMAGE_TYPE"));
+
+    let mut huge = png.to_vec();
+    huge.resize(10 * 1024 * 1024 + 1, 0);
+    let (big_status, big_raw) = upload(huge, "huge.png").await;
+    let big_json: Value = serde_json::from_slice(&big_raw).unwrap();
+    assert_eq!((big_status, code(&big_json)), (StatusCode::BAD_REQUEST, "ATTACHMENT_TOO_LARGE"));
+
+    // 4. GET requires token, serves exact bytes, and blocks traversal.
+    let req_no_auth = Request::builder()
+        .uri(format!("/api/boards/{board}/attachments/{filename}"))
+        .header(header::HOST, format!("127.0.0.1:{PORT}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(app.send(req_no_auth).await.0, StatusCode::UNAUTHORIZED);
+
+    let req_ok = Request::builder()
+        .uri(format!("/api/boards/{board}/attachments/{filename}"))
+        .header(header::HOST, format!("127.0.0.1:{PORT}"))
+        .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (get_status, get_bytes) = app.send(req_ok).await;
+    assert_eq!(get_status, StatusCode::OK);
+    assert_eq!(get_bytes, png);
+
+    let req_bad = Request::builder()
+        .uri(format!("/api/boards/{board}/attachments/..%2Fsecret.png"))
+        .header(header::HOST, format!("127.0.0.1:{PORT}"))
+        .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(app.send(req_bad).await.0, StatusCode::NOT_FOUND);
+
+    // 5. Export embeds referenced attachment, and POST /api/boards restores it under the new board ID.
+    app.task(
+        &board,
+        json!({
+            "title": "Has screenshot",
+            "des": format!("Look:\n![shot](attachment:{filename})")
+        }),
+    )
+    .await;
+    let exported = app.get(&format!("/api/boards/{board}/export")).await;
+    assert!(
+        exported["attachments"][&filename].is_string(),
+        "expected attachment in export: {exported}"
+    );
+
+    let (imp_status, imported_board) = app.call(Method::POST, "/api/boards", exported).await;
+    assert_eq!(imp_status, StatusCode::CREATED);
+    let new_board_id = imported_board["id"].as_str().unwrap();
+    let req_imported = Request::builder()
+        .uri(format!("/api/boards/{new_board_id}/attachments/{filename}"))
+        .header(header::HOST, format!("127.0.0.1:{PORT}"))
+        .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (imp_get_status, imp_bytes) = app.send(req_imported).await;
+    assert_eq!(imp_get_status, StatusCode::OK);
+    assert_eq!(imp_bytes, png);
+
+    // 6. Deleting the original board moves its attachment directory into trash/attachments/.
+    let (del_status, _) = app
+        .call(Method::DELETE, &format!("/api/boards/{board}"), Value::Null)
+        .await;
+    assert_eq!(del_status, StatusCode::NO_CONTENT);
+    assert!(!app.dir.join("attachments").join(&board).exists());
+    let trashed_entries: Vec<_> = std::fs::read_dir(app.dir.join("trash").join("attachments"))
+        .unwrap()
+        .collect();
+    assert_eq!(trashed_entries.len(), 1);
+}
+

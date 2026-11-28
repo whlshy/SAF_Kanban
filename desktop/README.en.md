@@ -39,6 +39,7 @@ Everything works like the web app, plus desktop-specific features:
 - **Automatic AI skill refresh**: on startup after an update, any previously installed AI skill is refreshed automatically (no files are created where you haven't installed it).
 - **External links & port**: external links open in your default browser. The local server listens on port `41952` by default and picks a free port if taken (check the active address in **AI / API** at the top right).
 - **Google Sheet boards synced with CLI**: the desktop app stores its Google Sheet board list in `<data dir>/sheets.json` (in the same folder as local boards), shared directly with the CLI so changes on either side appear within a second.
+- **Local board image attachments**: while editing descriptions on a local board, paste from clipboard, drag and drop, or click **Insert image** to attach PNG / JPEG / WebP / GIF files (up to 10 MB each). Images are deduplicated by content hash on disk, inserted as `![alt](attachment:...)`, and open in a zoomable lightbox when clicked.
 
 ### Standalone CLI (Windows / macOS / Linux)
 
@@ -123,10 +124,12 @@ saf-kanban-cli edit-board <board> [--name N] [--columns A,B,C] [--rename OLD=NEW
                           [--labels NAME:COLOR,...] [--rename-label OLD=NEW]
                           [--issue-link URL] [--sheet URL|ID] [--script URL|ID] [--user NAME]
 saf-kanban-cli delete-board <board>       Delete a local board (to trash/), or remove a Google Sheet board from the list
+saf-kanban-cli attach <board> <image-file>
+                                          Attach an image to a local board and print its Markdown snippet (PNG/JPEG/WebP/GIF, max 10 MB)
 saf-kanban-cli import <file> [--password PWD]
                                           Import exported Google Sheet settings (plain or encrypted) or a local board JSON
 saf-kanban-cli export [board...] [--sheets] [--out FILE] [--password PWD]
-                                          Export a local board or Google Sheet settings (--out - for stdout)
+                                          Export a local board (including referenced images) or Google Sheet settings (--out - for stdout)
 saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into DIR]
                                           Print or install the AI skill
 ```
@@ -178,14 +181,15 @@ Default data folder: `%APPDATA%\SAF Kanban` on Windows (`~/.local/share/saf-kanb
 | Path | Contents |
 | --- | --- |
 | `boards/<board-id>.json` | One JSON file per local board (columns, users, tasks, deleted history) |
+| `attachments/<board-id>/` | Image attachments uploaded or pasted into a local board (deduplicated by SHA-256 prefix) |
 | `sheets.json` | Google Sheet board list shared between the desktop app and CLI (`0600` on Unix) |
-| `trash/` | Deleted local board files are moved here instead of permanently erased |
+| `trash/` | Deleted local board files and their attachment folders are moved here instead of permanently erased |
 | `config.json` | API token |
 | `boards.lock` | Cross-process file lock for safe concurrent writes |
 | `server.json` | Active server port for `mcp` bridge discovery |
 
 - **Full backup**: copy the entire data folder.
-- **Single-board export/import**: click **Export board** in board Settings to save a JSON file (no API token included), then import it from the board menu.
+- **Single-board export/import**: click **Export board** in board Settings to save a JSON file (no API token included; embeds referenced local image attachments), then import it from the board menu.
 - **Copy from Google Sheets**: open Settings on a Google Sheet board and choose **Copy to local board** to copy columns, tasks (including creation and move times), and assignees without modifying the Sheet.
 - **Crash-safe storage**: every request reads from disk (restoring a backup needs no restart), and writes atomically replace the file via a temporary file.
 
@@ -209,9 +213,11 @@ Base URL: `http://127.0.0.1:41952/api` (JSON request/response, requires `Authori
 | --- | --- |
 | `GET /info` | Server name, version, and in-app updater flag (`canUpdate`) |
 | `GET /sheets` / `PUT /sheets` | Read / sync the shared Google Sheet board list (`sheets.json`) |
-| `GET /boards` / `POST /boards` | List local boards / create a board (accepts `tasks` & `history` for imports) |
+| `GET /boards` / `POST /boards` | List local boards / create a board (accepts `tasks`, `history`, `attachments` for imports) |
 | `GET /boards/{board}` / `PATCH` / `DELETE` | Read / update title, columns (with `renames`), users / move to `trash/` |
-| `GET /boards/{board}/export` | Full board export (settings, tasks, history) |
+| `GET /boards/{board}/export` | Full board export (settings, tasks, history, and referenced image attachments) |
+| `POST /boards/{board}/attachments` | Upload raw image bytes (PNG/JPEG/WebP/GIF, max 10 MB; optional `X-Filename`), returns `filename` and `markdown` |
+| `GET /boards/{board}/attachments/{filename}` | Fetch a local board image attachment |
 | `GET /boards/{board}/tasks` / `POST` | Filter tasks / create a task |
 | `GET /boards/{board}/tasks/{task}` / `PUT` / `PATCH` / `DELETE` | Read / replace or create / partial update (supports `appendDes`) / delete to history |
 | `POST /boards/{board}/tasks/{task}/move` | Move column and position (`column`, `beforeId`, `afterId`) |

@@ -6,7 +6,7 @@ const MarkdownRenderer = React.lazy(() => import('./MarkdownRenderer'))
  * Lazy-loaded Markdown display component. While the `markdown` chunk loads on
  * first open, falls back to plain pre-wrapped text with zero layout jump.
  */
-export default function MarkdownContent({ text = "", className = "" }) {
+export default function MarkdownContent({ text = "", boardId, className = "" }) {
   const value = String(text ?? "")
   if (!value) return null
 
@@ -18,7 +18,7 @@ export default function MarkdownContent({ text = "", className = "" }) {
         </div>
       }
     >
-      <MarkdownRenderer text={value} className={className} />
+      <MarkdownRenderer text={value} boardId={boardId} className={className} />
     </React.Suspense>
   )
 }

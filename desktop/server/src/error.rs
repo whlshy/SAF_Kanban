@@ -74,6 +74,15 @@ impl ApiError {
         .with(json!({ "id": id }))
     }
 
+    pub fn attachment_not_found(filename: &str) -> Self {
+        Self::new(
+            StatusCode::NOT_FOUND,
+            "ATTACHMENT_NOT_FOUND",
+            format!("No attachment `{filename}` on this board."),
+        )
+        .with(json!({ "filename": filename }))
+    }
+
     pub fn task_exists(id: &str) -> Self {
         Self::new(
             StatusCode::CONFLICT,

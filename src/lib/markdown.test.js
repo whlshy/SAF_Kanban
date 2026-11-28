@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { isSafeUrl, markdownToPlainText, safeUrlTransform } from "./markdown.js"
+import { isSafeUrl, markdownToPlainText, parseAttachmentFilename, safeUrlTransform } from "./markdown.js"
 
 test("isSafeUrl allows http, https, and optional mailto while blocking unsafe schemes", () => {
   assert.equal(isSafeUrl("https://example.com/path?a=1#b"), true)
@@ -17,8 +17,14 @@ test("isSafeUrl allows http, https, and optional mailto while blocking unsafe sc
   assert.equal(isSafeUrl(""), false)
 })
 
-test("safeUrlTransform keeps safe links and blocks unsafe image sources", () => {
+test("safeUrlTransform keeps safe links, allows attachment: for img src, and blocks unsafe sources", () => {
   assert.equal(safeUrlTransform("https://example.com/a.png", "src"), "https://example.com/a.png")
+  assert.equal(safeUrlTransform("attachment:0123456789abcdef.png", "src"), "attachment:0123456789abcdef.png")
+  assert.equal(safeUrlTransform("attachment:0123456789abcdef.svg", "src"), "")
+  assert.equal(safeUrlTransform("attachment:../secret.png", "src"), "")
+  assert.equal(safeUrlTransform("attachment:0123456789abcdef.png", "href"), "")
+  assert.equal(parseAttachmentFilename("attachment:0123456789abcdef.webp"), "0123456789abcdef.webp")
+  assert.equal(parseAttachmentFilename("attachment:bad.png"), "")
   assert.equal(safeUrlTransform("mailto:a@b.com", "href"), "mailto:a@b.com")
   assert.equal(safeUrlTransform("mailto:a@b.com", "src"), "")
   assert.equal(safeUrlTransform("javascript:alert(1)", "href"), "")

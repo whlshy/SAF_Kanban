@@ -39,6 +39,7 @@
 - **自動同步 AI Skill**：更新桌面版並啟動時，會自動將先前已安裝過的 AI Skill 更新到最新版（未安裝過的位置不會自動建立）。
 - **外部連結與連接埠**：看板中的外部連結會用系統預設瀏覽器開啟。本機伺服器預設監聽 `41952`；若被佔用會自動改用空埠，可在右上角「AI / API 連線」查看實際位址。
 - **Google Sheet 看板與 CLI 同步**：桌面版的 Google Sheet 看板清單保存在 `<資料夾>/sheets.json`（與本機看板同一個資料夾），與 CLI 完全共用；兩邊新增、修改或刪除皆會在 1 秒內同步。
+- **本機看板圖片附件**：在本機看板編輯描述時可直接貼上剪貼簿圖片、拖放圖片檔或點「插入圖片」上傳（支援 PNG / JPEG / WebP / GIF，單檔上限 10 MB）；圖片以內容雜湊去重存放在本機，Markdown 會插入 `![名稱](attachment:...)`，點圖片可開燈箱放大檢視。
 
 ### 純 CLI 版（Windows / macOS / Linux）
 
@@ -123,10 +124,11 @@ saf-kanban-cli edit-board <看板> [--name N] [--columns A,B,C] [--rename 舊=�
                           [--labels 名稱:顏色,...] [--rename-label 舊=新]
                           [--issue-link 網址] [--sheet 網址或ID] [--script 網址或ID] [--user 名稱]
 saf-kanban-cli delete-board <看板>        刪除本機看板（移至 trash/），或從清單移除 Google Sheet 看板（不動雲端試算表）
+saf-kanban-cli attach <看板> <圖片檔>     附加圖片到本機看板並回傳 Markdown 語法（支援 PNG/JPEG/WebP/GIF，上限 10 MB）
 saf-kanban-cli import <檔案> [--password 密碼]
                                           匯入網頁／桌面版匯出的設定檔（支援明文與加密檔）或單一本機看板
 saf-kanban-cli export [看板...] [--sheets] [--out 檔案] [--password 密碼]
-                                          匯出單一本機看板，或匯出 Google Sheet 設定（--out - 輸出至 stdout）
+                                          匯出單一本機看板（內嵌引用的圖片附件），或匯出 Google Sheet 設定（--out - 輸出至 stdout）
 saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into 資料夾]
                                           印出或安裝 skill
 ```
@@ -178,14 +180,15 @@ saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into �
 | 路徑 | 內容 |
 | --- | --- |
 | `boards/<看板 ID>.json` | 每個看板一個獨立 JSON 檔（欄位、負責人、任務、已刪除紀錄） |
+| `attachments/<看板 ID>/` | 本機看板上傳或貼上的圖片附件（以 SHA-256 前 16 碼命名去重） |
 | `sheets.json` | 桌面版與 CLI 共用的 Google Sheet 看板設定清單（Unix 權限 `0600`） |
-| `trash/` | 刪除的本機看板會移到此處保留，不會直接消失 |
+| `trash/` | 刪除的本機看板與其圖片附件會移到此處保留，不會直接消失 |
 | `config.json` | API 權杖 |
 | `boards.lock` | 多程式並發寫入用的檔案鎖 |
 | `server.json` | 伺服器目前連接埠（供 `mcp` 模式自動偵測） |
 
 - **全機備份**：直接複製整個資料夾即可。
-- **單一看板匯出／匯入**：在看板「設定」按「匯出看板」存成 JSON（不含 API 權杖），在看板選單按「匯入設定或看板」即可還原成新看板。
+- **單一看板匯出／匯入**：在看板「設定」按「匯出看板」存成 JSON（不含 API 權杖，會內嵌任務中引用的本機圖片附件），在看板選單按「匯入設定或看板」即可還原成新看板。
 - **從 Google Sheet 複製**：在 Google Sheet 看板的「設定」按「複製成本機看板」，會把欄位、任務（含建立與移入時間）與負責人複製成本機看板，不更動原 Sheet。
 - **寫入安全**：每次請求皆直接讀檔（外部還原備份不需重啟），寫入先落暫存檔再原子覆蓋，中途當機不損毀原檔。
 
@@ -209,9 +212,11 @@ saf-kanban-cli skill [--install [--target agents|claude|antigravity] | --into �
 | --- | --- |
 | `GET /info` | 伺服器名稱、版本與是否支援 App 內更新（`canUpdate`） |
 | `GET /sheets` / `PUT /sheets` | 讀取／同步桌面版與 CLI 共用的 Google Sheet 看板清單（`sheets.json`） |
-| `GET /boards` / `POST /boards` | 列出本機看板／建立看板（可帶 `tasks`、`history` 還原匯出檔） |
+| `GET /boards` / `POST /boards` | 列出本機看板／建立看板（可帶 `tasks`、`history`、`attachments` 還原匯出檔） |
 | `GET /boards/{看板}` / `PATCH` / `DELETE` | 讀取／修改名稱、欄位（含 `renames`）與負責人／刪除至 `trash/` |
-| `GET /boards/{看板}/export` | 匯出整個看板（設定、任務、已刪除紀錄） |
+| `GET /boards/{看板}/export` | 匯出整個看板（設定、任務、已刪除紀錄與引用的圖片附件） |
+| `POST /boards/{看板}/attachments` | 上傳原始圖片位元組（PNG/JPEG/WebP/GIF，上限 10 MB；可帶 `X-Filename`），回傳 `filename`、`markdown` 等欄位 |
+| `GET /boards/{看板}/attachments/{檔名}` | 讀取本機看板圖片附件 |
 | `GET /boards/{看板}/tasks` / `POST` | 篩選列出任務／新增任務 |
 | `GET /boards/{看板}/tasks/{任務}` / `PUT` / `PATCH` / `DELETE` | 讀取／整筆取代或建立／局部更新（支援 `appendDes`）／刪除至歷史 |
 | `POST /boards/{看板}/tasks/{任務}/move` | 移動欄位與位置（`column`、`beforeId`、`afterId`） |

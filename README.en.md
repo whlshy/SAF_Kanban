@@ -44,7 +44,7 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 ## Key Features
 
 - **Boards & Tasks**
-  - Create, edit, and delete tasks with priority, assignee, labels (preset + freeform with dynamic width `+N` overflow on cards), Markdown & Mermaid diagram descriptions (with Write / Preview tabs), and issue tracker links (Jira, GitHub Issues, etc.)
+  - Create, edit, and delete tasks with priority, assignee, labels (preset + freeform with dynamic width `+N` overflow on cards), Markdown & Mermaid diagram descriptions (with Write / Preview tabs and click-to-zoom image lightbox), and issue tracker links (Jira, GitHub Issues, etc.)
   - Unlimited custom columns with within-column and cross-column drag-and-drop (long-press to drag on phones; swipe column-by-column on portrait screens)
   - Automatically tracks creation time (`createdAt`) and last column entry time (`movedAt`), visible in hover tooltips, task details, and the edit dialog
   - Live search and filters (keyword, assignee, priority, label — click any label on a card to toggle filtering) — dragging still works while filtering
@@ -55,7 +55,7 @@ Use it right in the browser (stored in your own Google Sheet), install the Windo
 - **Cross-Device & Desktop Experience**
   - Traditional Chinese and English UI; light and dark themes
   - Installable as a PWA with offline viewing of last loaded data
-  - Windows desktop app with system tray mode, autostart on sign-in, remembered window size & position, in-app updates, and AI agent tooling
+  - Windows desktop app with local board image paste/drop/upload (embedded on JSON export), system tray mode, autostart on sign-in, remembered window size & position, in-app updates, and AI agent tooling
 
 ---
 
