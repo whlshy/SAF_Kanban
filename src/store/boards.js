@@ -257,6 +257,7 @@ export function useBoards() {
         labels: fields.labels,
         tasks: fields.tasks,
         history: fields.history,
+        ...(fields.attachments ? { attachments: fields.attachments } : {}),
       }).then(async (info) => {
         await reloadLocalBoards()
         switchBoard(info.id)

@@ -19,8 +19,8 @@ use crate::{mcp, skill};
 
 use args::{copy_options, parse, parse_limit, read_file_text, Args};
 use boards::{
-    cmd_delete_board, cmd_edit_board, cmd_export, cmd_import, cmd_new_board, find_board,
-    list_all_boards, BoardRef,
+    cmd_attach, cmd_delete_board, cmd_edit_board, cmd_export, cmd_import, cmd_new_board,
+    find_board, list_all_boards, BoardRef,
 };
 use format::{
     filter_board, show_board, show_boards, show_deleted, show_task, show_tasks, task_line, text,
@@ -54,6 +54,8 @@ Usage: saf-kanban-cli <command> [arguments] [--json] [--data-dir DIR]
   restore <board> <task> [--column C] [--before TASK | --after TASK]
                                   Put a deleted task back as it was: same id and
                                   contents, in its old column and place
+  attach <board> <image-file>     Attach a local PNG/JPEG/WebP/GIF image (local boards only)
+                                  and print its Markdown snippet (![name](attachment:...))
   new-board <name> [--columns A,B,C] [--users A,B] [--labels \"bug:red,feat:blue\"] [--issue-link URL]
                    [--sheet URL|ID] [--script URL|ID] [--user NAME]
                                   Create a local board, or add a Google Sheet board (--script)
@@ -575,6 +577,7 @@ fn run(args: &Args) -> Result<String, Failure> {
             };
             shown(tasks.clone(), show_deleted(&tasks))
         }
+        "attach" => cmd_attach(&store, args)?,
         "new-board" => cmd_new_board(&store, args)?,
         "edit-board" => cmd_edit_board(&store, args)?,
         "delete-board" => cmd_delete_board(&store, args)?,

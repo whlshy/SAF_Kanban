@@ -443,18 +443,19 @@ pub(super) fn cmd_import(store: &Store, args: &Args) -> Result<String, Failure> 
     };
 
     match parsed {
-        ImportedFile::LocalBoard(board) => {
+        ImportedFile::LocalBoard(exported) => {
             let taken = taken_titles(store)?;
-            let title = unique_title(&board.title, &taken, "Untitled board");
+            let title = unique_title(&exported.board.title, &taken, "Untitled board");
             let created = store
                 .create_board(NewBoard {
                     title,
-                    issue_link: board.issue_link,
-                    columns: Some(board.columns),
-                    users: board.users,
-                    labels: board.labels,
-                    tasks: board.tasks,
-                    history: board.history,
+                    issue_link: exported.board.issue_link,
+                    columns: Some(exported.board.columns),
+                    users: exported.board.users,
+                    labels: exported.board.labels,
+                    tasks: exported.board.tasks,
+                    history: exported.board.history,
+                    attachments: exported.attachments,
                 })
                 .map_err(|e| Failure::Failed(format!("{} ({})", e.message, e.code)))?;
             let value = json!({
@@ -527,6 +528,33 @@ pub(super) fn cmd_import(store: &Store, args: &Args) -> Result<String, Failure> 
     }
 }
 
+pub(super) fn cmd_attach(store: &Store, args: &Args) -> Result<String, Failure> {
+    args.expect(&["board", "file"], &[])?;
+    let shown = |value: Value, plain: String| if args.json { pretty(&value) } else { plain };
+    let board_id = match find_board(store, &args.words[0])? {
+        BoardRef::Local(id) => id,
+        BoardRef::Sheet(_) => {
+            return Err(Failure::Failed(
+                "Local image attachments are only supported on local boards (Google Sheet boards can link external https:// images in Markdown)."
+                    .to_string(),
+            ));
+        }
+    };
+    let file_path = PathBuf::from(&args.words[1]);
+    let bytes = std::fs::read(&file_path).map_err(|e| {
+        Failure::Failed(format!(
+            "Couldn't read image file {}: {e}",
+            file_path.display()
+        ))
+    })?;
+    let original_name = file_path.file_name().and_then(|n| n.to_str());
+    let saved = store
+        .save_attachment(&board_id, &bytes, original_name)
+        .map_err(|e| Failure::Failed(format!("{} ({})", e.message, e.code)))?;
+    let value = serde_json::to_value(&saved).unwrap_or_else(|_| json!({}));
+    Ok(shown(value, saved.markdown))
+}
+
 pub(super) fn cmd_export(store: &Store, args: &Args) -> Result<String, Failure> {
     args.expect_options(&["out", "password"])?;
     let shown = |value: Value, plain: String| if args.json { pretty(&value) } else { plain };
@@ -557,16 +585,19 @@ pub(super) fn cmd_export(store: &Store, args: &Args) -> Result<String, Failure> 
                         "`--password` is only for Google Sheet settings exports, not single local board exports.",
                     ));
                 }
-                let board = store
-                    .get_board(&id)
+                let exported = store
+                    .export_board(&id)
                     .map_err(|e| Failure::Failed(format!("{} ({})", e.message, e.code)))?;
-                let text = export_local_board_json(&board).map_err(Failure::Failed)?;
+                let text = export_local_board_json(&exported).map_err(Failure::Failed)?;
                 let name = format!(
                     "saf-kanban-board-{}-{}.json",
-                    safe_filename_part(&board.title),
+                    safe_filename_part(&exported.board.title),
                     today_ymd()
                 );
-                let summary = format!("Exported local board [{}] {}", board.id, board.title);
+                let summary = format!(
+                    "Exported local board [{}] {}",
+                    exported.board.id, exported.board.title
+                );
                 (text, name, summary)
             }
             BoardRef::Sheet(sheet_board) => {

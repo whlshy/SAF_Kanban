@@ -16,6 +16,20 @@
 | v2 | 1.5.0 | 刪除的 Task 保存到 `history` 工作表；寫入前確認連到的是看板設定的 Sheet；回傳錯誤代碼與版本號；新增 `action=info` |
 | v1 | 1.0.0 | 1.5.0 以前寫在 README 裡的版本 |
 
+## 1.24.0 與桌面版／CLI 0.9.0 — 2026-11-28
+
+桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載；純 CLI 版可透過一鍵安裝腳本升級。資料格式完全向下相容，**不需更新 Apps Script**。
+
+### 新增
+
+- **桌面版本機看板圖片附件（貼上、拖放、上傳）**：
+  - **三種快速插圖方式**：在本機看板的編輯任務視窗中，支援直接 `Ctrl+V` 貼上剪貼簿截圖、拖放圖片檔進描述區，或點擊「插入圖片」按鈕批次上傳（僅本機看板啟用；Google Sheet 看板維持外部圖片網址）。
+  - **本機雜湊去重與安全防護**：以魔術位元組嚴格驗證 **PNG / JPEG / WebP / GIF**（單檔上限 10 MB，擋掉 SVG 與路徑穿越），依 SHA-256 前 16 碼去重儲存於 `<資料夾>/attachments/<看板 ID>/`，Markdown 寫入可攜式語法 `![名稱](attachment:<16hex>.<ext>)`，不綁定連接埠、看板 ID 或權杖。
+  - **刪除保留策略**：單張圖片不自動回收，避免復原已刪除任務時破圖；刪除整個本機看板時一併將其附件資料夾移至 `trash/attachments/`。
+  - **單一看板 JSON 匯出／匯入自動內嵌圖片**：匯出單一本機看板 JSON（畫面與 CLI）時自動將任務與歷史紀錄引用的圖片以 Base64 內嵌至 `attachments` 欄位，匯入時驗證並還原至磁碟，完整向下相容舊版匯出檔。
+  - **CLI、HTTP API 與 AI Skill 支援**：新增 `saf-kanban-cli attach <看板> <圖片檔>` 指令，以及 `POST /api/boards/{看板}/attachments`、`GET /api/boards/{看板}/attachments/{檔名}` 端點，並同步更新內建 `SKILL.md` 與桌面版文件。
+- **全螢幕圖片燈箱檢視（Lightbox）**：網頁版與桌面版皆支援點擊任務描述或編輯預覽中的任何圖片（本機附件或外部 `http`/`https` 圖片）開啟全螢幕放大燈箱，附圖片說明文字與關閉按鈕；按 `Esc` 僅關閉燈箱、不影響底層任務視窗。
+
 ## 1.23.0 與桌面版／CLI 0.8.0 — 2026-11-28
 
 桌面版 0.5.0 以上可直接於應用程式內更新，或到 [Releases](https://github.com/whlshy/SAF_Kanban/releases) 下載；純 CLI 版可透過一鍵安裝腳本升級。資料格式完全向下相容，**不需更新 Apps Script**。

@@ -16,6 +16,20 @@ Website changes take effect as soon as they're released. The Apps Script has to 
 | v2 | 1.5.0 | Keeps deleted tasks in the `history` sheet; checks it's connected to the board's Sheet before writing; returns error codes and its version; adds `action=info` |
 | v1 | 1.0.0 | The script embedded in the README before 1.5.0 |
 
+## 1.24.0 and desktop app / CLI 0.9.0 — 2026-11-28
+
+Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Data format is 100% backwards-compatible — **no Apps Script update needed**.
+
+### Added
+
+- **Local board image attachments on desktop (paste, drag-and-drop, upload)**:
+  - **Three effortless ways to attach images**: while editing a task on a local board, paste screenshots directly from the clipboard (`Ctrl+V`), drag and drop image files into the description editor, or click **Insert image** to pick one or more files (local boards only; Google Sheet boards continue using external image URLs).
+  - **Content-addressed storage & strict validation**: verifies **PNG / JPEG / WebP / GIF** by magic bytes (10 MB max per image; blocks SVG and path traversal), deduplicates by SHA-256 16-hex prefix under `<data dir>/attachments/<board-id>/`, and writes portable `![name](attachment:<16hex>.<ext>)` Markdown syntax without hardcoding ports, board IDs, or tokens.
+  - **Safe retention on delete**: individual images are kept so restoring deleted tasks never breaks attachments; deleting an entire local board moves its attachment folder into `trash/attachments/`.
+  - **Self-contained JSON export/import**: exporting a single local board (via UI or CLI) embeds all attachments referenced by active or deleted tasks as Base64 in `attachments`, and importing validates and restores them to disk while staying backwards-compatible with older exports.
+  - **CLI, HTTP API & AI Skill support**: adds `saf-kanban-cli attach <board> <image-file>`, `POST /api/boards/{board}/attachments`, and `GET /api/boards/{board}/attachments/{filename}`, with matching updates to embedded `SKILL.md` and desktop docs.
+- **Full-screen image Lightbox (Web & Desktop)**: clicking any loaded image in task descriptions or edit previews (local `attachment:` or external `http`/`https`) opens a full-screen zoom Lightbox with caption and close button; pressing `Esc` closes only the Lightbox without dismissing the underlying task modal.
+
 ## 1.23.0 and desktop app / CLI 0.8.0 — 2026-11-28
 
 Desktop app 0.5.0+ can update directly from inside the app, or download from [Releases](https://github.com/whlshy/SAF_Kanban/releases); the standalone CLI can be upgraded with the one-line install script. Data format is 100% backwards-compatible — **no Apps Script update needed**.

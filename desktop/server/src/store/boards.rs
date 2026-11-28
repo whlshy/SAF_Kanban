@@ -42,6 +42,13 @@ impl Store {
         self.read(id)
     }
 
+    pub fn export_board(&self, id: &str) -> ApiResult<super::ExportedBoard> {
+        let _guard = self.reading()?;
+        let board = self.read(id)?;
+        let attachments = self.export_attachments(&board)?;
+        Ok(super::ExportedBoard { board, attachments })
+    }
+
     pub fn create_board(&self, input: NewBoard) -> ApiResult<BoardInfo> {
         let mut columns = match input.columns {
             Some(columns) => clean_names(columns, "DUPLICATE_COLUMN")?,
@@ -123,6 +130,7 @@ impl Store {
                 .flat_map(|task| task.labels.iter().cloned())
                 .collect();
             super::sync_board_labels(&mut board, &task_labels);
+            self.import_attachments(&board.id, &input.attachments)?;
             self.write(&board)?;
             board
         };
@@ -241,7 +249,8 @@ impl Store {
         Ok(info)
     }
 
-    /// The file is moved to `<data dir>/trash/` instead of being deleted.
+    /// The file (and its attachments folder, if any) is moved to `<data dir>/trash/`
+    /// instead of being deleted.
     pub fn delete_board(&self, id: &str) -> ApiResult<()> {
         {
             let _guard = self.writing()?;
@@ -251,6 +260,7 @@ impl Store {
             let stamp = now().replace(':', "-");
             fs::rename(self.path(id), trash.join(format!("{id}-{stamp}.json")))
                 .map_err(ApiError::storage)?;
+            self.trash_attachments(id, &stamp)?;
             self.remember(id);
         }
         self.announce("boards", Some(id));

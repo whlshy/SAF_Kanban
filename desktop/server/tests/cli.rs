@@ -759,3 +759,53 @@ fn labels_work_from_the_cli() {
     assert_eq!(after_rename["labels"], json!(["Defect", "Urgent"]));
 }
 
+#[test]
+fn attach_command_and_export_import_preserve_local_images() {
+    let folder = Folder::new();
+    let dir = &folder.0;
+    let dir2 = Folder::new();
+
+    ok(dir, &["new-board", "Images"]);
+
+    let png_path = dir.join("diagram.png");
+    let png: &[u8] = &[
+        0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, b'I', b'H', b'D',
+        b'R', 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+        0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0a, b'I', b'D', b'A', b'T', 0x78, 0x9c, 0x63, 0x00,
+        0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, b'I',
+        b'E', b'N', b'D', 0xae, 0x42, 0x60, 0x82,
+    ];
+    std::fs::write(&png_path, png).unwrap();
+
+    let attached = json_of(dir, &["attach", "Images", png_path.to_str().unwrap()]);
+    let filename = attached["filename"].as_str().unwrap().to_string();
+    let markdown = attached["markdown"].as_str().unwrap().to_string();
+    assert_eq!(markdown, format!("![diagram.png](attachment:{filename})"));
+
+    // Plain output prints the ready-to-embed Markdown snippet.
+    let plain = ok(dir, &["attach", "Images", png_path.to_str().unwrap()]);
+    assert_eq!(plain.trim(), markdown);
+
+    // SVG is rejected cleanly.
+    let svg_path = dir.join("bad.svg");
+    std::fs::write(&svg_path, "<svg></svg>").unwrap();
+    let bad = run_in(dir, &["attach", "Images", svg_path.to_str().unwrap()], None);
+    assert_eq!(bad.status.code(), Some(1));
+    assert!(err(&bad).contains("UNSUPPORTED_IMAGE_TYPE"), "{}", err(&bad));
+
+    // Attach image inside a task, export, and import into a second data folder.
+    ok(
+        dir,
+        &["add", "Images", "With Image", "--description", &markdown],
+    );
+    let export_path = dir.join("images-export.json");
+    ok(
+        dir,
+        &["export", "Images", "--out", export_path.to_str().unwrap()],
+    );
+    let imported = json_of(&dir2.0, &["import", export_path.to_str().unwrap()]);
+    let new_board_id = imported["board"]["id"].as_str().unwrap();
+    let restored_file = dir2.0.join("attachments").join(new_board_id).join(&filename);
+    assert_eq!(std::fs::read(&restored_file).unwrap(), png);
+}
+

@@ -89,6 +89,7 @@ function Home() {
           <EmptyBoards />
         ) : (
           <WHLKanban
+            board={currentBoard}
             notice={notice}
             source={source}
             columnNames={columns}
@@ -111,7 +112,7 @@ function Home() {
 
 export default Home
 
-function WHLKanban({ source, columnNames, tasks, tasksUpdatedAt, users, boardLabels, filter, onToggleLabel, reloadTasks, reloadLabels, disabled, locked, notice }) {
+function WHLKanban({ board, source, columnNames, tasks, tasksUpdatedAt, users, boardLabels, filter, onToggleLabel, reloadTasks, reloadLabels, disabled, locked, notice }) {
   // What the board shows: column name -> its tasks that pass the filter.
   // Dragging and saving update it right away; reloading then confirms it.
   const [columns, setColumns] = React.useState({})
@@ -327,6 +328,8 @@ function WHLKanban({ source, columnNames, tasks, tasksUpdatedAt, users, boardLab
               users={users}
               boardLabels={boardLabels}
               allLabels={allLabels}
+              boardId={board?.id}
+              canUploadImages={board?.type === "local"}
               onClose={() => setDialog({ open: false })}
               onOk={handleEditTask}
               onDel={handleDelete}

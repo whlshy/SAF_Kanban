@@ -1,5 +1,18 @@
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"])
 const SAFE_IMAGE_PROTOCOLS = new Set(["http:", "https:"])
+export const ATTACHMENT_PREFIX = "attachment:"
+const ATTACHMENT_NAME_RE = /^[0-9a-f]{16}\.(png|jpg|webp|gif)$/
+
+/**
+ * Extracts a validated local attachment filename from an `attachment:<file>` URL,
+ * or returns `""` if the URL isn't a valid local attachment reference.
+ */
+export function parseAttachmentFilename(raw) {
+  const trimmed = String(raw ?? "").trim()
+  if (!trimmed.toLowerCase().startsWith(ATTACHMENT_PREFIX)) return ""
+  const name = trimmed.slice(ATTACHMENT_PREFIX.length)
+  return ATTACHMENT_NAME_RE.test(name) ? name : ""
+}
 
 /**
  * Validates that a URL uses an explicit safe protocol.
@@ -22,10 +35,14 @@ export function isSafeUrl(raw, { allowMailto = true } = {}) {
 }
 
 /**
- * `urlTransform` callback for react-markdown: keeps safe external links and
- * drops unsafe schemes so react-markdown renders them inert.
+ * `urlTransform` callback for react-markdown: keeps safe external links,
+ * allows local `attachment:` image sources, and drops unsafe schemes.
  */
 export function safeUrlTransform(url, key) {
+  if (key === "src") {
+    const filename = parseAttachmentFilename(url)
+    if (filename) return `${ATTACHMENT_PREFIX}${filename}`
+  }
   const allowMailto = key !== "src"
   return isSafeUrl(url, { allowMailto }) ? String(url).trim() : ""
 }
@@ -116,8 +133,8 @@ export function markdownToPlainText(markdown) {
       return `\uE000${escapes.length - 1}\uE001`
     })
 
-    // Images: `![alt](url)` -> `alt`
-    line = line.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    // Images: `![alt](url)` -> `alt` (or `[Image]` if alt is blank)
+    line = line.replace(/!\[([^\]]*)\]\([^)]*\)/g, (_, alt) => (alt.trim() || "[Image]"))
 
     // Links: `[label](url "title")` -> `label`
     line = line.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
